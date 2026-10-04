@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14110f">
+<meta name="description" content="Deepcore Blocks: a mining block puzzle. Place pieces, clear lines, dig from the forest to the Underworld.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Deepcore Blocks</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preload" href="fonts/silkscreen-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/barlow-semi-condensed-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="stat">
+      <span class="label">Today</span>
+      <span class="val" id="best">0</span>
+    </div>
+    <div id="score">0</div>
+    <div class="stat right">
+      <span class="label">Board</span>
+      <span class="val" id="level">1</span>
+      <span class="tier" id="tier">Easy</span>
+    </div>
+  </header>
+  <div id="goalsBar"></div>
+  <div id="boardWrap">
+    <canvas id="board"></canvas>
+    <div id="combo"></div>
+    <div id="banner"><span class="lvl" id="bLvl"></span><h2 id="bName"></h2><p id="bGoals"></p></div>
+    <div id="over" hidden>
+      <h2>Cave-in!</h2>
+      <p id="overWhy">No room left to place the next block.</p>
+      <div class="big" id="finalScore">0</div>
+      <p id="finalNote"></p>
+      <div class="row">
+        <button id="rescueBtn" class="primary" type="button" hidden>Craft a Rescue Potion</button>
+        <button id="retry" class="secondary" type="button">Retry board</button>
+        <button id="again" class="secondary" type="button">Map</button>
+      </div>
+    </div>
+  </div>
+  <div id="stash">
+    <div id="stashItems" aria-label="Ores and gems collected"></div>
+    <button id="anvilBtn" type="button" aria-label="Open the anvil"><canvas id="anvilIcon" width="16" height="16"></canvas></button>
+  </div>
+  <div id="tray">
+    <div class="slot" data-i="0"><canvas></canvas></div>
+    <div class="slot" data-i="1"><canvas></canvas></div>
+    <div class="slot" data-i="2"><canvas></canvas></div>
+  </div>
+  <div id="crafted"></div>
+  <div class="btns">
+    <button id="homeBtn" type="button">Map</button>
+    <button id="sound" type="button">Sound: on</button>
+  </div>
+</div>
+<div id="anvil" hidden>
+  <div class="panel" role="dialog" aria-labelledby="anvilTitle">
+    <div class="top"><h2 id="anvilTitle">Anvil</h2><button id="anvilClose" type="button">Close</button></div>
+    <p class="tag" style="margin:0;color:var(--muted);font-size:13px">Smelt ore and gems into special blocks. Drag a special onto any piece in your tray to set it in that block.</p>
+    <div id="recipes"></div>
+  </div>
+</div>
+<div id="map" hidden>
+  <div class="maptop">
+    <button id="mapHome" type="button">Home</button>
+    <div class="mapmeta"><div class="label" id="mapDate"></div><div id="mapProg"></div></div>
+    <span id="mapBadge" hidden></span>
+  </div>
+  <div id="mapScroll"><div id="mapInner"><canvas id="mapCanvas"></canvas><div id="mapNodes"></div></div></div>
+  <div id="nodeCard" hidden>
+    <div class="nctop"><span class="label" id="ncZone"></span><button id="ncClose" type="button" aria-label="Close">✕</button></div>
+    <h2 id="ncName"></h2>
+    <span class="tier" id="ncTier"></span>
+    <div id="ncGoals"></div>
+    <p id="ncNote"></p>
+    <button id="ncGo" class="go" type="button">Mine this board</button>
+  </div>
+  <div id="prospector" hidden>
+    <div class="ppanel">
+      <canvas id="pMedal" width="16" height="16"></canvas>
+      <h2>Prospector</h2>
+      <p>You mined all 20 boards today.</p>
+      <p class="label" id="pCount"></p>
+      <button id="pOk" class="go" type="button">Back to the map</button>
+    </div>
+  </div>
+</div>
+<div id="home">
+  <h1>Deepcore<br>Blocks</h1>
+  <canvas id="homeStrip" width="80" height="16"></canvas>
+  <div id="homeMain" class="menu">
+    <button id="mapBtn" class="primary" type="button">World Map</button>
+    <button id="settingsBtn" type="button">Settings</button>
+    <p class="note" id="homeNote"></p>
+  </div>
+  <div id="homeSettings" class="settings" hidden>
+    <h2>Settings</h2>
+    <label class="label" for="modeRange">Difficulty</label>
+    <input id="modeRange" type="range" min="0" max="2" step="1" value="1">
+    <div class="stops"><span data-i="0">Casual</span><span data-i="1">Committed</span><span data-i="2">Hardened</span></div>
+    <p id="modeDesc"></p>
+    <div id="privacyRow" hidden>
+      <label class="check"><input id="shareData" type="checkbox" checked> Share anonymous play data</label>
+      <p class="fine">Helps improve the game. No name, email or account: just how boards are played.</p>
+    </div>
+    <button id="settingsBack" type="button">Back</button>
+    <p class="fine" id="verLine"></p>
+  </div>
+</div>
+<canvas id="fx"></canvas>
+<canvas id="ghost" hidden></canvas>
+<script src="src/version.js"></script>
+<script src="src/config.js"></script>
+<script src="src/analytics.js"></script>
+<script src="src/game.js"></script>
+<script>
+if('serviceWorker' in navigator && location.protocol!=='file:') navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
