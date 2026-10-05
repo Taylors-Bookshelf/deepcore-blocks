@@ -51,7 +51,7 @@ A mining-themed 8×8 block puzzle (drag 3-piece sets onto the board, clear rows/
 
 **Dealer and feel**
 - Every set must be solvable: a cave-in is always the player's fault.
-- Easy boards: strong dealer assistance (pieces that complete lines, fill exact pockets, enable all-clears). Assistance fades with difficulty; Brutal should feel close to random but still solvable with a small number of correct placements.
+- Easy boards: strong dealer assistance (pieces that complete lines, fill exact pockets, enable all-clears). Assistance fades with difficulty; Expert should feel close to random but still solvable with a small number of correct placements.
 - Shapes that exactly match an open pocket are much more likely in the next set.
 - Starter blocks never create locked holes or sealed 2-cell pockets.
 - "Perfect!" (+50) when the placement was the only one that keeps the tray playable, "Great fit!" (+25) for one of 2–3.
@@ -59,7 +59,7 @@ A mining-themed 8×8 block puzzle (drag 3-piece sets onto the board, clear rows/
 
 ## Open items to raise with the designer
 
-- `SPECIAL_RATE` is 1% / 2% / 3% per piece (Medium / Hard / Brutal), set deliberately.
+- `SPECIAL_RATE` is 1% / 2% / 3% per piece (Medium / Hard / Expert), set deliberately.
 - Score targets and gem rates are first-pass numbers; the gem simulation assumed ~45 pieces per board.
 - Sand was removed from play; its texture still exists in `MATS`. Lapis and quartz were removed entirely (jackhammer and rescue recipes now use copper instead; old saves convert them to copper).
 - Saves are `localStorage` only (keys `deepcore-profile`, `deepcore-day`, `deepcore-board`, `deepcore-mode`), so progress does not follow a player across devices.

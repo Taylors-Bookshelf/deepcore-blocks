@@ -59,7 +59,7 @@ const ORES = {
 const VAL = { grass:2, log:2, dirt:2, sand:2, stone:4, deep:6, obsidian:8, ember:10,
   coal:15, copper:20, iron:30, cinnabar:30, gold:50, emerald:150, diamond:200 };
 // Specials: per-piece chance by difficulty tier, and how often each type is picked
-const SPECIAL_RATE = {Easy:0, Medium:.01, Hard:.02, Brutal:.03};
+const SPECIAL_RATE = {Easy:0, Medium:.01, Hard:.02, Expert:.03};
 const SPECIAL_MIX = {prism:.4, fossil:.32, treasure:.28}; // random-only specials; blast, jackhammer and rescue are craft-only
 
 const DROPS = {
@@ -275,7 +275,7 @@ const SLOT = (()=>{ const c=document.createElement('canvas'); c.width=c.height=T
   x.fillStyle='#17110c'; x.fillRect(0,T-1,T,1); x.fillRect(T-1,0,1,T); return c; })();
 
 // ---------- tiers ----------
-const tierOf=d=> d<.2?'Easy' : d<.5?'Medium' : d<.8?'Hard' : 'Brutal';
+const tierOf=d=> d<.2?'Easy' : d<.5?'Medium' : d<.8?'Hard' : 'Expert';
 const texOf=m=> (MATS[m].kind==='ore'||MATS[m].kind==='gem') ? TEX[m+'@'+levelDef(level).rock] : TEX[m];
 
 // ---------- shapes & bitboards ----------  // CORE-START
@@ -487,9 +487,9 @@ function dressPiece(s,setSoFar){
   }
   return {cells:s.cells,h:s.h,w:s.w,mats,sid:s.id};
 }
-// How many ways a set should be placeable, by difficulty: ~400 on Easy down to ~1–2 on Brutal
+// How many ways a set should be placeable, by difficulty: ~400 on Easy down to ~1–2 on Expert
 const targetWays=d=>Math.pow(400,1-d);
-// Dealer assistance: 1 on the easiest board, ~0.4 on Medium, ~0.1 on Hard, ~0 on Brutal
+// Dealer assistance: 1 on the easiest board, ~0.4 on Medium, ~0.1 on Hard, ~0 on Expert
 const assistOf=d=>Math.pow(1-d,1.8);
 const BIG_SET=[['###/###/###'],['###/###','##/##/##'],['#####','#/#/#/#/#']];
 function chooseSet(lo,hi,d){
@@ -528,12 +528,12 @@ function chooseSet(lo,hi,d){
   if(!best){ const f=SHAPES.filter((s,i)=>fits[i]); best={set:[0,1,2].map(()=>f.length?f[0]:SHAPES[0])}; }
   return best.set.sort(()=>Math.random()-.5);
 }
-let bigNext=false, trayDims=null;
+let bigNext=false;
 function dealSet(){
   const [lo,hi]=occBits(grid); let set;
   if(bigNext && lo===0 && hi===0){ set=BIG_SET.map(opts=>SHAPES[SHAPE_STRS.indexOf(opts[Math.floor(Math.random()*opts.length)])]).sort(()=>Math.random()-.5); bigNext=false; }
   else set=chooseSet(lo,hi,difficulty());
-  const out=[]; set.forEach(s=>out.push(dressPiece(s,out))); pieces=out; trayDims=out.map(p=>[p.w,p.h]);
+  const out=[]; set.forEach(s=>out.push(dressPiece(s,out))); pieces=out;
 }
 // Starter blocks: scattered clumps, never a locked hole or a tiny sealed pocket
 function prefill(){
@@ -595,7 +595,7 @@ function updateBar(){
 }
 let shown=0;
 function updateHUD(){ $('best').textContent=Object.values(dayState.scores).reduce((a,b)=>a+b,0); $('level').textContent=boardLabel(level-1); const t=tierOf(difficulty()); $('tier').textContent=t; $('tier').dataset.t=t; }
-function tickScore(){ if(shown<score){ shown+=Math.max(1,Math.ceil((score-shown)/8)); if(shown>score) shown=score; } else if(shown>score) shown=score; $('score').textContent=shown; updateBar(); }
+function tickScore(){ if(shown<score){ shown+=Math.max(1,Math.ceil((score-shown)/8)); if(shown>score) shown=score; } else if(shown>score) shown=score; updateBar(); }
 
 function drawPiece(ctx,p,cs,ox=0,oy=0,alpha=1){
   ctx.imageSmoothingEnabled=false; ctx.globalAlpha=alpha;
@@ -606,10 +606,9 @@ function fitsAt(p,r0,c0){ for(const [r,c] of p.cells){ const R=r0+r,C=c0+c; if(R
 function canPlaceAnywhere(p){ for(let r=0;r<=N-p.h;r++)for(let c=0;c<=N-p.w;c++) if(fitsAt(p,r,c)) return true; return false; }
 function drawTray(){
   if(!pieces) return;
-  // pieces scale up to fill the slot; a long piece in the set (a 5-wide bar) shrinks the whole set so all three fit
-  const sw=slots[0].clientWidth, sh=slots[0].clientHeight; let cs=Math.floor(cell*.52);
-  // sized from the whole dealt set (trayDims), not whatever is left, so pieces never grow when a neighbour is placed
-  if(sw>0&&sh>0){ cs=Math.floor(cell*.74); (trayDims||pieces.filter(Boolean).map(p=>[p.w,p.h])).forEach(([w,h])=>{ cs=Math.min(cs,Math.floor((sw-12)/w),Math.floor((sh-12)/h)); }); }
+  // one fixed piece size for every piece, big enough to still fit a 1x5 bar inside its slot: nothing ever resizes
+  const sw=slots[0].clientWidth; let cs=Math.floor(cell*.52);
+  if(sw>0) cs=Math.min(Math.floor(cell*.62),Math.floor((sw-6)/5));
   cs=Math.max(14,cs);
   slots.forEach((s,i)=>{
     const cv=s.firstElementChild, p=pieces[i];
@@ -636,9 +635,18 @@ const ITEM={};
       const S=SPR[m.cut], ox=Math.floor((T-S[0].length)/2), oy=Math.floor((T-S.length)/2);
       S.forEach((row,j)=>[...row].forEach((ch,i)=>{ if(m.facets[ch]) P(ox+i,oy+j,m.facets[ch]); }));
     } else {
-      const mask=inclusionMask(k,m.style||'blob'), rim=m.rimDark||'#140e0a';
-      mask.forEach((_,kk)=>{ const [a,b]=kk.split(',').map(Number); [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{ if(!mask.has((a+dx)+','+(b+dy))) P(a+dx,b+dy,rim); }); });
-      mask.forEach((tp,kk)=>{ const [a,b]=kk.split(',').map(Number); P(a,b, tp==='spark'?m.spark : m[tp]); });
+      // one chunky nugget: the biggest cluster of the ore's block art, doubled in size and centred, with a dark outline
+      const mask=inclusionMask(k,m.style||'blob'), rim='#140e0a', seen=new Set(); let best=[];
+      mask.forEach((_,kk)=>{ if(seen.has(kk)) return; const comp=[], st=[kk]; seen.add(kk);
+        while(st.length){ const q=st.pop(); comp.push(q); const [a,b]=q.split(',').map(Number);
+          [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]].forEach(([dx,dy])=>{ const n=(a+dx)+','+(b+dy); if(mask.has(n)&&!seen.has(n)){ seen.add(n); st.push(n); } }); }
+        if(comp.length>best.length) best=comp; });
+      const pts=best.map(q=>q.split(',').map(Number)), x0=Math.min(...pts.map(q=>q[0])), y0=Math.min(...pts.map(q=>q[1]));
+      const w=Math.max(...pts.map(q=>q[0]))-x0+1, h=Math.max(...pts.map(q=>q[1]))-y0+1, sc=Math.max(1,Math.min(2,Math.floor(12/Math.max(w,h))));
+      const ox=Math.floor((T-w*sc)/2)-x0*sc, oy=Math.floor((T-h*sc)/2)-y0*sc, cells=new Set(pts.map(q=>q.join(',')));
+      const R=(a,b,col)=>{ P(ox+a*sc+0,oy+b*sc+0,col); if(sc>1){ P(ox+a*sc+1,oy+b*sc,col); P(ox+a*sc,oy+b*sc+1,col); P(ox+a*sc+1,oy+b*sc+1,col); } };
+      cells.forEach(kk=>{ const [a,b]=kk.split(',').map(Number); [[1,0],[-1,0],[0,1],[0,-1],[1,1]].forEach(([dx,dy])=>{ if(!cells.has((a+dx)+','+(b+dy))) R(a+dx,b+dy,rim); }); });
+      cells.forEach(kk=>{ const [a,b]=kk.split(',').map(Number); const tp=mask.get(kk); R(a,b,tp==='spark'?m.spark:m[tp]); });
     }
     ITEM[k]=c;
   });
@@ -654,7 +662,7 @@ function burst(r,c,k,n=7){
 const easeOut=t=>1-Math.pow(1-t,3), easeIn=t=>t*t*t;
 function cellScreen(r,c){ const B=boardC.getBoundingClientRect(); return [B.left+(c+.5)*cell, B.top+(r+.5)*cell]; }
 function targetFor(res,toStash){
-  const el=(!toStash && document.querySelector(`.goal[data-k="${res}"] canvas`)) || document.querySelector(`.si[data-k="${res}"] canvas`) || $('score');
+  const el=(!toStash && document.querySelector(`.goal[data-k="${res}"] canvas`)) || document.querySelector(`.si[data-k="${res}"] canvas`) || $('goalsBar');
   const R=el.getBoundingClientRect(); return [R.left+R.width/2, R.top+R.height/2];
 }
 // an item pops out of its block, then flies to its goal counter (or the score)
@@ -816,16 +824,33 @@ let comboQueue=[], comboBusy=false;
 function showCombo(text){ comboQueue.push(text); if(!comboBusy) nextCombo(); }
 function nextCombo(){ const t=comboQueue.shift(); if(!t){ comboBusy=false; return; } comboBusy=true;
   const el=$('combo'); el.textContent=t; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); setTimeout(nextCombo,700); }
-let ac=null, soundOn=true;
+let ac=null, master=null, soundOn=true;
+try{ if(localStorage.getItem('deepcore-sound')==='off') soundOn=false; }catch(e){}
+function audioCtx(){
+  if(!ac){ try{ ac=new (window.AudioContext||window.webkitAudioContext)(); master=ac.createGain(); master.gain.value=2.2;
+    const comp=ac.createDynamicsCompressor(); master.connect(comp); comp.connect(ac.destination); }catch(e){ ac=null; } }
+  return ac;
+}
+// iPhones keep Web Audio silent until a tap/touch starts it (and mute it with the ring switch unless the page asks for "playback" audio)
+function unlockAudio(){
+  try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){}
+  const c=audioCtx(); if(!c) return;
+  if(c.state!=='running') c.resume().catch(()=>{});
+  try{ const b=c.createBuffer(1,1,22050), src=c.createBufferSource(); src.buffer=b; src.connect(c.destination); src.start(0); }catch(e){}
+}
+['pointerdown','touchstart','touchend','click','keydown'].forEach(ev=>document.addEventListener(ev,unlockAudio,{capture:true,passive:true}));
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&ac&&ac.state!=='running') ac.resume().catch(()=>{}); });
 function blip(freq,dur=.08,type='square',vol=.05,when=0){
   if(!soundOn) return;
-  try{ ac=ac||new (window.AudioContext||window.webkitAudioContext)();
-    const t=ac.currentTime+when, o=ac.createOscillator(), g=ac.createGain();
+  try{ const c=audioCtx(); if(!c) return; if(c.state!=='running'){ c.resume().catch(()=>{}); return; }
+    const t=c.currentTime+when, o=c.createOscillator(), g=c.createGain();
     o.type=type; o.frequency.setValueAtTime(freq,t); o.frequency.exponentialRampToValueAtTime(freq*.6,t+dur);
     g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
-    o.connect(g).connect(ac.destination); o.start(t); o.stop(t+dur); }catch(e){}
+    o.connect(g).connect(master); o.start(t); o.stop(t+dur); }catch(e){}
 }
-$('sound').onclick=e=>{ soundOn=!soundOn; A.track('setting_change',{setting:'sound',value:soundOn}); e.target.textContent='Sound: '+(soundOn?'on':'off'); };
+function setSoundUI(){ const b=$('sound'); b.setAttribute('aria-pressed',soundOn); b.title=soundOn?'Sound on':'Sound off'; }
+setSoundUI();
+$('sound').onclick=()=>{ soundOn=!soundOn; try{ localStorage.setItem('deepcore-sound',soundOn?'on':'off'); }catch(e){} setSoundUI(); A.track('setting_change',{setting:'sound',value:soundOn}); if(soundOn){ unlockAudio(); blip(660,.08,'triangle',.08); blip(990,.1,'triangle',.08,.08); } };
 function shake(big){ if(REDUCE) return; const w=$('boardWrap'); w.classList.remove('shake','bigshake'); void w.offsetWidth; w.classList.add(big?'bigshake':'shake'); }
 
 function showBanner(ms=2200){
@@ -1097,9 +1122,11 @@ function buildStash(){
     const n=document.createElement('span'); d.append(cv,n); box.append(d); });
   updateStash();
 }
+function updateAnvilGlow(){ const b=$('anvilBtn'); if(b) b.classList.toggle('afford',RECIPES.some(r=>owned(r.m)<1&&canAfford(r))); }
 function updateStash(bumped=[]){
   document.querySelectorAll('.si').forEach(el=>{ const k=el.dataset.k, v=bank[k]||0; el.lastChild.textContent=v; el.classList.toggle('zero',!v);
     if(bumped.includes(k)){ el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } });
+  updateAnvilGlow();
 }
 function onField(m){ let n=0; if(grid) for(const row of grid) for(const v of row) if(v===m) n++; (pieces||[]).forEach(p=>{ if(p) p.mats.forEach(v=>{ if(v===m) n++; }); }); return n; }
 function owned(m){ return (crafted[m]||0)+onField(m); }
@@ -1141,16 +1168,71 @@ function smelt(rc){
   updateStash(Object.keys(rc.cost)); renderCrafted(); renderAnvil(); saveProfile();
   [330,440,660,880,1320].forEach((f,j)=>blip(f,.1,j%2?'square':'triangle',.05,j*.06));
 }
+
+// ---------- field guide (the info panel): content is generated from the game's own tables so the numbers never go stale ----------
+const RARITY={ coal:'Common', copper:'Common', cinnabar:'Common', iron:'Unusual', gold:'Rare', emerald:'Rare', diamond:'Rare' };
+const BASE_INFO=[['dirt','Dirt','dirt'],['wood','Wood','log'],['stone','Stone','stone'],['deep','Deep stone','deep'],['obsidian','Obsidian','obsidian'],['ember','Ember rock','ember']];
+function craftList(){ return RECIPES.map(r=>({name:MATS[r.m].name,cost:r.cost,mat:r.m,desc:r.desc})); }
+function zonesFor(k){
+  const names=ZONES.filter(z=>{ const mixes=z.mixes.some(m=>Object.keys(m).includes(k==='wood'?'log':k)); return mixes||z.ores.includes(k)||(z.gems&&z.gems[k]); }).map(z=>z.name);
+  return names.length>3 ? names[0]+' to '+names[names.length-1] : names.join(', ');
+}
+function usesOf(k){ const u=craftList().filter(c=>c.cost[k]).map(c=>c.name); return u.length?'Used for: '+u.join(', '):'Points only'; }
+function infoEl(tag,text,cls){ const e=document.createElement(tag); if(cls) e.className=cls; if(text!==undefined) e.textContent=text; return e; }
+function infoList(items){ const u=infoEl('ul'); items.forEach(t=>u.append(infoEl('li',t))); return u; }
+function resRow(cv,name,rarity,pts,line1,line2){
+  const row=infoEl('div',undefined,'irow'); row.append(cv); const d=infoEl('div');
+  const nm=infoEl('div',name,'nm'); if(rarity){ nm.append(infoEl('span',rarity,'rar '+rarity)); } d.append(nm,infoEl('div',`${pts} points each`,'meta'),infoEl('div',line1,'meta')); if(line2) d.append(infoEl('div',line2,'meta')); row.append(d); return row;
+}
+function iconOf(src){ const cv=document.createElement('canvas'); cv.width=cv.height=T; cv.getContext('2d').drawImage(src,0,0); return cv; }
+const INFO_TABS={
+  Play(b){
+    b.append(infoEl('h3','THE GOAL'),infoEl('p',`Drag the three pieces onto the 8×8 board. Fill a whole row or column and it clears, mining every block in it. Earn enough points to fill the bar at the top and the board is cleared. Clear all 20 boards on the world map before the daily reset to earn the Prospector badge.`));
+    b.append(infoEl('h3','CAVE-IN'),infoEl('p',`If none of your three pieces can fit anywhere, the cave collapses and the board ends. Ore you hauled on that attempt is lost, so keep your options open.`));
+    b.append(infoEl('h3','SCORING'),infoList([`Every block you place scores a point, and every block you mine scores its value (see Resources).`,`Clearing several lines at once, or clearing on back-to-back turns, multiplies the bonus.`,`"Perfect!" (+50) means yours was the only placement that kept the whole tray playable. "Great fit!" (+25) means one of two or three.`,`All Clear (an empty board) pays a bonus worth 15% of the board's target, then deals a big easy set.`]));
+    b.append(infoEl('h3','HOW TO GET BETTER'),infoList([`Look at all three pieces before you place any. Plan the order.`,`Keep one row and one column mostly open so long bars still fit.`,`Avoid sealing off single empty cells or tiny pockets; they can only be filled by a matching piece, if one ever comes.`,`Build rows and columns up to one piece away from full, then finish several at once for a combo.`,`Gold glow under your piece means the drop will clear a line.`,`Save Blast Charges and Jackhammers for tight spots, not to pad your score.`]));
+    b.append(infoEl('h3','TOP BAR'),infoList([`TODAY is the total of your best scores on boards you've cleared since the last reset. BOARD is the one you're on, with its difficulty.`,`The map resets at midnight Pacific time. Every day brings a fresh set of 20 boards.`]));
+  },
+  Resources(b){
+    b.append(infoEl('p',`Everything you mine counts toward your score. Ore and gems also go into your stash, which pays for crafting.`));
+    b.append(infoEl('h3','ORE AND GEMS'));
+    [...Object.keys(ORES),'emerald','diamond'].sort((a,c)=>VAL[a]-VAL[c]).forEach(k=>b.append(resRow(iconOf(ITEM[k]),DROPS[k][0],RARITY[k],VAL[k],usesOf(k),'Found in: '+zonesFor(k))));
+    b.append(infoEl('h3','ROCK AND EARTH'));
+    BASE_INFO.forEach(([d,name,m])=>b.append(resRow(iconOf(TEX[m]),name,'Common',VAL[m],d==='wood'?usesOf('wood'):'Points only','Found in: '+zonesFor(d==='wood'?'wood':d))));
+  },
+  Crafting(b){
+    b.append(infoEl('h3','WHAT IS CRAFTING?'),infoEl('p',`The anvil (top of the screen, it glows when you can afford something) turns the ore in your stash into special blocks. You can hold one of each kind at a time.`));
+    b.append(infoEl('h3','HOW'),infoList([`Tap the Anvil, then tap Craft on anything you can afford.`,`Drag a crafted Blast Charge or Jackhammer from the strip under your tray onto one of the three pieces. It replaces the block under your finger.`,`The special fires when the line it's in clears.`]));
+    b.append(infoEl('h3','WHAT YOU CAN CRAFT'));
+    craftList().forEach(c=>{ const row=infoEl('div',undefined,'irow'); row.append(iconOf(TEX[c.mat])); const d=infoEl('div'); d.append(infoEl('div',c.name,'nm'),infoEl('div',c.desc,'meta'),
+      infoEl('div','Costs: '+Object.entries(c.cost).map(([k,v])=>`${v} ${DROPS[k][0]}`).join(', '),'meta')); row.append(d); b.append(row); });
+    b.append(infoEl('h3','WHY IT HELPS'),infoList([`Blast Charge and Jackhammer rescue a crowded board and score big.`,`A Rescue Potion saves you from one cave-in: it undoes your last move and deals fresh pieces.`]));
+  },
+  Specials(b){
+    b.append(infoEl('p',`These appear on their own inside pieces, now and then, from the Medium difficulty up. You can't craft them. When the line they sit in clears, they trigger.`));
+    [['prism','Prism Stone',`Gives 3 of an ore or gem found in the current zone, plus ${MATS.prism.pts} points.`],['fossil','Fossil',`A flat ${MATS.fossil.pts} points.`],['treasure','Buried Treasure',`A haul of ore or gems, with a better chance of gems the deeper you are, plus 200 points.`]].forEach(([m,name,desc])=>{
+      const row=infoEl('div',undefined,'irow'); row.append(iconOf(TEX[m])); const d=infoEl('div'); d.append(infoEl('div',name,'nm'),infoEl('div',desc,'meta')); d.firstChild.append(infoEl('span','Special','rar Special')); row.append(d); b.append(row); });
+    b.append(infoEl('p',`Specials glow so you can spot them. Try to clear their line quickly.`));
+  },
+};
+function renderInfo(tab){
+  const tabs=$('infoTabs'); tabs.innerHTML='';
+  Object.keys(INFO_TABS).forEach(t=>{ const bt=document.createElement('button'); bt.type='button'; bt.textContent=t; bt.setAttribute('role','tab'); bt.setAttribute('aria-selected',t===tab); bt.onclick=()=>{ A.track('info_tab',{tab:t}); renderInfo(t); }; tabs.append(bt); });
+  const body=$('infoBody'); body.innerHTML=''; body.scrollTop=0; INFO_TABS[tab](body);
+}
+$('infoBtn').onclick=()=>{ if(busy) return; renderInfo('Play'); $('info').hidden=false; A.track('info_open'); };
+$('infoClose').onclick=()=>{ $('info').hidden=true; };
+$('info').addEventListener('pointerdown',e=>{ if(e.target.id==='info') $('info').hidden=true; });
 $('anvilBtn').onclick=()=>{ if(busy||over) return; renderAnvil(); $('anvil').hidden=false; };
 $('anvilClose').onclick=()=>{ $('anvil').hidden=true; };
 $('anvil').addEventListener('pointerdown',e=>{ if(e.target.id==='anvil') $('anvil').hidden=true; });
-const uiOpen=()=>screen!=='game' || !$('anvil').hidden;
+const uiOpen=()=>screen!=='game' || !$('anvil').hidden || !$('info').hidden;
 
 // drag a crafted special onto a tray piece; it replaces the block nearest your finger
 let spDrag=null;
 function startSpecialDrag(e,m){
   if(over||busy||uiOpen()||!(crafted[m]>0)) return;
-  e.preventDefault(); if(ac&&ac.state==='suspended') ac.resume();
+  e.preventDefault(); unlockAudio();
   spDrag={m,touch:e.pointerType!=='mouse'};
   const s=Math.round(cell*.9); ghost.width=s*dpr; ghost.height=s*dpr; ghost.style.width=s+'px'; ghost.style.height=s+'px';
   gx.setTransform(dpr,0,0,dpr,0,0); gx.imageSmoothingEnabled=false; gx.clearRect(0,0,s,s); gx.drawImage(TEX[m],0,0,s,s);
@@ -1201,7 +1283,7 @@ function savedBoard(){ const b=lsGet(K_BOARD); return (b && b.day===dayState.day
 const okMat=m=>MATS[m]?m:'copper';   // blocks retired since the save was written
 function restoreBoard(b){
   level=b.idx+1; ({grid,pieces,score,combo,sinceClear,collected}=b);
-  grid=grid.map(row=>row.map(m=>m&&okMat(m))); pieces=pieces.map(p=>p&&{...p,mats:p.mats.map(okMat)}); trayDims=null;
+  grid=grid.map(row=>row.map(m=>m&&okMat(m))); pieces=pieces.map(p=>p&&{...p,mats:p.mats.map(okMat)});
   since=b.since||{}; bigNext=!!b.bigNext; moves=b.moves||0; over=!!b.over; undo=b.undo||null; dealt=b.dealt||{}; shownCol={...collected}; shown=score; busy=false;
   $('over').hidden=true; buildGoals(); updateHUD(); updateStash(); renderCrafted(); drawTray();
   boardT0=lastAct=performance.now(); A.setBoard(boardLabel(b.idx)); A.track('board_resume',{idx:b.idx,label:boardLabel(b.idx),score,moves});
@@ -1227,7 +1309,7 @@ let screen='home';
 function show(which){
   if(screen!==which||which==='home') A.track('screen_view',{screen:which});
   screen=which; A.setScreen(which);
-  $('home').hidden = which!=='home'; $('map').hidden = which!=='map'; $('anvil').hidden=true;
+  $('home').hidden = which!=='home'; $('map').hidden = which!=='map'; $('anvil').hidden=true; $('info').hidden=true;
   if(which==='game'){ layout(); drawTray(); }
 }
 function homeView(v){ ['homeMain','homeSettings'].forEach(id=>$(id).hidden = id!==v); }
@@ -1325,10 +1407,6 @@ function drawMap(ts){
   const glow=x.createLinearGradient(0,45.4*ts,0,47.6*ts); glow.addColorStop(0,'rgba(255,120,30,0)'); glow.addColorStop(1,'rgba(255,120,30,.45)');
   x.fillStyle=glow; x.fillRect(0,45.4*ts,W,2.2*ts);
   drawLava(x,0,46.9,10,2.1,ts,R,lake);
-  const pool=X=>{ const d=Math.abs(X-1.3)/1.1; return d>1?99:45.75+.35*d*d; };
-  const g2=x.createRadialGradient(1.3*ts,46*ts,0,1.3*ts,46*ts,ts*2); g2.addColorStop(0,'rgba(255,140,40,.4)'); g2.addColorStop(1,'rgba(255,140,40,0)');
-  x.fillStyle=g2; x.fillRect(-ts,44*ts,ts*5,ts*4);
-  drawLava(x,.2,45.7,2.2,.6,ts,R,pool);
   // dotted route
   x.strokeStyle='rgba(255,226,140,.75)'; x.lineWidth=Math.max(2,ts*.08); x.setLineDash([ts*.18,ts*.18]); x.beginPath();
   NODE_POS.forEach(([px,py],i)=>{ if(i===0) x.moveTo(px*ts,py*ts); else x.lineTo(px*ts,py*ts); }); x.stroke(); x.setLineDash([]);
@@ -1396,7 +1474,7 @@ $('pOk').onclick=()=>{ $('prospector').hidden=true; };
 let drag=null;
 slots.forEach(s=>s.addEventListener('pointerdown',e=>{
   const i=+s.dataset.i; if(over||busy||uiOpen()||!pieces||!pieces[i]) return;
-  e.preventDefault(); if(ac&&ac.state==='suspended') ac.resume();
+  e.preventDefault(); unlockAudio();
   const p=pieces[i]; drag={i,p,touch:e.pointerType!=='mouse',target:null,t0:performance.now(),x0:e.clientX,y0:e.clientY,moved:0,raw:null};
   ghost.width=p.w*cell*dpr; ghost.height=p.h*cell*dpr; ghost.style.width=p.w*cell+'px'; ghost.style.height=p.h*cell+'px';
   gx.setTransform(dpr,0,0,dpr,0,0); gx.clearRect(0,0,p.w*cell,p.h*cell); drawPiece(gx,p,cell);
@@ -1404,16 +1482,17 @@ slots.forEach(s=>s.addEventListener('pointerdown',e=>{
 }));
 function moveDrag(e){
   if(!drag) return;
-  const p=drag.p, lift=drag.touch?cell*1.6:0;
-  const gxp=e.clientX-p.w*cell/2, gyp=e.clientY-p.h*cell/2-lift;
+  // on touch the whole piece rides above the fingertip (bottom edge ~1 cell clear), centred on it, so both hands see all of it
+  const p=drag.p;
+  const gxp=e.clientX-p.w*cell/2, gyp=drag.touch ? e.clientY-cell*1.15-p.h*cell : e.clientY-p.h*cell/2;
   ghost.style.transform=`translate(${gxp}px,${gyp}px)`;
   const b=boardC.getBoundingClientRect();
   const c0=Math.round((gxp-b.left)/cell), r0=Math.round((gyp-b.top)/cell);
-  drag.target = fitsAt(p,r0,c0) ? {r0,c0} : null; drag.raw={r0,c0}; drag.moved=Math.max(drag.moved,Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0));
+  drag.target = fitsAt(p,r0,c0) ? {r0,c0} : null; ghost.style.opacity=drag.target?'.3':'1'; drag.raw={r0,c0}; drag.moved=Math.max(drag.moved,Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0));
 }
 window.addEventListener('pointermove',moveDrag);
 function endDrag(cancelled){
-  if(!drag) return; const d=drag; drag=null; ghost.hidden=true; slots[d.i].firstElementChild.style.opacity='';
+  if(!drag) return; const d=drag; drag=null; ghost.hidden=true; ghost.style.opacity='1'; slots[d.i].firstElementChild.style.opacity='';
   if(cancelled===true){ A.track('drag_cancel',{sid:d.p.sid,touch:d.touch,drag_ms:Math.round(performance.now()-d.t0)}); return; }
   if(d.target){ place(d.i,d.target.r0,d.target.c0); return; }
   // released without a valid spot: a tap, a miss that was one cell away, or a drop outside the board
@@ -1443,6 +1522,13 @@ function drawSpecialGlow(ctx,x,y,cs,m,now,seed,glow){
   ctx.restore();
   ctx.strokeStyle=`rgba(255,226,140,${glow})`; ctx.lineWidth=2; ctx.strokeRect(x+1,y+1,cs-2,cs-2);
 }
+function outlinePiece(ctx,p,ox,oy,cs,color,w){
+  const set=new Set(p.cells.map(([r,c])=>r+','+c)); ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=w; ctx.lineJoin='round'; ctx.beginPath();
+  p.cells.forEach(([r,c])=>{ const x=ox+c*cs, y=oy+r*cs;
+    if(!set.has((r-1)+','+c)){ ctx.moveTo(x,y); ctx.lineTo(x+cs,y); } if(!set.has((r+1)+','+c)){ ctx.moveTo(x,y+cs); ctx.lineTo(x+cs,y+cs); }
+    if(!set.has(r+','+(c-1))){ ctx.moveTo(x,y); ctx.lineTo(x,y+cs); } if(!set.has(r+','+(c+1))){ ctx.moveTo(x+cs,y); ctx.lineTo(x+cs,y+cs); } });
+  ctx.stroke(); ctx.restore();
+}
 function render(now){
   now=now||0;
   const px=cell*N; bx.setTransform(dpr,0,0,dpr,0,0); bx.imageSmoothingEnabled=false; bx.clearRect(0,0,px,px);
@@ -1467,8 +1553,13 @@ function render(now){
     scr.moves.forEach(mv=>{ const x=(mv.fc+(mv.tc-mv.fc)*e)*cell, y=(mv.fr+(mv.tr-mv.fr)*e)*cell-Math.sin(Math.PI*t)*cell*.6*mv.lift;
       bx.drawImage(texOf(mv.m),x,y,cell,cell); });
     if(t>=1) scrAnim=null; }
-  if(pv){ drawPiece(bx,drag.p,cell,pv.c0*cell,pv.r0*cell,.6);
-    if(hl.size){ bx.fillStyle='rgba(255,230,170,.28)'; drag.p.cells.forEach(([r,c])=>{ if(hl.has((pv.r0+r)*N+pv.c0+c)) bx.fillRect((pv.c0+c)*cell,(pv.r0+r)*cell,cell,cell); }); } }
+  if(pv){ const pu=.75+.25*Math.sin(now/110);
+    if(hl.size){ bx.fillStyle='rgba(255,226,110,.34)'; bx.strokeStyle=`rgba(255,250,200,${pu})`; bx.lineWidth=3;
+      hl.forEach(k=>{ const r=Math.floor(k/N), c=k%N; bx.fillRect(c*cell,r*cell,cell,cell); bx.strokeRect(c*cell+2,r*cell+2,cell-4,cell-4); }); }
+    bx.fillStyle='rgba(255,238,170,.4)'; drag.p.cells.forEach(([r,c])=>bx.fillRect((pv.c0+c)*cell,(pv.r0+r)*cell,cell,cell));
+    drawPiece(bx,drag.p,cell,pv.c0*cell,pv.r0*cell,.92);
+    outlinePiece(bx,drag.p,pv.c0*cell,pv.r0*cell,cell,'#000',Math.max(6,cell*.16));
+    outlinePiece(bx,drag.p,pv.c0*cell,pv.r0*cell,cell,`rgba(255,250,215,${pu})`,Math.max(3,cell*.08)); }
   flashes=flashes.filter(f=>(f.life-=.06)>0);
   flashes.forEach(f=>{ bx.fillStyle=`rgba(255,240,200,${f.life*.7})`; bx.fillRect(f.c*cell,f.r*cell,cell,cell); });
   particles=particles.filter(q=>(q.life-=.022)>0);
@@ -1486,9 +1577,9 @@ function start(){
 // Test hooks exist only when the page is served from this machine with ?debug; they are never exposed on a published site.
 if(['localhost','127.0.0.1','[::1]'].includes(location.hostname) && /[?&]debug\b/.test(location.search)) window.__deepcore={TEX,MATS,ITEM,test:{
   place:(i,r,c)=>place(i,r,c), state:()=>({grid,pieces,score,busy,over,bank,crafted,dealt,screen,level,dayState}),
-  fits:(p,r,c)=>fitsAt(p,r,c), setCell:(r,c,m)=>{grid[r][c]=m;}, setPieces:(ps)=>{pieces=ps; trayDims=ps.map(p=>[p.w,p.h]); drawTray();},
+  fits:(p,r,c)=>fitsAt(p,r,c), setCell:(r,c,m)=>{grid[r][c]=m;}, setPieces:(ps)=>{pieces=ps; drawTray();},
   give:(b)=>{Object.assign(bank,b); updateStash();}, def:()=>levelDef(level), start:(i)=>{show('game'); startBoard(i);},
-  setScore:(v)=>{score=v;}, allClearBonus,
+  setScore:(v)=>{score=v;}, allClearBonus, audioState:()=>ac?ac.state:'none',
 }};
 start();
 })();
