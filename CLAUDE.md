@@ -29,7 +29,10 @@ A mining-themed 8×8 block puzzle (drag 3-piece sets onto the board, clear rows/
 ## Design rules agreed with the designer (keep these unless told otherwise)
 
 **Boards and progression**
-- Home screen: World Map and Settings. The map shows 20 boards per day (4 per zone: The Forest, Stone Caves, Deep Stone, Gem Depths, The Underworld), unlocked in order, regenerated each Pacific-time day (fixed to America/Los_Angeles for everyone). Finishing all 20 in a day earns the **Prospector** achievement.
+- Home screen: World Map and Settings. The map shows 20 boards per day (4 per zone: The Forest, Stone Caves, Deep Stone, Gem Depths, The Underworld), unlocked in order, regenerated each Pacific-time day (fixed to America/Los_Angeles for everyone) with a different look every day (`src/maps.js`, seeded by the date). The cave is dug open board by board; only the forest shows at first. Finishing all 20 in a day earns the **Prospector** achievement.
+- **Gates:** the 4th board of each zone needs 2 torches (Forest: 10 coal + 5 wood each) or 2 lanterns (deeper zones: 20 coal + 10 copper each), crafted from the map's Craft panel.
+- **Strip mine:** a side tunnel after each zone's 3rd board (once per zone per day, not one of the 20). Resource goals (what the gate lacks, at least half a light's cost) instead of a score; its score is added to the daily `bonus`. Ore rates in `data.js` were tuned (tools/day.mjs) so it is needed ~60% of the time.
+- **Haul:** ore/gems/wood mined on a board sit in `hand` (shown as +n) and bank on a clear; a cave-in without a Rescue Potion loses them. **Stash** resets each Pacific day; leftovers become bonus points on the previous day's record (`history`, `bestDay`); crafted specials persist.
 - Forest board 1 is on the surface; forest boards 2–4 sit at increasing dirt depths. Torches only on rock walls (stone, deep stone, obsidian zones). Lava lake at the bottom.
 - A board is cleared by **reaching a score target** (progress bar), not by collecting specific resources. Targets per zone are in `ZONES[].target`, +20% per board within a zone, times the difficulty setting's `goals` multiplier.
 - Difficulty setting (Settings slider): Casual / Committed / Hardened, in `MODES`.
@@ -41,7 +44,7 @@ A mining-themed 8×8 block puzzle (drag 3-piece sets onto the board, clear rows/
 - All mined ore and gems go to the persistent stash (shown under the board).
 
 **Specials**
-- Craft-only (anvil), one of each held at a time: **Blast Charge**, **Jackhammer**, **Rescue Potion** (`RECIPES`). Never spawn randomly.
+- Craft-only (anvil), one of each held at a time: **Blast Charge**, **Jackhammer**, **Rescue Potion**, **Luck Tonic** (`RECIPES`; Luck is tapped to drink and favours the next 7 sets). Never spawn randomly.
 - Random-only, never craftable: **Prism Stone**, **Fossil**, **Buried Treasure** (`SPECIAL_MIX`, `SPECIAL_RATE`).
 - Blast Charge: flares on the board, explodes, breaks the 8 neighbours (their ore flies to the stash), then a short splash.
 - Jackhammer: shakes remaining blocks into a random layout with no trapped gaps, no full lines, and room for the tray pieces (`shakeLayout`).
@@ -57,6 +60,10 @@ A mining-themed 8×8 block puzzle (drag 3-piece sets onto the board, clear rows/
 - Starter blocks never create locked holes or sealed 2-cell pockets.
 - "Perfect!" (+50) when the placement was the only one that keeps the tray playable, "Great fit!" (+25) for one of 2–3.
 - All clear: golden wave, bonus of 15% of the board's score target (so it only finishes a board that was already ~85% there), then a big easy set (3×3, 2×3, 1×5).
+
+## Tuning workflow
+- `node tools/sim.mjs --bot mid` plays the real dealer with a bot calibrated to a typical player (under the v0.3.0 dealer it needed 5-10 tries on boards 4-x/5-x, as testers reported). `node tools/day.mjs --policy smart` plays whole days to see how often the strip mine is needed. `npm run test:balance` asserts the targets (zones 4-5 about 1.5-2 tries).
+- The sim ignores the Perfect/Great-fit bonuses and special-block points, so real scores run a little higher than simulated ones.
 
 ## Open items to raise with the designer
 

@@ -25,7 +25,7 @@ await page.goto(base + '?debug'); await page.waitForTimeout(500);
 const T = (fn, arg) => page.evaluate(fn, arg);
 
 await page.click('#mapBtn'); await page.waitForTimeout(300);
-const nodes = await page.$$eval('.node', e => e.length); if (nodes !== 20) fail(`expected 20 map nodes, got ${nodes}`);
+const nodes = await page.$$eval('.node', e => e.length); if (nodes !== 1) fail(`a fresh day shows only the first board, got ${nodes} nodes`);
 await page.click('.node.open'); await page.click('#ncGo'); await page.waitForTimeout(2400);
 
 let moves = 0, end = 'ok';

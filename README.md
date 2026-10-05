@@ -16,6 +16,8 @@ Or open `index.html` directly in a browser (everything works except offline inst
 
 ## Test
 
+`npm test` runs the rules, map, smoke, touch, flow, gate and soak tests; `npm run test:balance` runs the (slow) balance simulation.
+
 ```bash
 npm install
 npx playwright install chromium

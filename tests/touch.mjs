@@ -57,6 +57,9 @@ for (let i = 1; i <= 4; i++) { await page.tap(`#infoTabs button:nth-child(${i})`
 await page.tap('#infoTabs button:nth-child(2)');
 const txt = await page.evaluate(() => document.getElementById('infoBody').textContent);
 check(/Coal/.test(txt) && /Common/.test(txt) && /Unusual/.test(txt) && /Rare/.test(txt) && /points each/.test(txt), 'resources section lists names, rarity and points');
+await page.tap('#infoTabs button:nth-child(3)');
+const crafting = await page.evaluate(() => document.getElementById('infoBody').textContent);
+check(/Torch/.test(crafting) && /Lantern/.test(crafting) && /strip mine/i.test(crafting) && /Luck Tonic/.test(crafting), 'crafting guide covers torches, lanterns, strip mines and the Luck Tonic');
 await page.tap('#infoClose');
 
 // difficulty naming

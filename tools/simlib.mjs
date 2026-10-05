@@ -68,8 +68,9 @@ function botMove(lo, hi, pcs, rnd) {
   return opts[0];   // planner: same one-step search, no slips
 }
 
-export function runBoard(zi, bj, seed) {
-  const def = { ...D.boardParams(zi, bj, cfg.mode) }, rnd = makeRun(seed), VAL = D.VAL;
+export function runBoard(zi, bj, seed, strip) {
+  const def = { ...D.boardParams(zi, strip ? 1 : bj, cfg.mode) }, rnd = makeRun(seed), VAL = D.VAL;
+  if (strip) { const boost = {}; Object.entries(strip).forEach(([k, n]) => { if (k === 'wood') return; const o = D.ORES[k]; boost[k] = Math.min(6, Math.max(1, (n / 21) / (o.p * (o.vein[0] + o.vein[1]) / 2))); }); def.oreBoost = boost; if (strip.wood) def.base = { log: 2.4, dirt: 1, grass: .4 }; def.target = Infinity; }
   const mats = prefill(def, rnd); let [lo, hi] = bitsOf(mats);
   let score = 0, combo = 0, since = 0, moves = 0, bigNext = false, deals = 0; const dealt = {}, got = {};
   while (true) {
@@ -90,7 +91,7 @@ export function runBoard(zi, bj, seed) {
       else { since++; if (since >= 3) combo = 0; }
       [lo, hi] = bitsOf(mats);
       if (n && lo === 0 && hi === 0) { score += Math.max(10, Math.round(def.target * .15 / 10) * 10); bigNext = true; }
-      if (score >= def.target) return { win: true, score, moves, deals, got, target: def.target };
+      if (strip ? Object.entries(strip).every(([k, v]) => (got[k] || 0) >= v) : score >= def.target) return { win: true, score, moves, deals, got, target: def.target };
       if (pcs.every((q, i) => !q) ) break;
       if (pcs.every(q => !q || !C.SHAPES[q.sid].pl.some(pl => !(lo & pl.lo) && !(hi & pl.hi)))) return { win: false, score, moves, deals, got, target: def.target };
     }

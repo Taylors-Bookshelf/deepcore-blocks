@@ -48,6 +48,9 @@ const RECIPES=[
   {m:'rescue',     cost:{cinnabar:20, emerald:1},                           desc:'Used automatically on a cave-in: undoes your last placement and deals a fresh set of pieces.'},
   {m:'luck',       cost:{cinnabar:12, diamond:1},                           desc:'Tap to drink. For the next 7 sets, the dealer leans toward pieces that clear rows, columns, and even the whole board.'},
 ];
+// Torches (forest) and lanterns (every deeper zone): two must be placed to open the fourth board of a zone.
+const LIGHTS={ torch:{name:'Torch', plural:'torches', cost:{coal:10, wood:5}}, lantern:{name:'Lantern', plural:'lanterns', cost:{coal:20, copper:10}} };
+const LIGHTS_NEEDED=2, lightKind=z=>z===0?'torch':'lantern';
 const STASH_KEYS=['wood','coal','copper','iron','cinnabar','gold','emerald','diamond'];
 
 
@@ -59,6 +62,6 @@ function boardParams(zi,j,mode){
     target:Math.round(z.target*(1+(z.growth===undefined?.2:z.growth)*j)*M.goals/10)*10,
     d:Math.min(.97,(z.d[0]+(z.d[1]-z.d[0])*f)*M.dMul+M.dAdd), pre:Math.round((z.pre[0]+(z.pre[1]-z.pre[0])*f)*M.pre) };
 }
-const api={boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,MODES,ZONES,BOARDS_PER_ZONE,BOARD_COUNT,RECIPES,STASH_KEYS};
+const api={LIGHTS,LIGHTS_NEEDED,lightKind,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,MODES,ZONES,BOARDS_PER_ZONE,BOARD_COUNT,RECIPES,STASH_KEYS};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.DeepcoreData=api;
 })(typeof self!=='undefined'?self:globalThis);

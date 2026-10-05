@@ -1,7 +1,8 @@
 (function(){
 const N = 8, T = 16;
 const A = window.DCA || { track(){}, attempt(){}, setScreen(){}, setBoard(){}, isOn:()=>false, canConfigure:()=>false, setOptOut(){} };
-const {rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,MODES,ZONES,BOARDS_PER_ZONE,BOARD_COUNT,RECIPES,STASH_KEYS}=DeepcoreData;
+const {rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,MODES,ZONES,BOARDS_PER_ZONE,BOARD_COUNT,RECIPES,STASH_KEYS,LIGHTS,LIGHTS_NEEDED,lightKind}=DeepcoreData;
+const M=DeepcoreMaps;
 const {SHAPES,SHAPE_STRS,SHAPE_BY_KEY,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,getBit,bitOf,chooseSet,BIG_IDS,pickWeighted}=DeepcoreCore;
 const FONT_D = '"Silkscreen", "Courier New", monospace';
 
@@ -277,23 +278,25 @@ const texOf=m=> (MATS[m].kind==='ore'||MATS[m].kind==='gem') ? TEX[m+'@'+levelDe
 
 // ---------- state ----------
 let dealt={}, grid, pieces, score=0, combo=0, sinceClear=0, over=false, busy=false, level=1, collected={}, shownCol={}, since={};
-let bank={}, hand={}, crafted={}, luck=0, luckLive=false, moves=0, prospector=0, boardT0=0, lastAct=0;
+let curGoals=null, bank={}, hand={}, crafted={}, luck=0, luckLive=false, moves=0, prospector=0, boardT0=0, lastAct=0;
 let mode=1; try{ const raw=localStorage.getItem('deepcore-mode'); if(raw!==null && ['0','1','2'].includes(raw)) mode=+raw; }catch(e){}
 
 // ---------- daily world map: 5 zones × 4 boards, regenerated every Pacific-time day ----------
 // The world map resets at midnight Pacific time for everyone, wherever they are.
 const PACIFIC=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit',day:'2-digit'});
 function todayKey(){ return PACIFIC.format(new Date()); }
-let dayState={day:todayKey(),done:[],scores:{},prospector:false};
+const freshDay=day=>({day,done:[],scores:{},prospector:false,lights:{},strip:{},bonus:0,attempts:{}});
+let dayState=freshDay(todayKey());
 const _bd={};
 function boardDef(idx){
   const key=dayState.day+':'+idx+':'+mode; if(_bd[key]) return _bd[key];
+  if(idx>=20) return _bd[key]={ idx, name:'Strip Mine', goals:{}, strip:true, ...DeepcoreData.boardParams(idx-20,1,mode), target:0 };   // a side tunnel: resource goals, no score target
   const zi=Math.floor(idx/BOARDS_PER_ZONE), j=idx%BOARDS_PER_ZONE, z=ZONES[zi];
   const RZ=rng(hashStr(dayState.day+'#zone'+zi)+7); const names=z.names.slice().sort(()=>RZ()-.5);
   return _bd[key]={ idx, name:names[j], goals:{}, ...DeepcoreData.boardParams(zi,j,mode) };
 }
 function levelDef(L){ return boardDef(L-1); }
-const boardLabel=idx=>`${Math.floor(idx/BOARDS_PER_ZONE)+1}-${idx%BOARDS_PER_ZONE+1}`;
+const boardLabel=idx=>idx>=20?`${idx-19}-S`:`${Math.floor(idx/BOARDS_PER_ZONE)+1}-${idx%BOARDS_PER_ZONE+1}`;
 
 const emptyGrid=()=>Array.from({length:N},()=>Array(N).fill(null));
 const difficulty=()=>levelDef(level).d;
@@ -378,8 +381,15 @@ function layout(){
 window.addEventListener('resize',layout);
 
 function buildGoals(){
+  if(levelDef(level).strip){ $('goalsBar').innerHTML='<div class="stripGoals" aria-label="Strip mine goals"></div>'; updateStripGoals(); return; }
   $('goalsBar').innerHTML='<div class="pbar" role="progressbar" aria-label="Board score"><div class="pfill" id="pfill"></div><span class="ptxt" id="ptxt"></span></div>';
   updateBar();
+}
+const stripMet=()=>!!curGoals&&Object.entries(curGoals).every(([k,v])=>(hand[k]||0)>=v);
+function updateStripGoals(){
+  const box=document.querySelector('.stripGoals'); if(!box||!curGoals) return; box.innerHTML='';
+  Object.entries(curGoals).forEach(([k,v])=>{ const have=Math.min(v,hand[k]||0), g=document.createElement('div'); g.className='goal'+(have>=v?' done':''); g.dataset.k=k; g.title=DROPS[k][0];
+    const n=document.createElement('span'); n.textContent=`${have}/${v}`; g.append(iconOf(ITEM[k]),n); box.append(g); });
 }
 function updateGoals(){}
 function updateBar(){
@@ -388,7 +398,7 @@ function updateBar(){
   el.parentElement.setAttribute('aria-valuenow',shown); el.parentElement.setAttribute('aria-valuemax',tg);
 }
 let shown=0;
-function updateHUD(){ $('best').textContent=Object.values(dayState.scores).reduce((a,b)=>a+b,0); $('bestPlus').textContent=screen==='game'&&shown>0?'+'+shown:''; $('level').textContent=boardLabel(level-1); const t=tierOf(difficulty()); $('tier').textContent=t; $('tier').dataset.t=t; }
+function updateHUD(){ $('best').textContent=Object.values(dayState.scores).reduce((a,b)=>a+b,0)+(dayState.bonus||0); $('bestPlus').textContent=screen==='game'&&shown>0?'+'+shown:''; $('level').textContent=boardLabel(level-1); const t=tierOf(difficulty()); $('tier').textContent=t; $('tier').dataset.t=t; }
 function tickScore(){ if(shown<score){ shown+=Math.max(1,Math.ceil((score-shown)/8)); if(shown>score) shown=score; } else if(shown>score) shown=score; updateBar(); const bp=$('bestPlus'), t=screen==='game'&&shown>0?'+'+shown:''; if(bp.textContent!==t) bp.textContent=t; }
 
 function drawPiece(ctx,p,cs,ox=0,oy=0,alpha=1){
@@ -450,6 +460,7 @@ const ITEM={};
     WP(i,j, d>5.6?'#140e0a' : d>4.6?'#5a3d20' : d>3.3?'#b88a52' : d>2.4?'#8f6838' : d>1.4?'#c79a62' : '#8f6838'); }
   WP(5,5,'#e8c892'); WP(6,5,'#e8c892'); WP(5,6,'#e8c892');
   ITEM.wood=w;
+  ['torch','lantern'].forEach(k=>{ const cc=document.createElement('canvas'); cc.width=cc.height=T; const cx=cc.getContext('2d'); (k==='torch'?M.drawTorch:M.drawLantern)(cx,0,0,T); ITEM[k]=cc; });
 })();
 
 // ---------- effects layer ----------
@@ -656,20 +667,26 @@ function shake(big){ if(REDUCE) return; const w=$('boardWrap'); w.classList.remo
 
 function showBanner(ms=2200){
   const def=levelDef(level);
-  $('bLvl').textContent=`${def.zoneName} · Board ${boardLabel(level-1)} · ${tierOf(def.d)}`; $('bName').textContent=def.name;
-  $('bGoals').textContent=`Score ${def.target} points to clear`;
+  $('bLvl').textContent=def.strip?`${def.zoneName} · Strip mine · ${tierOf(def.d)}`:`${def.zoneName} · Board ${boardLabel(level-1)} · ${tierOf(def.d)}`; $('bName').textContent=def.name;
+  $('bGoals').textContent=def.strip?`Gather ${Object.entries(curGoals||{}).map(([k,v])=>v+' '+DROPS[k][0].toLowerCase()).join(', ')}`:`Score ${def.target} points to clear`;
   $('banner').classList.add('show'); setTimeout(()=>$('banner').classList.remove('show'),ms);
 }
 
 // ---------- game flow ----------
 const sleep=ms=>new Promise(res=>setTimeout(res,ms));
+// a strip mine pays out the resources it asks for: ore the goals need is made much more common, and the forest one is mostly logs
+function prepStrip(def){
+  const boost={}; Object.entries(curGoals).forEach(([k,n])=>{ if(k==='wood') return; const o=ORES[k]; boost[k]=Math.min(6,Math.max(1,(n/21)/(o.p*(o.vein[0]+o.vein[1])/2))); });
+  def.oreBoost=boost; if(curGoals.wood) def.base={log:2.4,dirt:1,grass:.4};
+}
 function startBoard(idx){
+  { const dd=boardDef(idx); curGoals=dd.strip?stripGoalsFor(dd.zone):null; if(dd.strip) prepStrip(dd); }
   const att=dayState.attempts=dayState.attempts||{}; att[idx]=(att[idx]||0)+1; saveDay();
   undo=null; hand={}; dealt={}; level=idx+1; score=0; shown=0; collected={}; shownCol={}; since={}; bigNext=false; grid=emptyGrid(); pieces=null; combo=0; sinceClear=0; over=false; moves=0; busy=false;
   prefill();
   updateStash(); $('over').hidden=true; buildGoals(); updateHUD(); dealSet(); drawTray(); showBanner(); saveBoard();
   boardT0=lastAct=performance.now(); A.setBoard(boardLabel(idx));
-  const d=levelDef(level); A.track('board_start',{idx,label:boardLabel(idx),zone:d.zoneName,tier:tierOf(d.d),target:d.target,mode:MODES[mode].name,attempt:att[idx],starter_blocks:d.pre});
+  const d=levelDef(level); A.track('board_start',{strip:!!d.strip,idx,label:boardLabel(idx),zone:d.zoneName,tier:tierOf(d.d),target:d.target,mode:MODES[mode].name,attempt:att[idx],starter_blocks:d.pre});
 }
 
 function linesNow(){ const rows=[],cols=[]; for(let i=0;i<N;i++){ if(grid[i].every(Boolean)) rows.push(i); if(grid.every(row=>row[i])) cols.push(i);} return {rows,cols}; }
@@ -748,7 +765,7 @@ async function detonate(r,c,hit){
   return count;
 }
 // All-clear: a nice bonus, but only 15% of the board's score target, so it can't win a board that was far from done
-const allClearBonus=()=>Math.max(10,Math.round(levelDef(level).target*.15/10)*10);
+const allClearBonus=()=>{ const dd=levelDef(level), tg=dd.strip?ZONES[dd.zone].target:dd.target; return Math.max(10,Math.round(tg*.15/10)*10); };
 let boardFlash=null;
 // how special was that placement? counts the spots that keep the rest of the tray playable
 function rateMove(i,r0,c0){
@@ -820,7 +837,7 @@ async function place(i,r0,c0){
     }
   } else { sinceClear++; if(sinceClear>=3) combo=0; }
   busy=false;
-  if(score>=levelDef(level).target){ completeBoard(); return; }
+  { const dd=levelDef(level); if(dd.strip ? stripMet() : score>=dd.target){ dd.strip?completeStrip():completeBoard(); return; } }
   if(pieces.every(q=>!q)) dealSet();
   updateHUD(); drawTray();
   if(pieces.every(q=>!q||!canPlaceAnywhere(q))) gameOver();
@@ -857,9 +874,19 @@ function loseHand(){
   floatText(innerWidth/2,topY-8,'Haul lost','#ff8a7a'); [330,262,196].forEach((f,j)=>blip(f,.16,'sawtooth',.05,j*.1));
   return total;
 }
+function completeStrip(){
+  busy=true; const idx=level-1, z=idx-20, bonus=score;
+  A.track('strip_complete',{zone:z,score:bonus,moves,duration_ms:Math.round(performance.now()-boardT0),attempt:(dayState.attempts||{})[idx]||1});
+  const haul={...hand}; Object.entries(hand).forEach(([k,v])=>{ bank[k]=(bank[k]||0)+v; }); hand={}; updateStash(Object.keys(haul));
+  dayState.strip=dayState.strip||{}; dayState.strip[z]=true; dayState.bonus=(dayState.bonus||0)+bonus;
+  showCombo(`Strip mine cleared! +${bonus} bonus`); [523,659,784,1047].forEach((f,j)=>blip(f,.18,'triangle',.07,.1+j*.1));
+  saveDay(); saveProfile(); clearBoardSave();
+  setTimeout(()=>{ for(let r=0;r<N;r++)for(let c=0;c<N;c++) if(grid[r][c]){ burst(r,c,grid[r][c],4); grid[r][c]=null; } shake();
+    setTimeout(()=>{ busy=false; pieces=null; showMap({justStrip:z}); },900); },900);
+}
 function gameOver(){
   if((crafted.rescue||0)>0){ setTimeout(useRescue,450); return; }
-  const tg=levelDef(level).target, lost=loseHand();
+  const tg=levelDef(level).target||1, lost=loseHand();
   A.track('board_fail',{hand_lost:lost,idx:level-1,label:boardLabel(level-1),score,target:tg,pct:Math.round(100*score/tg),moves,duration_ms:Math.round(performance.now()-boardT0),can_craft_rescue:canAfford(RESCUE()),attempt:(dayState.attempts||{})[level-1]||1});
   over=true; saveBoard(); setTimeout(()=>{ if(over) showOver(); },650);
 }
@@ -941,7 +968,7 @@ function updateAnvilGlow(){ const b=$('anvilBtn'); if(b) b.classList.toggle('aff
 function updateStash(bumped=[]){
   document.querySelectorAll('.si').forEach(el=>{ const k=el.dataset.k, v=bank[k]||0, h=hand[k]||0; el.querySelector('.n').textContent=v; el.querySelector('.pl').textContent=h?'+'+h:''; el.classList.toggle('zero',!v&&!h);
     if(bumped.includes(k)){ el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } });
-  updateAnvilGlow();
+  updateAnvilGlow(); updateStripGoals();
 }
 function onField(m){ let n=0; if(grid) for(const row of grid) for(const v of row) if(v===m) n++; (pieces||[]).forEach(p=>{ if(p) p.mats.forEach(v=>{ if(v===m) n++; }); }); return n; }
 function owned(m){ return (crafted[m]||0)+onField(m)+(m==='luck'&&luck>0?1:0); }
@@ -955,8 +982,7 @@ function renderCrafted(){
     if(m==='luck') chip.addEventListener('click',drinkLuck); else if(m!=='rescue') chip.addEventListener('pointerdown',e=>startSpecialDrag(e,m)); });
 }
 const canAfford=r=>Object.entries(r.cost).every(([k,v])=>(bank[k]||0)>=v);
-function renderAnvil(){
-  const box=$('recipes'); box.innerHTML='';
+function recipeRows(box){
   RECIPES.forEach(rc=>{
     const row=document.createElement('div'); row.className='recipe';
     const big=document.createElement('canvas'); big.className='big'; big.width=big.height=T; big.getContext('2d').drawImage(TEX[rc.m],0,0);
@@ -975,19 +1001,64 @@ function renderAnvil(){
     right.append(b,own); row.append(big,mid,right); box.append(row);
   });
 }
+function renderAnvil(){ const box=$('recipes'); box.innerHTML=''; recipeRows(box); }
+const costChips=(cost)=>{ const c=document.createElement('div'); c.className='cost'; Object.entries(cost).forEach(([k,v])=>{ const sp=document.createElement('span'), have=bank[k]||0; if(have<v) sp.className='short'; sp.append(iconOf(ITEM[k]),document.createTextNode(`${Math.min(have,v)}/${v}`)); sp.title=DROPS[k][0]; c.append(sp); }); return c; };
+function refreshCraft(){ if(!$('anvil').hidden) renderAnvil(); if(!$('craftPanel').hidden) renderCraft(); }
+// the map's craft panel: torches/lanterns for the next gate, then the same specials the anvil makes
+function renderCraft(){
+  const body=$('craftBody'); body.innerHTML=''; const z=curZone(), kind=lightKind(z), L=LIGHTS[kind], placed=lightsOf(z), gateIdx=4*z+3;
+  const h3=t=>{ const e=document.createElement('h3'); e.textContent=t; return e; }, note=t=>{ const e=document.createElement('p'); e.className='note'; e.textContent=t; return e; };
+  body.append(h3('LIGHT THE WAY'));
+  if(isDone(gateIdx)) body.append(note(isDone(19)?'Every way down is lit for today.':`The way down in ${ZONES[z].name} is already lit.`));
+  else {
+    body.append(note(`The fourth board in ${ZONES[z].name} is too dark to dig. Place ${LIGHTS_NEEDED} ${L.plural} to open it.`));
+    const row=document.createElement('div'); row.className='recipe'; const big=document.createElement('canvas'); big.className='big'; big.width=big.height=T; big.getContext('2d').drawImage(ITEM[kind],0,0);
+    const mid=document.createElement('div'); mid.innerHTML=`<div class="nm">${L.name}</div><div class="ds">Placed ${placed}/${LIGHTS_NEEDED}. ${lit(z)?'The way is lit!':'Each one lights the tunnel.'}</div>`; mid.append(costChips(L.cost));
+    const right=document.createElement('div'); const b=document.createElement('button'); b.type='button'; b.className='go'; b.textContent=lit(z)?'Lit':'Craft';
+    const can=Object.entries(L.cost).every(([k,v])=>(bank[k]||0)>=v); b.disabled=lit(z)||!can; b.onclick=()=>craftLight(z);
+    const own=document.createElement('div'); own.className='owned'; own.textContent=lit(z)?'':(can?'Ready to craft':'Need more'); right.append(b,own); row.append(big,mid,right); body.append(row);
+    if(!isDone(4*z+2)) body.append(note(`A strip mine opens off board ${boardLabel(4*z+2)} once you clear it. It's a side tunnel where you can gather what you're missing.`));
+    else if(stripDone(z)) body.append(note('The strip mine here is cleared for today.'));
+    else { const g=stripGoalsFor(z); body.append(note(`Short on resources? Mine the strip mine: ${Object.entries(g).map(([k,v])=>v+' '+DROPS[k][0].toLowerCase()).join(', ')}.`));
+      const r2=document.createElement('div'); r2.className='row2'; const sb=document.createElement('button'); sb.type='button'; sb.className='go'; sb.textContent='Strip mine'; sb.onclick=()=>{ $('craftPanel').hidden=true; openCard(20+z); }; r2.append(sb); body.append(r2); }
+  }
+  body.append(h3('SPECIALS')); const sp=document.createElement('div'); sp.id='craftRecipes'; sp.style.cssText='display:flex;flex-direction:column;gap:10px'; body.append(sp); recipeRows(sp);
+  body.append(note(`Your stash resets at midnight Pacific and leftovers turn into bonus points (worth ${leftoverPoints()} now). Specials you craft are kept.`));
+}
+function craftLight(z){
+  const L=LIGHTS[lightKind(z)]; if(lit(z)||!Object.entries(L.cost).every(([k,v])=>(bank[k]||0)>=v)) return;
+  Object.entries(L.cost).forEach(([k,v])=>bank[k]-=v); dayState.lights=dayState.lights||{}; dayState.lights[z]=lightsOf(z)+1; saveDay(); saveProfile();
+  A.track('light_crafted',{zone:z,kind:lightKind(z),placed:lightsOf(z)}); updateStash(Object.keys(L.cost));
+  [392,523,659,784].forEach((f,j)=>blip(f,.12,'triangle',.06,j*.07)); if(lit(z)) [784,988,1175,1568].forEach((f,j)=>blip(f,.16,'triangle',.06,.3+j*.08));
+  renderCraft(); if(screen==='map') buildMap();
+}
+function openCraft(){ if(busy) return; renderCraft(); $('craftPanel').hidden=false; A.track('craft_open',{screen}); }
+$('mapCraft').onclick=openCraft;
+$('craftClose').onclick=()=>{ $('craftPanel').hidden=true; if(screen==='map') buildMap(); };
+$('craftPanel').addEventListener('pointerdown',e=>{ if(e.target.id==='craftPanel') $('craftClose').onclick(); });
+// day's end: what is left in the stash turns into bonus points at midnight, unless you spend it on specials first
+const leftoverPoints=()=>Object.entries(bank).reduce((a,[k,v])=>a+(v||0)*(VAL[k]||(k==='wood'?VAL.log:0)),0);
+function showDayEnd(){
+  const box=$('dayEndItems'); box.innerHTML=''; Object.entries(bank).filter(([,v])=>v>0).forEach(([k,v])=>{ if(!ITEM[k]) return; const sp=document.createElement('span'); sp.append(iconOf(ITEM[k]),document.createTextNode(v)); sp.title=DROPS[k][0]; box.append(sp); });
+  $('dayEndNote').textContent='You mined all 20 boards. At midnight Pacific your stash resets and what is left turns into bonus points. Craft specials with it now to carry them into tomorrow.';
+  $('dayEndTotal').textContent=`Leftovers are worth ${leftoverPoints()} bonus points as they stand.`;
+  $('dayEnd').hidden=false; A.track('day_end_open',{leftover_pts:leftoverPoints()});
+}
+$('dayEndCraft').onclick=()=>{ $('dayEnd').hidden=true; openCraft(); };
+$('dayEndOk').onclick=()=>{ $('dayEnd').hidden=true; };
 function smelt(rc){
   if(!canAfford(rc) || owned(rc.m)>0) return;
   A.track('craft',{m:rc.m});
   Object.entries(rc.cost).forEach(([k,v])=>bank[k]-=v);
   crafted[rc.m]=1;
-  updateStash(Object.keys(rc.cost)); renderCrafted(); renderAnvil(); saveProfile();
+  updateStash(Object.keys(rc.cost)); renderCrafted(); refreshCraft(); saveProfile();
   [330,440,660,880,1320].forEach((f,j)=>blip(f,.1,j%2?'square':'triangle',.05,j*.06));
 }
 
 // ---------- field guide (the info panel): content is generated from the game's own tables so the numbers never go stale ----------
 const RARITY={ coal:'Common', copper:'Common', cinnabar:'Common', iron:'Unusual', gold:'Rare', emerald:'Rare', diamond:'Rare' };
 const BASE_INFO=[['dirt','Dirt','dirt'],['wood','Wood','log'],['stone','Stone','stone'],['deep','Deep stone','deep'],['obsidian','Obsidian','obsidian'],['ember','Ember rock','ember']];
-function craftList(){ return RECIPES.map(r=>({name:MATS[r.m].name,cost:r.cost,mat:r.m,desc:r.desc})); }
+function craftList(){ return [...RECIPES.map(r=>({name:MATS[r.m].name,cost:r.cost,mat:r.m,desc:r.desc})), ...Object.entries(LIGHTS).map(([k,l])=>({name:l.name,cost:l.cost,item:k,desc:k==='torch'?'Opens the 4th board of the Forest (place 2).':'Opens the 4th board of each deeper zone (place 2).'}))]; }
 function zonesFor(k){
   const names=ZONES.filter(z=>{ const mixes=z.mixes.some(m=>Object.keys(m).includes(k==='wood'?'log':k)); return mixes||z.ores.includes(k)||(z.gems&&z.gems[k]); }).map(z=>z.name);
   return names.length>3 ? names[0]+' to '+names[names.length-1] : names.join(', ');
@@ -1020,8 +1091,10 @@ const INFO_TABS={
     b.append(infoEl('h3','WHAT IS CRAFTING?'),infoEl('p',`The anvil (top of the screen, it glows when you can afford something) turns the ore in your stash into special blocks. You can hold one of each kind at a time.`));
     b.append(infoEl('h3','HOW'),infoList([`Tap the Anvil, then tap Craft on anything you can afford. You can hold one of each, and a Luck Tonic can't be crafted while one is working.`,`Drag a crafted Blast Charge or Jackhammer from the strip under your tray onto one of the three pieces. It replaces the block under your finger. Tap a Luck Tonic to drink it.`,`The special fires when the line it's in clears.`]));
     b.append(infoEl('h3','WHAT YOU CAN CRAFT'));
-    craftList().forEach(c=>{ const row=infoEl('div',undefined,'irow'); row.append(iconOf(TEX[c.mat])); const d=infoEl('div'); d.append(infoEl('div',c.name,'nm'),infoEl('div',c.desc,'meta'),
+    craftList().forEach(c=>{ const row=infoEl('div',undefined,'irow'); row.append(iconOf(c.item?ITEM[c.item]:TEX[c.mat])); const d=infoEl('div'); d.append(infoEl('div',c.name,'nm'),infoEl('div',c.desc,'meta'),
       infoEl('div','Costs: '+Object.entries(c.cost).map(([k,v])=>`${v} ${DROPS[k][0]}`).join(', '),'meta')); row.append(d); b.append(row); });
+    b.append(infoEl('h3','LIGHTING THE WAY'),infoList([`Going down is dark. To open the 4th board of any zone you must place 2 torches (in the Forest) or 2 lanterns (deeper). Use the Craft button on the map: a Torch is 10 coal + 5 wood, a Lantern is 20 coal + 10 copper.`,`Short on coal, copper or wood? After clearing the 3rd board of a zone, a side tunnel called the strip mine opens. Instead of a score it asks for exactly the resources you're missing. It isn't one of your 20 boards, and its score is added to your daily bonus. Once per zone each day.`]));
+    b.append(infoEl('h3','THE DAILY RESET'),infoList([`Everything resets at midnight Pacific: the map, your stash, your lights. Specials you've crafted are kept.`,`Leftover stash turns into bonus points. After clearing all 20 boards you can spend leftovers on specials first.`]));
     b.append(infoEl('h3','WHY IT HELPS'),infoList([`Blast Charge and Jackhammer rescue a crowded board and score big.`,`A Rescue Potion saves you from one cave-in: it undoes your last move and deals fresh pieces, and keeps your haul.`,`A Luck Tonic: tap it under the tray to drink. For the next 7 sets of pieces the dealer favours sets that clear rows and columns. A row of green dots shows how many are left.`]));
   },
   Specials(b){
@@ -1082,25 +1155,35 @@ const K_PROFILE='deepcore-profile', K_DAY='deepcore-day', K_BOARD='deepcore-boar
 const lsGet=k=>{ try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch(e){ return null; } };
 const lsSet=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
 const lsDel=k=>{ try{ localStorage.removeItem(k); }catch(e){} };
-function saveProfile(){ lsSet(K_PROFILE,{bank,crafted,prospector,luck,luckLive}); }
-function loadProfile(){ const p=lsGet(K_PROFILE); if(p){ bank=p.bank||{}; crafted=p.crafted||{}; prospector=p.prospector||0; luck=p.luck||0; luckLive=!!p.luckLive;
+let history=[], bestDay=null, lastDay=null;
+function saveProfile(){ lsSet(K_PROFILE,{bank,crafted,prospector,luck,luckLive,history,bestDay,lastDay}); }
+function loadProfile(){ const p=lsGet(K_PROFILE); if(p){ bank=p.bank||{}; crafted=p.crafted||{}; prospector=p.prospector||0; luck=p.luck||0; luckLive=!!p.luckLive; history=p.history||[]; bestDay=p.bestDay||null; lastDay=p.lastDay||null;
     // lapis and quartz were retired: swap any held for copper so nothing is lost
     ['lapis','quartz'].forEach(k=>{ if(bank[k]){ bank.copper=(bank.copper||0)+bank[k]; } delete bank[k]; }); } }
 function saveDay(){ lsSet(K_DAY,dayState); }
 // a new Pacific day wipes the map and any unfinished board
+// a new Pacific day: the stash is cleared (leftovers become bonus points on yesterday's record), the map is regenerated, unfinished boards are dropped
+function rollover(prev){
+  const left=leftoverPoints(), scoreSum=Object.values(prev.scores||{}).reduce((a,b)=>a+b,0), bonus=prev.bonus||0;
+  const rec={day:prev.day,boards:(prev.done||[]).length,score:scoreSum,bonus,leftover:left,total:scoreSum+bonus+left,prospector:!!prev.prospector};
+  history=[...history,rec].slice(-14); lastDay=rec; if(!bestDay||rec.total>bestDay.total) bestDay=rec;
+  A.track('day_end',{boards:rec.boards,total:rec.total,leftover:left,bonus,prospector:rec.prospector});
+  bank={}; hand={}; saveProfile();
+}
 function checkDay(){
   const s=lsGet(K_DAY), today=todayKey();
-  if(s && s.day===today) dayState=s;
-  else { dayState={day:today,done:[],scores:{},prospector:false}; saveDay(); const b=lsGet(K_BOARD); if(b && b.day!==today) lsDel(K_BOARD); }
+  if(s && s.day===today){ dayState=Object.assign(freshDay(today),s); return; }
+  if(s) rollover(s);
+  dayState=freshDay(today); saveDay(); updateStash(); const b=lsGet(K_BOARD); if(b && b.day!==today) lsDel(K_BOARD);
 }
-function saveBoard(){ if(!pieces) return; lsSet(K_BOARD,{day:dayState.day,idx:level-1,mode,grid,pieces,score,combo,sinceClear,collected,hand,since,bigNext,moves,over,undo,dealt}); saveProfile(); }
+function saveBoard(){ if(!pieces) return; lsSet(K_BOARD,{day:dayState.day,idx:level-1,mode,grid,pieces,score,combo,sinceClear,collected,hand,goals:curGoals,since,bigNext,moves,over,undo,dealt}); saveProfile(); }
 function clearBoardSave(){ lsDel(K_BOARD); }
 function savedBoard(){ const b=lsGet(K_BOARD); return (b && b.day===dayState.day && !b.over && b.moves>0) ? b : null; }
 const okMat=m=>MATS[m]?m:'copper';   // blocks retired since the save was written
 function restoreBoard(b){
   level=b.idx+1; ({grid,pieces,score,combo,sinceClear,collected}=b);
   grid=grid.map(row=>row.map(m=>m&&okMat(m))); pieces=pieces.map(p=>p&&{...p,mats:p.mats.map(okMat)});
-  hand=b.hand||{}; since=b.since||{}; bigNext=!!b.bigNext; moves=b.moves||0; over=!!b.over; undo=b.undo||null; dealt=b.dealt||{}; shownCol={...collected}; shown=score; busy=false;
+  hand=b.hand||{}; curGoals=b.goals||null; { const dd=levelDef(level); if(dd.strip&&curGoals) prepStrip(dd); } since=b.since||{}; bigNext=!!b.bigNext; moves=b.moves||0; over=!!b.over; undo=b.undo||null; dealt=b.dealt||{}; shownCol={...collected}; shown=score; busy=false;
   $('over').hidden=true; buildGoals(); updateHUD(); updateStash(); renderCrafted(); drawTray();
   updateLuckUI(); boardT0=lastAct=performance.now(); A.setBoard(boardLabel(b.idx)); A.track('board_resume',{idx:b.idx,label:boardLabel(b.idx),score,moves});
   if(over) showOver();
@@ -1134,6 +1217,7 @@ function showHome(){
   checkDay(); homeView('homeMain');
   const done=dayState.done.length;
   $('homeNote').textContent=`Today: ${done}/${BOARD_COUNT} boards mined`+(prospector?` · Prospector ×${prospector}`:'');
+  $('homeNote2').textContent=(lastDay?`Yesterday: ${lastDay.boards}/${BOARD_COUNT} boards · ${lastDay.total.toLocaleString()} points`:'')+(bestDay&&lastDay?` · Best day ${bestDay.total.toLocaleString()}`:'');
   show('home');
 }
 $('homeBtn').onclick=()=>showMap({});
@@ -1148,139 +1232,93 @@ $('modeRange').addEventListener('input',e=>{ mode=+e.target.value; A.track('sett
   ['grass','stone','coal@stone','iron@deep','diamond@deep'].forEach((k,i)=>x.drawImage(TEX[k],i*16,0)); })();
 
 // ---------- world map ----------
-// node centres in tile units (10 tiles across): the first forest board on the surface, the rest dug into the dirt,
-// then a winding mine down through each zone
-const NODE_POS=[
-  [1.6,5.4],[4.4,8.1],[7.3,9.9],[4.4,11.7],
-  [8,15],[5,16.6],[2,18.2],[4.6,20.4],
-  [2,24],[5,25.6],[8,27.2],[5.4,29.4],
-  [8,33],[5,34.6],[2,36.2],[4.6,38.4],
-  [2,42],[5,43.4],[8,44.8],[5,46.2],
-];
-const ZONE_TOP=[0,13,22,31,40], MAP_ROWS=49;
-const unlocked=i=> i===0 || dayState.done.includes(i-1) || dayState.done.includes(i);
-const zoneAt=row=> row<13?0 : row<22?1 : row<31?2 : row<40?3 : 4;
-// a wall torch: wooden stick, layered flame, warm halo
-function drawTorch(x,X,Y,ts){
-  const u=ts/16;
-  const g=x.createRadialGradient(X+8*u,Y+5*u,0,X+8*u,Y+5*u,ts*1.5); g.addColorStop(0,'rgba(255,190,90,.38)'); g.addColorStop(1,'rgba(255,150,40,0)');
-  x.fillStyle=g; x.fillRect(X-ts,Y-ts,ts*3,ts*3);
-  const P=(i,j,w,h,c)=>{ x.fillStyle=c; x.fillRect(X+i*u,Y+j*u,w*u,h*u); };
-  P(7,7,2,8,'#7a5630'); P(8,7,1,8,'#5a3d20'); P(7,14,2,1,'#3a2610');
-  P(6,6,4,2,'#3a2a1a');
-  P(6,2,4,4,'#ff7a1a'); P(7,1,2,1,'#ff9a2a'); P(7,3,2,3,'#ffc23a'); P(7,4,2,1,'#fff2b0'); P(8,0,1,1,'#ffb23a');
+// The map is generated fresh each Pacific day (see maps.js). Boards appear as the cave is dug open: clearing a board digs the tunnel to the next one.
+const isDone=i=>dayState.done.includes(i);
+const lightsOf=z=>(dayState.lights&&dayState.lights[z])||0;
+const lit=z=>lightsOf(z)>=LIGHTS_NEEDED;
+const stripDone=z=>!!(dayState.strip&&dayState.strip[z]);
+// a board is open if it's the first, already cleared, or the one after a cleared board; each zone's 4th board also needs the way lit
+const unlocked=i=> i>=20 ? isDone((i-20)*4+2) : (i===0 || isDone(i) || (isDone(i-1) && (i%4!==3 || lit(Math.floor(i/4)))));
+const gateWaiting=i=> i<20 && i%4===3 && !isDone(i) && isDone(i-1) && !lit(Math.floor(i/4));
+let MAP=null, mapDay='';
+function mapState(){
+  let maxY=5.4; MAP.nodes.forEach((n,i)=>{ if(unlocked(i)&&n.y>maxY) maxY=n.y; }); MAP.strip.forEach((s,z)=>{ if(unlocked(20+z)&&s.y>maxY) maxY=s.y; });
+  return {dug:i=>unlocked(i), stripOpen:z=>isDone(z*4+2), stripDone, lights:dayState.lights||{}, maxY};
 }
-// molten lava texture painted per pixel, with a bright surface edge
-function drawLava(x,x0,y0,w,h,ts,R,edgeRow){
-  const u=ts/8, pal=['#6a1406','#a8260c','#e4481a','#ff7a1f','#ffb23a','#ffe58a'];
-  for(let j=0;j<Math.ceil(h*8);j++) for(let i=0;i<Math.ceil(w*8);i++){
-    const X=x0+i*u/ts, Y=y0+j*u/ts; if(Y<edgeRow(X)) continue;
-    const v=Math.sin(X*2.1+Y*3.3)+Math.sin(Y*1.4-X*1.1)*.8+Math.sin((X+Y)*4.7)*.35+(R()-.5)*.5;
-    let k=Math.max(0,Math.min(5,Math.floor((v+2.2)/4.4*6)));
-    if(Y-edgeRow(X)<.14) k=5;
-    if(R()<.035) k=0;
-    x.fillStyle=pal[k]; x.fillRect(X*ts,Y*ts,Math.ceil(u),Math.ceil(u));
-  }
-}
-function drawMap(ts){
-  const cv=$('mapCanvas'), W=10*ts, H=MAP_ROWS*ts;
-  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); cv.style.width=W+'px'; cv.style.height=H+'px';
-  const x=cv.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0); x.imageSmoothingEnabled=false;
-  const R=rng(hashStr('map'+dayState.day));
-  // sky and clouds
-  const sky=x.createLinearGradient(0,0,0,6*ts); sky.addColorStop(0,'#3d5a8a'); sky.addColorStop(1,'#a9c6d8');
-  x.fillStyle=sky; x.fillRect(0,0,W,6*ts);
-  x.fillStyle='rgba(255,255,255,.85)'; [[1,1.2,2.2],[6,.6,3],[4,2.4,1.6]].forEach(([a,b,w])=>{ x.fillRect(a*ts,b*ts,w*ts,ts*.35); x.fillRect((a+.3)*ts,(b-.25)*ts,(w-.6)*ts,ts*.3); });
-  // tunnels between boards (everything below the grass)
-  const tunnel=new Set();
-  for(let i=1;i<NODE_POS.length;i++){ const [ax,ay]=NODE_POS[i-1], [bx2,by2]=NODE_POS[i];
-    for(let s=0;s<=1;s+=.02){ const px=ax+(bx2-ax)*s, py=ay+(by2-ay)*s; if(py<6.9) continue;
-      for(let dy=-.45;dy<=.45;dy+=.45) for(let dx=-.45;dx<=.45;dx+=.45) tunnel.add(Math.floor(py+dy)*10+Math.floor(px+dx)); } }
-  for(let row=6;row<MAP_ROWS;row++) for(let col=0;col<10;col++){
-    const zi=zoneAt(row);
-    let tex = zi===0 ? (row===6?'grass':'dirt') : zi===1?'stone' : zi===2?'deep' : zi===3?'obsidian' : 'ember';
-    const z=ZONES[zi]; if(zi>0 && R()<.12 && z.ores.length){ const o=z.ores[Math.floor(R()*z.ores.length)]; tex=o+'@'+z.rock; }
-    x.drawImage(TEX[tex],col*ts,row*ts,ts,ts);
-    x.fillStyle='rgba(0,0,0,.28)'; x.fillRect(col*ts,row*ts,ts,ts);
-    if(tunnel.has(row*10+col)){ x.fillStyle = zi===0 ? 'rgba(26,16,9,.8)' : 'rgba(10,7,5,.82)'; x.fillRect(col*ts,row*ts,ts,ts); }
-  }
-  // roots dangling into the dirt tunnels
-  for(let col=0;col<10;col++) if(R()<.5){ x.fillStyle='#4a3420'; const rx=(col+R()*.8)*ts; x.fillRect(rx,7*ts,ts*.06,ts*(.3+R()*.8)); }
-  // trees on the surface
-  [[0.4,3],[3,2.6],[5.2,3.2],[7.3,2.8],[9.4,3.3]].forEach(([tx,h])=>{
-    const top=6-h; x.drawImage(TEX.log,(tx-.2)*ts,(top+1)*ts,ts*.4,(h-1)*ts);
-    x.fillStyle='#2f6b22'; x.fillRect((tx-.9)*ts,(top-.2)*ts,1.8*ts,1.4*ts);
-    x.fillStyle='#3f8a2c'; x.fillRect((tx-.7)*ts,(top-.5)*ts,1.4*ts,ts*.8);
-    x.fillStyle='#57a83c'; x.fillRect((tx-.4)*ts,(top-.6)*ts,ts*.6,ts*.35); });
-  // torches on rock walls beside each cave board (stone, deep stone, gem depths)
-  for(let i=4;i<16;i++){ const [px,py]=NODE_POS[i];
-    const spots=[[1,-1],[-1,-1],[1,0],[-1,0],[0,-1]];
-    for(const [dx,dy] of spots){ const col=Math.floor(px)+dx, row=Math.floor(py)+dy;
-      if(col<0||col>9||tunnel.has(row*10+col)||zoneAt(row)<1||zoneAt(row)>3) continue;
-      drawTorch(x,col*ts,row*ts,ts); break; } }
-  // the underworld: a glowing lava lake and a smaller pool
-  const lake=X=>47.3+.28*Math.sin(X*1.3)+.12*Math.sin(X*3.1);
-  const glow=x.createLinearGradient(0,45.4*ts,0,47.6*ts); glow.addColorStop(0,'rgba(255,120,30,0)'); glow.addColorStop(1,'rgba(255,120,30,.45)');
-  x.fillStyle=glow; x.fillRect(0,45.4*ts,W,2.2*ts);
-  drawLava(x,0,46.9,10,2.1,ts,R,lake);
-  // dotted route
-  x.strokeStyle='rgba(255,226,140,.75)'; x.lineWidth=Math.max(2,ts*.08); x.setLineDash([ts*.18,ts*.18]); x.beginPath();
-  NODE_POS.forEach(([px,py],i)=>{ if(i===0) x.moveTo(px*ts,py*ts); else x.lineTo(px*ts,py*ts); }); x.stroke(); x.setLineDash([]);
+function curZone(){ for(let z=0;z<5;z++) if(!isDone(4*z+3)) return z; return 4; }
+function buildMap(){
+  if(!MAP||mapDay!==dayState.day){ MAP=M.genMap(dayState.day); mapDay=dayState.day; }
+  const W=Math.min(window.innerWidth,520), ts=W/10;
+  $('mapInner').style.width=W+'px'; $('mapInner').style.height=M.ROWS*ts+'px';
+  M.drawMap($('mapCanvas'),ts,MAP,mapState(),TEX,dpr);
+  const nodes=$('mapNodes'); nodes.innerHTML='';
+  ZONES.forEach((z,zi)=>{ if(zi>0&&!unlocked(4*zi)) return; const lab=document.createElement('div'); lab.className='zlabel'; lab.textContent=z.name; lab.style.top=(M.ZONE_TOP[zi]+(zi===0?.4:.3))*ts+'px'; nodes.append(lab); });
+  const sb=savedBoard(); let current=-1;
+  const addNode=(i,pos)=>{ const b=document.createElement('button'); b.type='button'; b.className='node'; b.style.left=pos.x*ts+'px'; b.style.top=pos.y*ts+'px';
+    if(i>=20){ const z=i-20, d=stripDone(z); b.classList.add('strip'); if(d) b.classList.add('done'); b.innerHTML=d?'<span>✓</span>':'<span>S</span>'; b.setAttribute('aria-label',`Strip mine, ${ZONES[z].name}${d?', cleared':''}`); }
+    else if(gateWaiting(i)){ b.classList.add('gate'); b.append(iconOf(ITEM[lightKind(Math.floor(i/4))])); b.setAttribute('aria-label',`Board ${boardLabel(i)}, needs ${LIGHTS[lightKind(Math.floor(i/4))].plural}`); }
+    else { const done=isDone(i); if(done) b.classList.add('done'); else { b.classList.add('open'); if(current<0) current=i; }
+      b.innerHTML=done?'<span>✓</span>':`<span>${i%BOARDS_PER_ZONE+1}</span>`; b.setAttribute('aria-label',`Board ${boardLabel(i)}${done?', mined':''}`); }
+    if(sb&&sb.idx===i) b.classList.add('progress'); if(opts_.justDone===i||opts_.justStrip===i-20) b.classList.add('fresh');
+    b.onclick=()=>openCard(i); nodes.append(b); };
+  let opts_=buildMap.opts||{};
+  MAP.nodes.forEach((p,i)=>{ if(unlocked(i)||gateWaiting(i)) addNode(i,p); });
+  MAP.strip.forEach((p,z)=>{ if(unlocked(20+z)) addNode(20+z,p); });
+  const [py,pm,pd]=dayState.day.split('-').map(Number); $('mapDate').textContent=new Date(py,pm-1,pd).toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
+  $('mapProg').textContent=`${dayState.done.length}/${BOARD_COUNT} boards mined`+(dayState.bonus?` · bonus ${dayState.bonus}`:'');
+  $('mapBadge').hidden=!prospector; $('mapBadge').textContent=`Prospector ×${prospector}`;
+  return {current,sb};
 }
 function showMap(opts){
-  if(screen==='game' && pieces && !opts.justDone){ saveBoard(); const tg=levelDef(level).target; A.track('board_leave',{idx:level-1,score,target:tg,pct:Math.round(100*score/tg),moves,over,duration_ms:Math.round(performance.now()-boardT0)}); }
+  if(screen==='game' && pieces && !opts.justDone && !opts.justStrip){ saveBoard(); const dd=levelDef(level), tg=dd.target; A.track('board_leave',{idx:level-1,score,target:tg,pct:tg?Math.round(100*score/tg):0,moves,over,duration_ms:Math.round(performance.now()-boardT0)}); }
   checkDay(); show('map'); $('nodeCard').hidden=true;
-  const W=Math.min(window.innerWidth,520), ts=W/10;
-  $('mapInner').style.width=W+'px'; $('mapInner').style.height=MAP_ROWS*ts+'px';
-  drawMap(ts);
-  const nodes=$('mapNodes'); nodes.innerHTML='';
-  ZONES.forEach((z,zi)=>{ const lab=document.createElement('div'); lab.className='zlabel'; lab.textContent=z.name; lab.style.top=(ZONE_TOP[zi]+(zi===0?.4:.3))*ts+'px'; nodes.append(lab); });
-  const sb=savedBoard();
-  let current=-1;
-  NODE_POS.forEach(([px,py],i)=>{
-    const b=document.createElement('button'); b.type='button'; b.className='node'; b.style.left=px*ts+'px'; b.style.top=py*ts+'px';
-    const done=dayState.done.includes(i), open=unlocked(i);
-    if(done) b.classList.add('done'); else if(open){ b.classList.add('open'); if(current<0) current=i; } else b.classList.add('locked');
-    if(sb && sb.idx===i) b.classList.add('progress');
-    if(opts.justDone===i) b.classList.add('fresh');
-    b.innerHTML = done ? '<span>✓</span>' : open ? `<span>${i%BOARDS_PER_ZONE+1}</span>` : '<span class="lk"></span>';
-    b.setAttribute('aria-label',`Board ${boardLabel(i)}${done?', mined':open?'':', locked'}`);
-    b.onclick=()=>openCard(i);
-    nodes.append(b);
-  });
-  const [py,pm,pd]=dayState.day.split('-').map(Number); $('mapDate').textContent=new Date(py,pm-1,pd).toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
-  $('mapProg').textContent=`${dayState.done.length}/${BOARD_COUNT} boards mined`;
-  $('mapBadge').hidden=!prospector; $('mapBadge').textContent=`Prospector ×${prospector}`;
-  const focus = opts.justDone!==undefined ? Math.min(BOARD_COUNT-1,opts.justDone+1) : (sb?sb.idx:(current<0?BOARD_COUNT-1:current));
-  requestAnimationFrame(()=>{ const sc=$('mapScroll'); sc.scrollTop=Math.max(0,NODE_POS[focus][1]*ts - sc.clientHeight/2); });
+  buildMap.opts=opts; const {current,sb}=buildMap();
+  const focusIdx = opts.justStrip!==undefined ? 20+opts.justStrip : opts.justDone!==undefined ? Math.min(19,opts.justDone+1) : (sb?sb.idx:(current<0?19:current));
+  const fp=focusIdx>=20?MAP.strip[focusIdx-20]:MAP.nodes[focusIdx], ts=Math.min(window.innerWidth,520)/10;
+  requestAnimationFrame(()=>{ const sc=$('mapScroll'); sc.scrollTop=Math.max(0,fp.y*ts - sc.clientHeight/2); });
   if(opts.prospector) setTimeout(showProspector,700);
 }
+// what a strip-mine board asks for: whatever the next lights are short of, and at least half a light's worth as a stock-up
+function stripGoalsFor(z){
+  const L=LIGHTS[lightKind(z)], need=Math.max(0,LIGHTS_NEEDED-lightsOf(z)), g={};
+  Object.entries(L.cost).forEach(([k,v])=>{ g[k]=Math.max(v*need-(bank[k]||0),Math.ceil(v*.5)); }); return g;
+}
+function goalChips(g){ const wrap=document.createElement('div'); wrap.className='goals'; Object.entries(g).forEach(([k,v])=>{ const s=document.createElement('span'); s.title=DROPS[k][0]; s.append(iconOf(ITEM[k]),document.createTextNode(` ${v}`)); wrap.append(s); }); return wrap; }
 function openCard(i){
-  const def=boardDef(i), card=$('nodeCard'), done=dayState.done.includes(i), open=unlocked(i), sb=savedBoard();
-  A.track('board_card_open',{idx:i,label:boardLabel(i),locked:!open,done}); if(!open) A.attempt('locked_board',i);
-  $('ncZone').textContent=`${def.zoneName} · Board ${boardLabel(i)}`;
+  const strip=i>=20, z=strip?i-20:Math.floor(i/4), def=boardDef(i), card=$('nodeCard'), done=strip?stripDone(z):isDone(i), open=unlocked(i), gate=gateWaiting(i), sb=savedBoard();
+  A.track('board_card_open',{idx:i,label:boardLabel(i),locked:!open&&!gate,gate,done}); if(!open&&!gate) A.attempt('locked_board',i);
+  $('ncZone').textContent=strip?`${def.zoneName} · Side tunnel`:`${def.zoneName} · Board ${boardLabel(i)}`;
   $('ncName').textContent=def.name;
   const tier=tierOf(def.d); $('ncTier').textContent=tier; $('ncTier').dataset.t=tier;
   const g=$('ncGoals'); g.innerHTML='';
-  const tgt=document.createElement('span'); tgt.className='tgt'; tgt.textContent=`Score ${def.target} to clear`; g.append(tgt);
-  [...def.ores, ...Object.keys(def.gems||{})].forEach(res=>{ const s=document.createElement('span'); s.title=DROPS[res][0];
-    const cv=document.createElement('canvas'); cv.width=cv.height=T; cv.getContext('2d').drawImage(ITEM[res],0,0); s.append(cv); g.append(s); });
-  const go=$('ncGo'), note=$('ncNote');
-  note.textContent='';
-  if(!open){ go.disabled=true; go.textContent='Locked'; note.textContent=`Mine board ${boardLabel(i-1)} first.`; }
-  else { go.disabled=false;
-    go.textContent = (sb && sb.idx===i) ? 'Continue' : done ? 'Mine again' : 'Mine this board';
-    if(done) note.textContent=`Mined today · ${dayState.scores[i]||0} points`;
-    if(sb && sb.idx!==i) note.textContent=`Starting this board ends your run on ${boardLabel(sb.idx)}.`; }
-  go.onclick=()=>{ $('nodeCard').hidden=true; const s2=savedBoard(); show('game');
-    if(s2 && s2.idx===i){ if(s2.mode!==undefined && s2.mode!==mode){ mode=s2.mode; } restoreBoard(s2); } else { clearBoardSave(); startBoard(i); } };
+  const go=$('ncGo'), note=$('ncNote'); note.textContent='';
+  if(strip){
+    const tgt=document.createElement('span'); tgt.className='tgt'; tgt.textContent='Gather:'; g.append(tgt);
+    Object.entries(stripGoalsFor(z)).forEach(([k,v])=>{ const s=document.createElement('span'); s.title=DROPS[k][0]; s.append(iconOf(ITEM[k]),document.createTextNode(` ${v}`)); g.append(s); });
+    if(done){ go.disabled=true; go.textContent='Cleared today'; note.textContent='This side tunnel is cleared. Its score went into your daily bonus.'; }
+    else { go.disabled=false; go.textContent=(sb&&sb.idx===i)?'Continue':'Start strip mine'; note.textContent='Not counted in your 20 boards. Gather the resources to clear it; your score becomes a daily bonus.'; if(sb&&sb.idx!==i) note.textContent=`Starting this board ends your run on ${boardLabel(sb.idx)}.`; }
+  } else if(gate){
+    const L=LIGHTS[lightKind(z)], tgt=document.createElement('span'); tgt.className='tgt'; tgt.textContent=`Needs ${LIGHTS_NEEDED} ${L.plural} (${lightsOf(z)}/${LIGHTS_NEEDED})`; g.append(tgt);
+    go.disabled=false; go.textContent='Craft '+L.plural; note.textContent=`Too dark to dig deeper. Craft ${L.plural} from coal${z===0?' and wood':' and copper'}, or mine a strip mine for more.`;
+  } else {
+    const tgt=document.createElement('span'); tgt.className='tgt'; tgt.textContent=`Score ${def.target} to clear`; g.append(tgt);
+    [...def.ores, ...Object.keys(def.gems||{})].forEach(res=>{ const s=document.createElement('span'); s.title=DROPS[res][0]; s.append(iconOf(ITEM[res])); g.append(s); });
+    if(!open){ go.disabled=true; go.textContent='Locked'; note.textContent=`Mine board ${boardLabel(i-1)} first.`; }
+    else { go.disabled=false; go.textContent=(sb&&sb.idx===i)?'Continue':done?'Mine again':'Mine this board';
+      if(done) note.textContent=`Mined today · ${dayState.scores[i]||0} points`;
+      if(sb&&sb.idx!==i) note.textContent=`Starting this board ends your run on ${boardLabel(sb.idx)}.`; }
+  }
+  go.onclick=()=>{ $('nodeCard').hidden=true;
+    if(gate){ openCraft(); return; }
+    const s2=savedBoard(); show('game');
+    if(s2&&s2.idx===i){ if(s2.mode!==undefined&&s2.mode!==mode){ mode=s2.mode; } restoreBoard(s2); } else { clearBoardSave(); startBoard(i); } };
   card.hidden=false;
 }
 $('ncClose').onclick=()=>{ $('nodeCard').hidden=true; };
 $('mapHome').onclick=showHome;
 function showProspector(){ $('prospector').hidden=false; $('pCount').textContent=`Earned ${prospector} time${prospector===1?'':'s'}`;
   [523,659,784,1047,1319,1568,2093].forEach((f,j)=>blip(f,.16,'triangle',.06,j*.09)); }
-$('pOk').onclick=()=>{ $('prospector').hidden=true; };
+$('pOk').onclick=()=>{ $('prospector').hidden=true; showDayEnd(); };
 (function medal(){ const x=$('pMedal').getContext('2d'); const P=(i,j,w,h,c)=>{ x.fillStyle=c; x.fillRect(i,j,w,h); };
   P(5,0,2,5,'#c0392b'); P(9,0,2,5,'#2a6fd6'); P(7,0,2,4,'#e8e8e8');
   P(4,5,8,8,'#d9a520'); P(5,4,6,10,'#d9a520'); P(5,5,6,8,'#f5c93c'); P(6,6,4,6,'#ffe08a');
@@ -1395,7 +1433,7 @@ if(['localhost','127.0.0.1','[::1]'].includes(location.hostname) && /[?&]debug\b
   place:(i,r,c)=>place(i,r,c), state:()=>({grid,pieces,score,busy,over,bank,hand,luck,luckLive,crafted,dealt,screen,level,dayState}),
   fits:(p,r,c)=>fitsAt(p,r,c), setCell:(r,c,m)=>{grid[r][c]=m;}, setPieces:(ps)=>{pieces=ps; drawTray();},
   give:(b)=>{Object.assign(bank,b); updateStash();}, def:()=>levelDef(level), start:(i)=>{show('game'); startBoard(i);},
-  setScore:(v)=>{score=v;}, allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:()=>drinkLuck(), deal:()=>dealSet(), complete:()=>completeBoard(), audioState:()=>ac?ac.state:'none',
+  setScore:(v)=>{score=v;}, previewDay:(d)=>{ dayState.day=d; buildMap(); }, lightUp:(z,n=2)=>{ dayState.lights[z]=n; saveDay(); }, markDone:(a)=>{ dayState.done=a.slice(); saveDay(); }, openMap:()=>showMap({}), buildMap:()=>buildMap(), mapInfo:()=>({maxY:mapState().maxY,map:MAP}), newDay:(d)=>{ const s0=lsGet(K_DAY); if(s0){ s0.day=d; lsSet(K_DAY,s0); } checkDay(); }, history:()=>({history,bestDay,lastDay}), setBank:(b)=>{ bank=b; updateStash(); }, craftLight:(z)=>craftLight(z), goals:()=>curGoals, stripMet:()=>stripMet(), completeStrip:()=>completeStrip(), allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:()=>drinkLuck(), deal:()=>dealSet(), complete:()=>completeBoard(), audioState:()=>ac?ac.state:'none',
 }};
 start();
 })();

@@ -64,6 +64,21 @@
     <button id="sound" type="button" aria-label="Sound" aria-pressed="true"><svg viewBox="0 0 16 16" width="26" height="26" shape-rendering="crispEdges" aria-hidden="true"><path class="spk" d="M2 6h3l4-3v10l-4-3H2z"/><path class="wv" d="M11 5h1v1h1v4h-1v1h-1v-1h1V6h-1zM13 3h1v1h1v8h-1v1h-1v-1h1V4h-1z"/><path class="xx" d="M11 6h1v1h1V6h1v1h-1v1h1v1h-1v1h-1V9h-1v1h-1V9h1V8h-1V7h1z"/></svg></button>
   </div>
 </div>
+<div id="craftPanel" hidden>
+  <div class="panel" role="dialog" aria-labelledby="craftTitle">
+    <div class="top"><h2 id="craftTitle">Craft</h2><button id="craftClose" type="button">Close</button></div>
+    <div id="craftBody"></div>
+  </div>
+</div>
+<div id="dayEnd" hidden>
+  <div class="panel">
+    <h2>Day complete</h2>
+    <p id="dayEndNote"></p>
+    <div id="dayEndItems"></div>
+    <p class="fine" id="dayEndTotal"></p>
+    <div class="row"><button id="dayEndCraft" class="go" type="button">Spend on specials</button><button id="dayEndOk" type="button">Done</button></div>
+  </div>
+</div>
 <div id="info" hidden>
   <div class="panel" role="dialog" aria-labelledby="infoTitle">
     <div class="top"><h2 id="infoTitle">Field guide</h2><button id="infoClose" type="button">Close</button></div>
@@ -83,6 +98,7 @@
     <button id="mapHome" type="button">Home</button>
     <div class="mapmeta"><div class="label" id="mapDate"></div><div id="mapProg"></div></div>
     <span id="mapBadge" hidden></span>
+    <button id="mapCraft" type="button">Craft</button>
   </div>
   <div id="mapScroll"><div id="mapInner"><canvas id="mapCanvas"></canvas><div id="mapNodes"></div></div></div>
   <div id="nodeCard" hidden>
@@ -110,6 +126,7 @@
     <button id="mapBtn" class="primary" type="button">World Map</button>
     <button id="settingsBtn" type="button">Settings</button>
     <p class="note" id="homeNote"></p>
+    <p class="note" id="homeNote2"></p>
   </div>
   <div id="homeSettings" class="settings" hidden>
     <h2>Settings</h2>
@@ -132,6 +149,7 @@
 <script src="src/analytics.js"></script>
 <script src="src/data.js"></script>
 <script src="src/core.js"></script>
+<script src="src/maps.js"></script>
 <script src="src/game.js"></script>
 <script>
 if('serviceWorker' in navigator && location.protocol!=='file:') navigator.serviceWorker.register('sw.js').catch(()=>{});

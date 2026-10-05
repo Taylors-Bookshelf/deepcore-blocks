@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0 — Release C: progression and the daily map
+- New map every Pacific day (src/maps.js): different weather (clear, cloudy, overcast, rain, snow, sunset, dusk), scenery (mountains, hills, a lake or none), tree types (oak, pine, birch, mixed, autumn colours), tunnel shape and width, ore and cave decorations, and where lights are placed.
+- The cave is dug open as you play: a fresh day shows only the forest; clearing a board digs the tunnel to the next one, and deeper zones stay in the dark until you reach them.
+- Torch and lantern gates: to open the 4th board of any zone you place 2 torches (Forest: 10 coal + 5 wood each) or 2 lanterns (deeper: 20 coal + 10 copper each). Lit tunnels glow on the map. Craft from the new Craft button on the map (also lists the specials).
+- Strip mines: after clearing a zone's 3rd board a side tunnel opens (once per zone per day). It has resource goals instead of a score target, asks for exactly what the gate is short of, is not one of the 20 boards, and its score is added to a daily bonus. Ore rates were tuned so the strip mine is needed about 60% of the time.
+- The stash now resets at the daily rollover; leftovers become bonus points on yesterday's record (shown on the home screen with your best day). After clearing all 20 boards, a day-end screen lets you spend leftovers on specials to carry into tomorrow.
+- Forest boards 1-2 and 1-3 now have a little coal so the first torches are reachable.
+- Info guide covers torches, lanterns, strip mines and the daily reset.
+- Tests: map generation (variety, spacing, determinism), gates and strip mines, daily reset and day-end, and a soak test (random play on every zone, strip mines, save/resume).
+
 ## 0.4.0 — Release B: economy, fairness, variety
 - Haul system: ore, gems and wood you mine on a board go into your "hand" (shown as a green +n under each stash item, and +points next to Today). Clearing the board banks them; a cave-in without a Rescue Potion makes them spill out and vanish. Crafting uses only banked stash.
 - Wood is now a stash resource. Rescue Potion now costs 20 cinnabar + 1 emerald. New Luck Tonic (12 cinnabar + 1 diamond): tap to drink, the next 7 sets lean toward clearing lines; dots show how many remain and it announces when it wears off.

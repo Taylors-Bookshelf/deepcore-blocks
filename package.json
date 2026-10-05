@@ -5,7 +5,7 @@
   "description": "Mining block puzzle game (web app, installable as a PWA).",
   "scripts": {
     "start": "npx --yes http-server . -p 8080 -c-1",
-    "test": "node tests/rules.mjs && node tests/smoke.mjs && node tests/touch.mjs && node tests/flow.mjs",
+    "test": "node tests/rules.mjs && node tests/maps.mjs && node tests/smoke.mjs && node tests/touch.mjs && node tests/flow.mjs && node tests/gates.mjs && node tests/soak.mjs",
     "sim": "node tools/sim.mjs",
     "day": "node tools/day.mjs",
     "test:balance": "node tests/balance.mjs"
