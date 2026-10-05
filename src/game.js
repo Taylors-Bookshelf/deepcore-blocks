@@ -1,10 +1,11 @@
 (function(){
 const N = 8, T = 16;
 const A = window.DCA || { track(){}, attempt(){}, setScreen(){}, setBoard(){}, isOn:()=>false, canConfigure:()=>false, setOptOut(){} };
+const {rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,MODES,ZONES,BOARDS_PER_ZONE,BOARD_COUNT,RECIPES,STASH_KEYS}=DeepcoreData;
+const {SHAPES,SHAPE_STRS,SHAPE_BY_KEY,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,getBit,bitOf,chooseSet,BIG_IDS,pickWeighted}=DeepcoreCore;
 const FONT_D = '"Silkscreen", "Courier New", monospace';
 
 // ---------- texture helpers (procedural, original 16×16 pixel art) ----------
-function rng(seed){ let s = seed>>>0 || 1; return ()=>{ s^=s<<13; s^=s>>>17; s^=s<<5; return ((s>>>0)%100000)/100000; }; }
 function hex(h){ return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]; }
 function shade(rgb,f){ return rgb.map(v=>Math.max(0,Math.min(255,Math.round(v*f)))); }
 
@@ -48,29 +49,12 @@ const MATS = {
   treasure:{kind:'special', gen:'treasure', drop:null, name:'Buried treasure', pts:0},
   jackhammer:{kind:'special', gen:'jackhammer', drop:null, name:'Jackhammer', pts:300},
   rescue:{kind:'potion', gen:'rescue', drop:null, name:'Rescue Potion', pts:0},
-};
-// Rarity: p = chance per piece that the piece carries this ore/gem · vein = cells it fills (always touching)
-// Ore rarity: chance per piece that it carries this ore, and how many touching cells the vein fills.
-// Emeralds and diamonds are handled per zone (rates and per-board caps live with the zones).
-const ORES = {
-  coal:{p:.16, vein:[1,2]}, copper:{p:.14, vein:[1,2]}, cinnabar:{p:.11, vein:[1,2]}, iron:{p:.06, vein:[1,2]}, gold:{p:.04, vein:[1,1]},
-};
-// Points for mining each block: deeper rock is worth more, ore far more, gems most
-const VAL = { grass:2, log:2, dirt:2, sand:2, stone:4, deep:6, obsidian:8, ember:10,
-  coal:15, copper:20, iron:30, cinnabar:30, gold:50, emerald:150, diamond:200 };
-// Specials: per-piece chance by difficulty tier, and how often each type is picked
-const SPECIAL_RATE = {Easy:0, Medium:.01, Hard:.02, Expert:.03};
-const SPECIAL_MIX = {prism:.4, fossil:.32, treasure:.28}; // random-only specials; blast, jackhammer and rescue are craft-only
-
-const DROPS = {
-  dirt:['Dirt','dirt'], sand:['Sand','sand'], wood:['Wood','log'], stone:['Stone','stone'], deep:['Deep stone','deep'],
-  ember:['Ember rock','ember'], obsidian:['Obsidian','obsidian'],
-  coal:['Coal','coal'], copper:['Copper','copper'], cinnabar:['Cinnabar','cinnabar'], iron:['Iron','iron'], gold:['Gold','gold'], diamond:['Diamond','diamond'], emerald:['Emerald','emerald'],
+  luck:{kind:'potion', gen:'luck', drop:null, name:'Luck Tonic', pts:0},
 };
 const FX = {
   grass:['#5e9c37','#6a4b35'], dirt:['#79573d','#5b402d'], sand:['#ddd2a3','#cbbf8d'], log:['#5a4427','#3b2b17'],
   stone:['#7c7c7c','#656565'], deep:['#4a4a51','#36363d'], obsidian:['#43325e','#a98ad8'], ember:['#88312e','#561818'],
-  blast:['#ffd23f','#ff6a1f'], prism:['#ff6ad5','#6ae3ff'], fossil:['#fbf3dc','#c6a066'], treasure:['#ffe36a','#f5c93c'], jackhammer:['#ffd23f','#9fb4cc'], rescue:['#ff6a9a','#ffd0e0'],
+  blast:['#ffd23f','#ff6a1f'], prism:['#ff6ad5','#6ae3ff'], fossil:['#fbf3dc','#c6a066'], treasure:['#ffe36a','#f5c93c'], jackhammer:['#ffd23f','#9fb4cc'], rescue:['#ff6a9a','#ffd0e0'], luck:['#7dff9a','#ffe36a'],
 };
 Object.entries(MATS).forEach(([k,m])=>{ if(!FX[k]) FX[k]=[m.ore,m.hi]; });
 
@@ -241,6 +225,19 @@ function makeTex(key, seedN, rock){
       px(9,10,hex('#ffe0ea')); px(7,12,hex('#ffe0ea')); px(10,12,hex('#ffd0e0'));
       [[2,3],[13,4]].forEach(([a,b])=>{ px(a,b,hex('#ffffff')); px(a+1,b,hex('#ffb0c8')); px(a-1,b,hex('#ffb0c8')); px(a,b+1,hex('#ffb0c8')); px(a,b-1,hex('#ffb0c8')); });
       break; }
+    case 'luck': {
+      // round flask of green-gold liquid with a four-leaf clover
+      const bg=['#0f1d17','#13251c','#182d22'].map(hex);
+      for(let j=0;j<T;j++)for(let i=0;i<T;i++) px(i,j,bg[Math.floor(r()*3)]);
+      for(let i=6;i<10;i++){ px(i,1,hex('#a8743c')); px(i,2,hex('#7a4f24')); }
+      for(let j=3;j<6;j++){ px(6,j,hex('#cfe6ee')); px(9,j,hex('#8fb0bc')); px(7,j,hex('#e8f6fb')); px(8,j,hex('#bcd8e2')); }
+      for(let j=5;j<15;j++) for(let i=2;i<14;i++){ const d=Math.hypot(i-7.5,j-9.5); if(d>5.6) continue;
+        let col = d>4.9 ? '#cfe6ee' : j<8 ? '#2a4034' : (d<2.4?'#b8ffcc':(i+j)%5===0?'#2fd870':'#4fe88a');
+        px(i,j,hex(col)); }
+      [[7,8],[8,8],[6,9],[9,9],[7,10],[8,10]].forEach(([a,b])=>px(a,b,hex('#1a7a3c'))); px(7,9,hex('#ffe36a')); px(8,9,hex('#ffe36a')); px(7,11,hex('#1a7a3c'));
+      px(5,8,hex('#ffffff')); px(5,9,hex('#ffffff')); px(6,7,hex('#ffffff'));
+      [[2,3],[13,4]].forEach(([a,b])=>{ px(a,b,hex('#ffffff')); px(a+1,b,hex('#ffe36a')); px(a-1,b,hex('#ffe36a')); px(a,b+1,hex('#ffe36a')); px(a,b-1,hex('#ffe36a')); });
+      break; }
     case 'treasure': {
       // half-open chest spilling gold light
       const earth=['#24180f','#2d1f13','#362617'].map(hex);
@@ -275,264 +272,61 @@ const SLOT = (()=>{ const c=document.createElement('canvas'); c.width=c.height=T
   x.fillStyle='#17110c'; x.fillRect(0,T-1,T,1); x.fillRect(T-1,0,1,T); return c; })();
 
 // ---------- tiers ----------
-const tierOf=d=> d<.2?'Easy' : d<.5?'Medium' : d<.8?'Hard' : 'Expert';
 const texOf=m=> (MATS[m].kind==='ore'||MATS[m].kind==='gem') ? TEX[m+'@'+levelDef(level).rock] : TEX[m];
 
-// ---------- shapes & bitboards ----------  // CORE-START
-// Board = two 32-bit ints: lo holds rows 0–3, hi holds rows 4–7 (bit = row*8+col).
-const SHAPE_STRS=['#','##','#/#','###','#/#/#','####','#/#/#/#','#####','#/#/#/#/#','##/##','###/###/###','###/###','##/##/##',
- '#./##','.#/##','##/#.','##/.#',
- '#../#../###','..#/..#/###','###/#../#..','###/..#/..#',
- '#./#./##','.#/.#/##','##/#./#.','##/.#/.#','###/#..','###/..#','#../###','..#/###',
- '###/.#.','.#./###','#./##/#.','.#/##/.#',
- '##./.##','.##/##.','#./##/.#','.#/##/#.',
- '#./.#','.#/#.'];
-const NB=8;
-function pc(x){ x=x-((x>>>1)&0x55555555); x=(x&0x33333333)+((x>>>2)&0x33333333); return (((x+(x>>>4))&0x0F0F0F0F)*0x01010101)>>>24; }
-const ROWM=[0,1,2,3].map(r=>((0xFF<<(r*8))>>>0));
-const COLM=[0,1,2,3,4,5,6,7].map(c=>((0x01010101<<c)>>>0));
-function bitOf(r,c){ return r<4 ? [((1<<(r*8+c))>>>0),0] : [0,((1<<((r-4)*8+c))>>>0)]; }
-function getBit(lo,hi,r,c){ return r<4 ? (lo>>>(r*8+c))&1 : (hi>>>((r-4)*8+c))&1; }
-const SHAPES=SHAPE_STRS.map((str,id)=>{
-  const cells=[]; str.split('/').forEach((row,r)=>[...row].forEach((ch,c)=>{ if(ch==='#') cells.push([r,c]); }));
-  let h=0,w=0; cells.forEach(([r,c])=>{h=Math.max(h,r+1);w=Math.max(w,c+1);});
-  const key=cells.map(([r,c])=>r+','+c).sort().join(';');
-  const inS=new Set(cells.map(([r,c])=>r+','+c));
-  const pl=[];
-  for(let r0=0;r0<=NB-h;r0++)for(let c0=0;c0<=NB-w;c0++){
-    let lo=0,hi=0,nlo=0,nhi=0,border=0,nbN=0; const seen=new Set();
-    cells.forEach(([r,c])=>{ const [a,b]=bitOf(r0+r,c0+c); lo|=a; hi|=b; });
-    cells.forEach(([r,c])=>{ [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dr,dc])=>{
-      const R=r0+r+dr, C=c0+c+dc;
-      if(inS.has((r+dr)+','+(c+dc))) return;
-      if(R<0||C<0||R>=NB||C>=NB){ border++; return; }
-      const k=R*8+C; if(seen.has(k)) return; seen.add(k); nbN++; const [a,b]=bitOf(R,C); nlo|=a; nhi|=b; }); });
-    pl.push({lo:lo>>>0,hi:hi>>>0,nlo:nlo>>>0,nhi:nhi>>>0,border,nbN,r0,c0});
-  }
-  const unusual = cells.length>=4 && h>1 && w>1 && cells.length!==h*w;
-  return {id,cells,h,w,n:cells.length,key,pl,unusual};
-});
-const SHAPE_BY_KEY={}; SHAPES.forEach(s=>SHAPE_BY_KEY[s.key]=s);
-const CHECK3=SHAPES.filter(s=>['###','#/#/#','#./##','##/##'].includes(SHAPE_STRS[s.id]));
-
-function applyMove(lo,hi,mlo,mhi){
-  lo=(lo|mlo)>>>0; hi=(hi|mhi)>>>0; let cl=0,ch=0,lines=0;
-  for(let r=0;r<4;r++){ const m=ROWM[r]; if(((lo&m)>>>0)===m){ cl|=m; lines++; } if(((hi&m)>>>0)===m){ ch|=m; lines++; } }
-  for(let c=0;c<8;c++){ const m=COLM[c]; if(((lo&m)>>>0)===m && ((hi&m)>>>0)===m){ cl|=m; ch|=m; lines++; } }
-  return [(lo&~cl)>>>0,(hi&~ch)>>>0,lines];
-}
-// empty cells walled in on all four sides (blocks or board edge)
-function countHoles(lo,hi){
-  let n=0;
-  for(let r=0;r<NB;r++)for(let c=0;c<NB;c++){
-    if(getBit(lo,hi,r,c)) continue;
-    if((r===0||getBit(lo,hi,r-1,c)) && (r===NB-1||getBit(lo,hi,r+1,c)) && (c===0||getBit(lo,hi,r,c-1)) && (c===NB-1||getBit(lo,hi,r,c+1))) n++;
-  }
-  return n;
-}
-const hasLockedHole=(lo,hi)=>countHoles(lo,hi)>0;
-// a board the player can keep going from: no new locked holes and room for a small piece
-function healthy(lo,hi,baseHoles){
-  if(countHoles(lo,hi)>baseHoles) return false;
-  for(const s of CHECK3) for(const p of s.pl) if(!(lo&p.lo) && !(hi&p.hi)) return true;
-  return false;
-}
-// Count the ways a set of pieces can all be placed (any order, with line clears between placements).
-// Also reports the most lines any solution clears and whether the set can wipe the board.
-function solveCount(lo,hi,set,cap,budget,needHealthy,ordered){
-  let count=0,nodes=0,maxLines=0,allClear=false; const baseHoles=needHealthy?countHoles(lo,hi):0;
-  const rec=(lo,hi,rem,lines)=>{
-    if(!rem.length){ if(!needHealthy||(lo===0&&hi===0)||healthy(lo,hi,baseHoles)){ count++; if(lines>maxLines) maxLines=lines; } return; }
-    const seen={};
-    for(let i=0;i<rem.length;i++){
-      const s=rem[i]; if(seen[s.id]) continue; seen[s.id]=1;
-      const rest=rem.slice(0,i).concat(rem.slice(i+1));
-      const moves=ordered?[]:null;
-      for(const p of s.pl){
-        if((lo&p.lo)||(hi&p.hi)) continue;
-        if(++nodes>budget) return;
-        const nb=applyMove(lo,hi,p.lo,p.hi); if(nb[0]===0&&nb[1]===0) allClear=true;
-        if(ordered) moves.push(nb); else { rec(nb[0],nb[1],rest,lines+nb[2]); if(nodes>budget||count>=cap) return; }
-      }
-      if(ordered){ moves.sort((x,y)=>y[2]-x[2]); for(const nb of moves){ rec(nb[0],nb[1],rest,lines+nb[2]); if(nodes>budget||count>=cap) return; } }
-    }
-  };
-  rec(lo>>>0,hi>>>0,set,0);
-  return {count,exhausted:nodes>budget,maxLines,allClear};
-}
-// Shapes the open board is "asking for": exact enclosed pockets, and snug fits
-function pocketInfo(lo,hi){
-  const boost=SHAPES.map(()=>1), exact=new Set();
-  const seen=new Uint8Array(64);
-  for(let r=0;r<NB;r++)for(let c=0;c<NB;c++){
-    if(getBit(lo,hi,r,c)||seen[r*8+c]) continue;
-    const comp=[], st=[[r,c]]; seen[r*8+c]=1;
-    while(st.length){ const [a,b]=st.pop(); comp.push([a,b]);
-      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dr,dc])=>{ const A=a+dr,B=b+dc; if(A<0||B<0||A>=NB||B>=NB||seen[A*8+B]||getBit(lo,hi,A,B)) return; seen[A*8+B]=1; st.push([A,B]); }); }
-    if(comp.length>=2 && comp.length<=9){
-      const mr=Math.min(...comp.map(x=>x[0])), mc=Math.min(...comp.map(x=>x[1]));
-      const s=SHAPE_BY_KEY[comp.map(([a,b])=>(a-mr)+','+(b-mc)).sort().join(';')];
-      if(s){ exact.add(s.id); boost[s.id]*= s.unusual?10:6; }
-    }
-  }
-  SHAPES.forEach(s=>{ if(s.n<3||exact.has(s.id)) return; let bestR=0;
-    for(const p of s.pl){ if((lo&p.lo)||(hi&p.hi)) continue;
-      const ratio=(p.border+pc(lo&p.nlo)+pc(hi&p.nhi))/(p.border+p.nbN); if(ratio>bestR) bestR=ratio; }
-    if(bestR>=.85) boost[s.id]*= s.unusual?3:2; });
-  return {boost,exact};
-}
-// CORE-END
 
 // ---------- state ----------
 let dealt={}, grid, pieces, score=0, combo=0, sinceClear=0, over=false, busy=false, level=1, collected={}, shownCol={}, since={};
-let bank={}, crafted={}, moves=0, prospector=0, boardT0=0, lastAct=0;
-// Difficulty setting: shifts every board's difficulty, starter blocks and goal sizes
-const MODES=[
-  {name:'Casual',    dMul:.6, dAdd:0,  pre:.5,  goals:.8, desc:'Gentle boards. The dealer helps a lot, fewer starter blocks, lower score targets. Never feels hopeless.'},
-  {name:'Committed', dMul:1,  dAdd:0,  pre:1,   goals:1,  desc:'The intended curve: generous forest boards that tighten steadily until the deep zones demand planning.'},
-  {name:'Hardened',  dMul:.8, dAdd:.2, pre:1.3, goals:1.2,desc:'Tighter from the start. Little dealer help, more starter blocks, higher score targets. The Underworld is unforgiving.'},
-];
+let bank={}, hand={}, crafted={}, luck=0, luckLive=false, moves=0, prospector=0, boardT0=0, lastAct=0;
 let mode=1; try{ const raw=localStorage.getItem('deepcore-mode'); if(raw!==null && ['0','1','2'].includes(raw)) mode=+raw; }catch(e){}
 
 // ---------- daily world map: 5 zones × 4 boards, regenerated every Pacific-time day ----------
-const ZONES=[
-  {name:'The Forest', rock:'stone', d:[0,.12], pre:[0,1], mixes:[{log:1,grass:1},{log:.7,grass:1,dirt:.5},{log:.5,dirt:2,grass:.6},{dirt:1}], ores:[], target:300,
-   names:['Birch Glade','Mossy Hollow','Fern Ridge','Old Stump','Sandy Bank','Pine Clearing','Root Cellar','Brook Bend']},
-  {name:'Stone Caves', rock:'stone', d:[.16,.34], pre:[2,4], mixes:[{dirt:1,stone:1},{stone:2,dirt:.8},{stone:3,dirt:.5},{stone:6,dirt:.25}], ores:['coal','iron','copper'], target:700,
-   names:['Echo Tunnel','Coal Face','Drip Gallery','Lantern Shaft','Granite Bend','Bat Roost','Iron Seam','Rubble Hall']},
-  {name:'Deep Stone', rock:'deep', d:[.42,.6], pre:[5,7], mixes:[{stone:1,deep:1},{deep:2,stone:.8},{deep:3,stone:.5},{deep:6,stone:.25}], ores:['coal','copper','cinnabar','iron','gold'], target:1200, gems:{emerald:{p:.016,cap:2}, diamond:{p:.013,cap:2}},
-   names:['Copper Vein','Silent Chasm','Red Seam','Gold Pocket','Basalt Stair','Hollow Deep','Cinder Gallery','Pale Grotto']},
-  {name:'Gem Depths', rock:'obsidian', d:[.64,.8], pre:[7,9], mixes:[{deep:1,obsidian:1},{obsidian:2,deep:.8},{obsidian:3,deep:.5},{obsidian:6,deep:.25}], ores:['coal','copper','iron','gold'], target:1800, gems:{emerald:{p:.034,cap:4}, diamond:{p:.027,cap:3}},
-   names:['Crystal Hollow','Glass Vault','Dark Facet','Star Pocket','Obsidian Shelf','Emerald Run','Black Lens','Gem Cradle']},
-  {name:'The Underworld', rock:'ember', d:[.83,.95], pre:[9,11], mixes:[{obsidian:1,ember:1},{ember:2,obsidian:.8},{ember:3,obsidian:.5},{ember:6,obsidian:.25}], ores:['coal','cinnabar','iron','gold'], target:2500, gems:{emerald:{p:.042,cap:5}, diamond:{p:.034,cap:4}},
-   names:['Ember Gate','Ash Bridge','Magma Gallery','Cinnabar Spire','Cinder Throne','Molten Steps','Sulfur Hall','Flame Rift']},
-];
-const BOARDS_PER_ZONE=4, BOARD_COUNT=ZONES.length*BOARDS_PER_ZONE;
 // The world map resets at midnight Pacific time for everyone, wherever they are.
 const PACIFIC=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit',day:'2-digit'});
 function todayKey(){ return PACIFIC.format(new Date()); }
 let dayState={day:todayKey(),done:[],scores:{},prospector:false};
-function hashStr(s){ let h=2166136261; for(const ch of s){ h^=ch.charCodeAt(0); h=Math.imul(h,16777619)>>>0; } return h>>>0; }
 const _bd={};
 function boardDef(idx){
   const key=dayState.day+':'+idx+':'+mode; if(_bd[key]) return _bd[key];
-  const z=ZONES[Math.floor(idx/BOARDS_PER_ZONE)], j=idx%BOARDS_PER_ZONE, f=j/(BOARDS_PER_ZONE-1);
-  const R=rng(hashStr(dayState.day+'#'+idx)+1), M=MODES[mode];
-  const base=z.mixes[j];
-  // boards clear on score: the target climbs within each zone and across zones
-  const target=Math.round(z.target*(1+.2*j)*M.goals/10)*10;
-  const RZ=rng(hashStr(dayState.day+'#zone'+Math.floor(idx/BOARDS_PER_ZONE))+7); const names=z.names.slice().sort(()=>RZ()-.5);
-  const baseD=z.d[0]+(z.d[1]-z.d[0])*f;
-  return _bd[key]={ idx, zone:Math.floor(idx/BOARDS_PER_ZONE), zoneName:z.name, name:names[j], rock:z.rock, base, ores:z.ores, gems:z.gems||{}, goals:{}, target,
-    d:Math.min(.97,baseD*M.dMul+M.dAdd), pre:Math.round((z.pre[0]+(z.pre[1]-z.pre[0])*f)*M.pre) };
+  const zi=Math.floor(idx/BOARDS_PER_ZONE), j=idx%BOARDS_PER_ZONE, z=ZONES[zi];
+  const RZ=rng(hashStr(dayState.day+'#zone'+zi)+7); const names=z.names.slice().sort(()=>RZ()-.5);
+  return _bd[key]={ idx, name:names[j], goals:{}, ...DeepcoreData.boardParams(zi,j,mode) };
 }
 function levelDef(L){ return boardDef(L-1); }
 const boardLabel=idx=>`${Math.floor(idx/BOARDS_PER_ZONE)+1}-${idx%BOARDS_PER_ZONE+1}`;
-
-// Smelting recipes: only these three can be crafted, and you can hold one of each at a time
-const RECIPES=[
-  {m:'blast',      cost:{coal:12, iron:4},                        desc:'Explodes when its line clears, breaking the 8 blocks around it and mining their ore.'},
-  {m:'jackhammer', cost:{iron:12, gold:8, cinnabar:8, copper:8},    desc:'Shakes the remaining blocks into a fresh arrangement with no trapped gaps.'},
-  {m:'rescue',     cost:{iron:16, gold:12, cinnabar:10, copper:10, diamond:2, emerald:2}, desc:'Used automatically on a cave-in: undoes your last placement and deals a fresh set of pieces.'},
-];
-const STASH_KEYS=['coal','copper','iron','cinnabar','gold','emerald','diamond'];
 
 const emptyGrid=()=>Array.from({length:N},()=>Array(N).fill(null));
 const difficulty=()=>levelDef(level).d;
 function occBits(g){ let lo=0,hi=0; for(let r=0;r<N;r++)for(let c=0;c<N;c++) if(g[r][c]){ const [a,b]=bitOf(r,c); lo|=a; hi|=b; } return [lo>>>0,hi>>>0]; }
 
 // ---------- dealer: every set is solver-checked ----------
-function sizeWeight(s,d){
-  if(s.n===1) return .45*(1-d)+.08;
-  if(s.n===2) return .8-.4*d;
-  if(s.n<=4) return 1.2-.45*d;
-  if(s.n===5) return .6+.8*d;
-  if(s.n===6) return .3+1.0*d;
-  return .12+1.1*d;
-}
-function pickWeighted(items){ const tot=items.reduce((a,x)=>a+x.w,0); if(tot<=0) return null; let v=Math.random()*tot; for(const x of items){ v-=x.w; if(v<=0) return x; } return items[items.length-1]; }
-function pickIdx(ws){ const tot=ws.reduce((a,b)=>a+b,0); if(tot<=0) return 0; let v=Math.random()*tot; for(let i=0;i<ws.length;i++){ v-=ws[i]; if(v<=0) return i; } return ws.length-1; }
-function needs(res){ const g=levelDef(level).goals[res]; return g!==undefined && (collected[res]||0)<g; }
-function pickBase(){
-  const def=levelDef(level);
-  return pickWeighted(Object.entries(def.base).map(([k,w])=>({k,w}))).k;
-}
 function specialOnField(){
   for(let r=0;r<N;r++)for(let c=0;c<N;c++) if(grid[r][c] && MATS[grid[r][c]].kind==='special') return true;
   return (pieces||[]).some(p=>p && p.mats.some(m=>MATS[m].kind==='special'));
 }
-function veinCells(s,mats,count){
-  const free=s.cells.map((_,i)=>i).filter(i=>MATS[mats[i]].kind==='base');
-  if(!free.length) return [];
-  const out=[free[Math.floor(Math.random()*free.length)]];
-  while(out.length<count){
-    const nb=free.filter(i=>!out.includes(i) && out.some(j=>Math.abs(s.cells[i][0]-s.cells[j][0])+Math.abs(s.cells[i][1]-s.cells[j][1])===1));
-    if(!nb.length) break; out.push(nb[Math.floor(Math.random()*nb.length)]);
-  }
-  return out;
-}
+function pickBase(){ return DeepcoreCore.pickBase(levelDef(level)); }
 function dressPiece(s,setSoFar){
-  const def=levelDef(level), base=pickBase(), mats=s.cells.map(()=>base);
-  for(const ore of def.ores){
-    const {p,vein}=ORES[ore];
-    if(Math.random()<p){ const count=vein[0]+Math.floor(Math.random()*(vein[1]-vein[0]+1)); veinCells(s,mats,Math.min(count,s.n)).forEach(i=>mats[i]=ore); }
-  }
-  for(const [g,{p,cap}] of Object.entries(def.gems||{})){
-    if((dealt[g]||0)>=cap || Math.random()>=p) continue;
-    const c=veinCells(s,mats,1); if(c.length){ mats[c[0]]=g; dealt[g]=(dealt[g]||0)+1; }
-  }
-  const rate=SPECIAL_RATE[tierOf(def.d)];
-  if(rate && !specialOnField() && !setSoFar.some(p=>p.mats.some(m=>MATS[m].kind==='special')) && Math.random()<rate){
-    mats[Math.floor(Math.random()*s.n)]=pickWeighted(Object.entries(SPECIAL_MIX).map(([k,w])=>({k,w}))).k;
-  }
-  return {cells:s.cells,h:s.h,w:s.w,mats,sid:s.id};
+  return DeepcoreCore.dressPiece(s,levelDef(level),{dealt,specialBlocked:specialOnField()||setSoFar.some(p=>p.mats.some(m=>MATS[m].kind==='special'))});
 }
-// How many ways a set should be placeable, by difficulty: ~400 on Easy down to ~1–2 on Expert
-const targetWays=d=>Math.pow(400,1-d);
-// Dealer assistance: 1 on the easiest board, ~0.4 on Medium, ~0.1 on Hard, ~0 on Expert
-const assistOf=d=>Math.pow(1-d,1.8);
-const BIG_SET=[['###/###/###'],['###/###','##/##/##'],['#####','#/#/#/#/#']];
-function chooseSet(lo,hi,d){
-  const A=assistOf(d);
-  const {boost,exact}=pocketInfo(lo,hi);
-  const fits=SHAPES.map(s=>s.pl.some(p=>!(lo&p.lo)&&!(hi&p.hi)));
-  const ws=SHAPES.map((s,i)=>fits[i]?sizeWeight(s,d)*Math.pow(boost[i],A):0);
-  // "completers": shapes that finish a row/column right now, or exactly fill a pocket
-  const cw=SHAPES.map(()=>0);
-  SHAPES.forEach((s,i)=>{ if(!fits[i]) return; let bl=0;
-    for(const p of s.pl){ if((lo&p.lo)||(hi&p.hi)) continue; const l=applyMove(lo,hi,p.lo,p.hi)[2]; if(l>bl) bl=l; }
-    cw[i]=(bl?bl*bl*2:0)+(exact.has(i)?4:0); if(cw[i]) cw[i]*=.5+sizeWeight(s,d); });
-  const hasC=cw.some(x=>x>0);
-  const target=targetWays(d); let best=null;
-  const sample=()=>[0,1,2].map(k=>SHAPES[pickIdx(hasC && Math.random()<A*(k===0?.95:.55) ? cw : ws)]);
-  const tries=(needHealthy,K)=>{
-    for(let k=0;k<K;k++){
-      const set=sample();
-      const res=solveCount(lo,hi,set,400,20000,needHealthy,A>.1);
-      if(!res.count) continue;
-      const cnt=res.exhausted?Math.max(res.count,250):res.count;
-      const tight=-Math.abs(Math.log(cnt)-Math.log(target));
-      const help=res.maxLines*1.4 + (res.allClear?10:0) + set.filter(s=>exact.has(s.id)).length*2.5;
-      const sc=(1-A)*tight + A*help + Math.random()*(.3+.9*(1-A));
-      if(!best||sc>best.sc) best={set,sc};
-    }
-  };
-  tries(true, A>.3?36:26);
-  if(d>.45 && (!best || best.sc<-1)){ SHAPES.forEach((s,i)=>{ if(s.n>=4) ws[i]*=1.8; }); tries(true,30); }
-  if(!best) tries(false,26);
-  if(!best){
-    const small=SHAPES.filter((s,i)=>fits[i]&&s.n<=3);
-    outer: for(const a of small) for(const b of small) for(const c of small){
-      if(solveCount(lo,hi,[a,b,c],1,30000,false,false).count){ best={set:[a,b,c]}; break outer; } }
-  }
-  if(!best){ const f=SHAPES.filter((s,i)=>fits[i]); best={set:[0,1,2].map(()=>f.length?f[0]:SHAPES[0])}; }
-  return best.set.sort(()=>Math.random()-.5);
+function updateLuckUI(){
+  const lit=luck+(luckLive?1:0), b=$('luckBadge'); b.hidden=lit<=0;
+  b.querySelector('.pips').innerHTML=Array.from({length:7},(_,i)=>`<i class="${i<lit?'on':''}"></i>`).join('');
+  $('luckTxt').textContent = luck>0 ? `Luck: ${luck} more set${luck===1?'':'s'}` : 'Last lucky set';
+  $('tray').classList.toggle('lucky',luckLive);
+}
+function drinkLuck(){
+  if(busy||over||uiOpen()||!(crafted.luck>0)||luck>0) return;
+  crafted.luck=0; luck=7; renderCrafted(); updateLuckUI(); updateAnvilGlow(); saveProfile(); saveBoard();
+  A.track('luck_drunk',{idx:level-1,score,moves});
+  busy=true; const d=playSplash('Luck Tonic','The next 7 sets favour you','luck'); setTimeout(()=>{ busy=false; },d);
 }
 let bigNext=false;
 function dealSet(){
   const [lo,hi]=occBits(grid); let set;
-  if(bigNext && lo===0 && hi===0){ set=BIG_SET.map(opts=>SHAPES[SHAPE_STRS.indexOf(opts[Math.floor(Math.random()*opts.length)])]).sort(()=>Math.random()-.5); bigNext=false; }
-  else set=chooseSet(lo,hi,difficulty());
+  if(bigNext && lo===0 && hi===0){ set=BIG_IDS.map(ids=>SHAPES[ids[Math.floor(Math.random()*ids.length)]]).sort(()=>Math.random()-.5); bigNext=false; }
+  else set=chooseSet(lo,hi,difficulty(),{luck:luck>0?1:0});
+  if(luck>0){ luck--; luckLive=true; } else if(luckLive){ luckLive=false; showCombo('Luck Tonic wore off'); blip(330,.2,'sine',.05); }
+  updateLuckUI();
   const out=[]; set.forEach(s=>out.push(dressPiece(s,out))); pieces=out;
 }
 // Starter blocks: scattered clumps, never a locked hole or a tiny sealed pocket
@@ -594,8 +388,8 @@ function updateBar(){
   el.parentElement.setAttribute('aria-valuenow',shown); el.parentElement.setAttribute('aria-valuemax',tg);
 }
 let shown=0;
-function updateHUD(){ $('best').textContent=Object.values(dayState.scores).reduce((a,b)=>a+b,0); $('level').textContent=boardLabel(level-1); const t=tierOf(difficulty()); $('tier').textContent=t; $('tier').dataset.t=t; }
-function tickScore(){ if(shown<score){ shown+=Math.max(1,Math.ceil((score-shown)/8)); if(shown>score) shown=score; } else if(shown>score) shown=score; updateBar(); }
+function updateHUD(){ $('best').textContent=Object.values(dayState.scores).reduce((a,b)=>a+b,0); $('bestPlus').textContent=screen==='game'&&shown>0?'+'+shown:''; $('level').textContent=boardLabel(level-1); const t=tierOf(difficulty()); $('tier').textContent=t; $('tier').dataset.t=t; }
+function tickScore(){ if(shown<score){ shown+=Math.max(1,Math.ceil((score-shown)/8)); if(shown>score) shown=score; } else if(shown>score) shown=score; updateBar(); const bp=$('bestPlus'), t=screen==='game'&&shown>0?'+'+shown:''; if(bp.textContent!==t) bp.textContent=t; }
 
 function drawPiece(ctx,p,cs,ox=0,oy=0,alpha=1){
   ctx.imageSmoothingEnabled=false; ctx.globalAlpha=alpha;
@@ -650,6 +444,12 @@ const ITEM={};
     }
     ITEM[k]=c;
   });
+  // wood: a short log seen end-on with its rings, plus one lying behind it
+  const w=document.createElement('canvas'); w.width=w.height=T; const wx=w.getContext('2d'); const WP=(i,j,col)=>{ wx.fillStyle=col; wx.fillRect(i,j,1,1); };
+  for(let j=0;j<T;j++)for(let i=0;i<T;i++){ const dx=i-7.5, dy=j-8, d=Math.hypot(dx,dy); if(d>6.4) continue;
+    WP(i,j, d>5.6?'#140e0a' : d>4.6?'#5a3d20' : d>3.3?'#b88a52' : d>2.4?'#8f6838' : d>1.4?'#c79a62' : '#8f6838'); }
+  WP(5,5,'#e8c892'); WP(6,5,'#e8c892'); WP(5,6,'#e8c892');
+  ITEM.wood=w;
 })();
 
 // ---------- effects layer ----------
@@ -703,6 +503,7 @@ const SPECIAL_LOOK={
   treasure:{rays:['#ffe36a','#f5b21c'], parts:'coin', cols:['#ffe36a','#f5c93c','#fff6c2']},
   jackhammer:{rays:['#ffd23f','#cfe8ff'], parts:'ember', cols:['#ffffff','#ffd23f','#9fb4cc','#7d8a9e']},
   rescue:{rays:['#ff6a9a','#ffd0e0'], parts:'spark', cols:['#ffffff','#ff9ab8','#ffd0e0']},
+  luck:{rays:['#7dff9a','#ffe36a'], parts:'spark', cols:['#ffffff','#7dff9a','#ffe36a','#c8ffd6']},
 };
 function hexA(hx,a){ return hx+Math.round(Math.max(0,Math.min(1,a))*255).toString(16).padStart(2,'0'); }
 // the grand moment: block rises to center in a burst of light, title card, themed particle show
@@ -864,9 +665,9 @@ function showBanner(ms=2200){
 const sleep=ms=>new Promise(res=>setTimeout(res,ms));
 function startBoard(idx){
   const att=dayState.attempts=dayState.attempts||{}; att[idx]=(att[idx]||0)+1; saveDay();
-  undo=null; dealt={}; level=idx+1; score=0; shown=0; collected={}; shownCol={}; since={}; bigNext=false; grid=emptyGrid(); pieces=null; combo=0; sinceClear=0; over=false; moves=0; busy=false;
+  undo=null; hand={}; dealt={}; level=idx+1; score=0; shown=0; collected={}; shownCol={}; since={}; bigNext=false; grid=emptyGrid(); pieces=null; combo=0; sinceClear=0; over=false; moves=0; busy=false;
   prefill();
-  $('over').hidden=true; buildGoals(); updateHUD(); dealSet(); drawTray(); showBanner(); saveBoard();
+  updateStash(); $('over').hidden=true; buildGoals(); updateHUD(); dealSet(); drawTray(); showBanner(); saveBoard();
   boardT0=lastAct=performance.now(); A.setBoard(boardLabel(idx));
   const d=levelDef(level); A.track('board_start',{idx,label:boardLabel(idx),zone:d.zoneName,tier:tierOf(d.d),target:d.target,mode:MODES[mode].name,attempt:att[idx],starter_blocks:d.pre});
 }
@@ -888,12 +689,12 @@ function mineCell(r,c,ctx){
   burst(r,c,m,7); flashes.push({r,c,life:1});
   score+=VAL[m]||0;
   if(M.drop){
-    const item=(M.kind==='ore'||M.kind==='gem'), res=M.drop;
+    const item=(M.kind==='ore'||M.kind==='gem'||M.drop==='wood'), res=M.drop;
     credit(ctx,res,1,true);
     if(item){
-      bank[res]=(bank[res]||0)+1;
+      hand[res]=(hand[res]||0)+1;
       if(ctx.flyers<16){ const [x,y]=cellScreen(r,c);
-        flyItem(ITEM[m],res,x,y,ctx.flyers*35,FX[m][1]||'#fff',()=>{ updateStash([res]); blip(880+Math.random()*300,.05,'sine',.035); },true);
+        flyItem(ITEM[res==='wood'?'wood':m],res,x,y,ctx.flyers*35,FX[m][1]||'#fff',()=>{ updateStash([res]); blip(880+Math.random()*300,.05,'sine',.035); },true);
         ctx.flyers++; }
       else ctx.stash.push(res);
     }
@@ -909,13 +710,13 @@ function specialHit(m,r,c,ctx){
   if(m==='prism'){ sp.pts=M.pts;
     const def=levelDef(level), opts=[...def.ores.map(k=>({k,w:ORES[k].p})), ...Object.entries(def.gems||{}).map(([k,g])=>({k,w:g.p*3}))];
     const pick=opts.length?pickWeighted(opts).k:'coal';
-    bank[pick]=(bank[pick]||0)+3; sp.res=pick; sp.n=3; sp.sub=`+3 ${DROPS[pick][0]} · +${M.pts}`; }
+    hand[pick]=(hand[pick]||0)+3; sp.res=pick; sp.n=3; sp.sub=`+3 ${DROPS[pick][0]} · +${M.pts}`; }
   if(m==='treasure'){ const z=levelDef(level).zone, deep=z>=3;
     const table=[['iron',5,9,deep?.22:.35],['gold',4,7,deep?.24:.30],['emerald',2,4,deep?.29:.20],['diamond',1,3,deep?.25:.15]];
     const pick=pickWeighted(table.map(([k,lo,hi,w])=>({k,lo,hi,w})));
     let u=Math.random(); if(deep && (pick.k==='emerald'||pick.k==='diamond')) u=Math.pow(u,.55);
     const n=pick.lo+Math.min(pick.hi-pick.lo,Math.floor(u*(pick.hi-pick.lo+1)));
-    bank[pick.k]=(bank[pick.k]||0)+n; sp.res=pick.k; sp.n=n; sp.pts=200; sp.sub=`${n} ${DROPS[pick.k][0]} · +200`; }
+    hand[pick.k]=(hand[pick.k]||0)+n; sp.res=pick.k; sp.n=n; sp.pts=200; sp.sub=`${n} ${DROPS[pick.k][0]} · +200`; }
   if(m==='fossil'){ sp.pts=M.pts; sp.sub=`+${M.pts}`; }
   if(m==='jackhammer'){ sp.pts=M.pts; sp.sub=`Board shaken up · +${M.pts}`; }
   score+=sp.pts; burst(r,c,m,18); grid[r][c]=null;
@@ -976,7 +777,7 @@ let undo=null;
 async function place(i,r0,c0){
   const p=pieces[i];
   const rating=rateMove(i,r0,c0);
-  undo=JSON.parse(JSON.stringify({grid,pieces,score,combo,sinceClear,collected,bank,since,bigNext,moves,dealt}));
+  undo=JSON.parse(JSON.stringify({grid,pieces,score,combo,sinceClear,collected,hand,since,bigNext,moves,dealt}));
   p.cells.forEach(([r,c],k)=>grid[r0+r][c0+c]=p.mats[k]);
   score+=p.cells.length; pieces[i]=null; blip(140,.07,'square',.06); moves++;
   if(rating){ score+=rating.pts; const B=boardC.getBoundingClientRect(); floatText(B.left+(c0+p.w/2)*cell,B.top+(r0+p.h/2)*cell,`${rating.word} +${rating.pts}`,rating.col); blip(1175,.08,'triangle',.05); blip(1568,.1,'triangle',.05,.07); }
@@ -1027,9 +828,10 @@ async function place(i,r0,c0){
 }
 function completeBoard(){
   busy=true; const idx=level-1, bonus=150+50*Math.floor(idx/BOARDS_PER_ZONE)*2; score+=bonus;
-  A.track('board_complete',{idx,label:boardLabel(idx),score,target:levelDef(level).target,moves,duration_ms:Math.round(performance.now()-boardT0),attempt:(dayState.attempts||{})[idx]||1,first_clear:!dayState.done.includes(idx)});
+  A.track('board_complete',{haul:Object.values(hand).reduce((a,b)=>a+b,0),idx,label:boardLabel(idx),score,target:levelDef(level).target,moves,duration_ms:Math.round(performance.now()-boardT0),attempt:(dayState.attempts||{})[idx]||1,first_clear:!dayState.done.includes(idx)});
   showCombo(`Board mined! +${bonus}`);
   [523,659,784,1047].forEach((f,j)=>blip(f,.18,'triangle',.07,.1+j*.1));
+  const haul={...hand}; Object.entries(hand).forEach(([k,v])=>{ bank[k]=(bank[k]||0)+v; }); hand={}; updateStash(Object.keys(haul));
   if(!dayState.done.includes(idx)) dayState.done.push(idx);
   dayState.scores[idx]=Math.max(dayState.scores[idx]||0,score);
   let earned=false;
@@ -1042,17 +844,30 @@ function completeBoard(){
     setTimeout(()=>{ busy=false; pieces=null; showMap({justDone:idx, prospector:earned}); },900);
   },1100);
 }
+// a cave-in without a Rescue Potion: whatever you hauled on this attempt spills back out of the stash
+function loseHand(){
+  const entries=Object.entries(hand).filter(([,v])=>v>0); if(!entries.length) return 0;
+  let total=0, topY=innerHeight;
+  entries.forEach(([res,n])=>{ total+=n; const el=document.querySelector(`.si[data-k="${res}"] canvas`); if(!el) return; const R=el.getBoundingClientRect(); topY=Math.min(topY,R.top);
+    const x0=R.left+R.width/2, y0=R.top+R.height/2;
+    for(let q=0;q<Math.min(n,8);q++){ const t0=performance.now()+q*70, vx=(Math.random()-.5)*6; let x=x0,y=y0,vy=-(4+Math.random()*6);
+      fxList.push({draw(ctx,now){ if(now<t0) return true; const age=(now-t0)/1000; if(age>1.2) return false; x+=vx; vy+=.55; y+=vy;
+        ctx.save(); ctx.globalAlpha=Math.max(0,1-age/1.2); ctx.imageSmoothingEnabled=false; ctx.drawImage(ITEM[res],x-14,y-14,28,28); ctx.restore(); return true; }}); } });
+  hand={}; updateStash(entries.map(e=>e[0]));
+  floatText(innerWidth/2,topY-8,'Haul lost','#ff8a7a'); [330,262,196].forEach((f,j)=>blip(f,.16,'sawtooth',.05,j*.1));
+  return total;
+}
 function gameOver(){
   if((crafted.rescue||0)>0){ setTimeout(useRescue,450); return; }
-  const tg=levelDef(level).target;
-  A.track('board_fail',{idx:level-1,label:boardLabel(level-1),score,target:tg,pct:Math.round(100*score/tg),moves,duration_ms:Math.round(performance.now()-boardT0),can_craft_rescue:canAfford(RESCUE()),attempt:(dayState.attempts||{})[level-1]||1});
+  const tg=levelDef(level).target, lost=loseHand();
+  A.track('board_fail',{hand_lost:lost,idx:level-1,label:boardLabel(level-1),score,target:tg,pct:Math.round(100*score/tg),moves,duration_ms:Math.round(performance.now()-boardT0),can_craft_rescue:canAfford(RESCUE()),attempt:(dayState.attempts||{})[level-1]||1});
   over=true; saveBoard(); setTimeout(()=>{ if(over) showOver(); },650);
 }
 const RESCUE=()=>RECIPES.find(r=>r.m==='rescue');
 function useRescue(){
   A.track('rescue_used',{idx:level-1,score,moves});
   crafted.rescue=Math.max(0,(crafted.rescue||0)-1);
-  if(undo){ ({grid,pieces,score,combo,sinceClear,collected,bank,since,bigNext,moves,dealt}=JSON.parse(JSON.stringify(undo))); shown=score; shownCol={...collected}; }
+  if(undo){ ({grid,pieces,score,combo,sinceClear,collected,hand,since,bigNext,moves,dealt}=JSON.parse(JSON.stringify(undo))); hand=hand||{}; shown=score; shownCol={...collected}; }
   undo=null; over=false; $('over').hidden=true;
   dealSet(); buildGoals(); updateHUD(); updateStash(); renderCrafted(); drawTray();
   busy=true; const d=playSplash('Rescue Potion','Last move undone · fresh pieces','rescue'); setTimeout(()=>{ busy=false; },d);
@@ -1061,7 +876,7 @@ function useRescue(){
 function showOver(){
   $('finalScore').textContent=score;
   $('overWhy').textContent=`No room for the next block on board ${boardLabel(level-1)}.`;
-  $('finalNote').textContent='Your stash and crafted specials are safe.';
+  $('finalNote').textContent='Ore hauled on this attempt is lost. Your stash and crafted specials are safe.';
   const can=canAfford(RESCUE()) && !(crafted.rescue>0);
   $('rescueBtn').hidden=!can;
   $('over').hidden=false; blip(110,.4,'sawtooth',.05);
@@ -1119,25 +934,25 @@ function buildStash(){
   const box=$('stashItems'); box.innerHTML='';
   STASH_KEYS.forEach(k=>{ const d=document.createElement('div'); d.className='si'; d.dataset.k=k; d.title=DROPS[k][0];
     const cv=document.createElement('canvas'); cv.width=cv.height=T; cv.getContext('2d').drawImage(ITEM[k],0,0);
-    const n=document.createElement('span'); d.append(cv,n); box.append(d); });
+    const t=document.createElement('div'); t.className='t'; const n=document.createElement('span'); n.className='n'; const pl=document.createElement('span'); pl.className='pl'; t.append(n,pl); d.append(cv,t); box.append(d); });
   updateStash();
 }
 function updateAnvilGlow(){ const b=$('anvilBtn'); if(b) b.classList.toggle('afford',RECIPES.some(r=>owned(r.m)<1&&canAfford(r))); }
 function updateStash(bumped=[]){
-  document.querySelectorAll('.si').forEach(el=>{ const k=el.dataset.k, v=bank[k]||0; el.lastChild.textContent=v; el.classList.toggle('zero',!v);
+  document.querySelectorAll('.si').forEach(el=>{ const k=el.dataset.k, v=bank[k]||0, h=hand[k]||0; el.querySelector('.n').textContent=v; el.querySelector('.pl').textContent=h?'+'+h:''; el.classList.toggle('zero',!v&&!h);
     if(bumped.includes(k)){ el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } });
   updateAnvilGlow();
 }
 function onField(m){ let n=0; if(grid) for(const row of grid) for(const v of row) if(v===m) n++; (pieces||[]).forEach(p=>{ if(p) p.mats.forEach(v=>{ if(v===m) n++; }); }); return n; }
-function owned(m){ return (crafted[m]||0)+onField(m); }
+function owned(m){ return (crafted[m]||0)+onField(m)+(m==='luck'&&luck>0?1:0); }
 function renderCrafted(){
   const box=$('crafted'); box.innerHTML='';
   const list=RECIPES.map(r=>r.m).filter(m=>(crafted[m]||0)>0);
-  if(!list.length){ const s=document.createElement('span'); s.className='hint'; s.textContent='Craft specials at the anvil. Drag a Blast Charge or Jackhammer onto a piece.'; box.append(s); return; }
-  list.forEach(m=>{ const chip=document.createElement('div'); chip.className='chip'+(m==='rescue'?' passive':''); chip.dataset.m=m; chip.title=MATS[m].name;
+  if(!list.length){ const s=document.createElement('span'); s.className='hint'; s.textContent='Craft specials at the anvil. Drag a Blast Charge or Jackhammer onto one of your pieces.'; box.append(s); return; }
+  list.forEach(m=>{ const chip=document.createElement('div'); chip.className='chip'+(m==='rescue'?' passive':m==='luck'?' tap':''); chip.dataset.m=m; chip.title=MATS[m].name;
     const cv=document.createElement('canvas'); cv.width=cv.height=T; cv.getContext('2d').drawImage(TEX[m],0,0);
-    const s=document.createElement('span'); s.textContent = m==='rescue' ? 'Ready' : MATS[m].name; chip.append(cv,s); box.append(chip);
-    if(m!=='rescue') chip.addEventListener('pointerdown',e=>startSpecialDrag(e,m)); });
+    const s=document.createElement('span'); s.textContent = m==='rescue' ? 'Ready' : m==='luck' ? 'Drink Luck Tonic' : MATS[m].name; chip.append(cv,s); box.append(chip);
+    if(m==='luck') chip.addEventListener('click',drinkLuck); else if(m!=='rescue') chip.addEventListener('pointerdown',e=>startSpecialDrag(e,m)); });
 }
 const canAfford=r=>Object.entries(r.cost).every(([k,v])=>(bank[k]||0)>=v);
 function renderAnvil(){
@@ -1189,6 +1004,7 @@ const INFO_TABS={
   Play(b){
     b.append(infoEl('h3','THE GOAL'),infoEl('p',`Drag the three pieces onto the 8×8 board. Fill a whole row or column and it clears, mining every block in it. Earn enough points to fill the bar at the top and the board is cleared. Clear all 20 boards on the world map before the daily reset to earn the Prospector badge.`));
     b.append(infoEl('h3','CAVE-IN'),infoEl('p',`If none of your three pieces can fit anywhere, the cave collapses and the board ends. Ore you hauled on that attempt is lost, so keep your options open.`));
+    b.append(infoEl('h3','HAULING ORE'),infoList([`Ore, gems and wood you mine on a board show up under the stash as a green +number. That's your haul for this attempt.`,`Clear the board and the haul is added to your stash. Cave in without a Rescue Potion and it is lost, so a risky board costs you.`,`You can only craft with what's already in the stash, not with the current haul.`]));
     b.append(infoEl('h3','SCORING'),infoList([`Every block you place scores a point, and every block you mine scores its value (see Resources).`,`Clearing several lines at once, or clearing on back-to-back turns, multiplies the bonus.`,`"Perfect!" (+50) means yours was the only placement that kept the whole tray playable. "Great fit!" (+25) means one of two or three.`,`All Clear (an empty board) pays a bonus worth 15% of the board's target, then deals a big easy set.`]));
     b.append(infoEl('h3','HOW TO GET BETTER'),infoList([`Look at all three pieces before you place any. Plan the order.`,`Keep one row and one column mostly open so long bars still fit.`,`Avoid sealing off single empty cells or tiny pockets; they can only be filled by a matching piece, if one ever comes.`,`Build rows and columns up to one piece away from full, then finish several at once for a combo.`,`Gold glow under your piece means the drop will clear a line.`,`Save Blast Charges and Jackhammers for tight spots, not to pad your score.`]));
     b.append(infoEl('h3','TOP BAR'),infoList([`TODAY is the total of your best scores on boards you've cleared since the last reset. BOARD is the one you're on, with its difficulty.`,`The map resets at midnight Pacific time. Every day brings a fresh set of 20 boards.`]));
@@ -1202,11 +1018,11 @@ const INFO_TABS={
   },
   Crafting(b){
     b.append(infoEl('h3','WHAT IS CRAFTING?'),infoEl('p',`The anvil (top of the screen, it glows when you can afford something) turns the ore in your stash into special blocks. You can hold one of each kind at a time.`));
-    b.append(infoEl('h3','HOW'),infoList([`Tap the Anvil, then tap Craft on anything you can afford.`,`Drag a crafted Blast Charge or Jackhammer from the strip under your tray onto one of the three pieces. It replaces the block under your finger.`,`The special fires when the line it's in clears.`]));
+    b.append(infoEl('h3','HOW'),infoList([`Tap the Anvil, then tap Craft on anything you can afford. You can hold one of each, and a Luck Tonic can't be crafted while one is working.`,`Drag a crafted Blast Charge or Jackhammer from the strip under your tray onto one of the three pieces. It replaces the block under your finger. Tap a Luck Tonic to drink it.`,`The special fires when the line it's in clears.`]));
     b.append(infoEl('h3','WHAT YOU CAN CRAFT'));
     craftList().forEach(c=>{ const row=infoEl('div',undefined,'irow'); row.append(iconOf(TEX[c.mat])); const d=infoEl('div'); d.append(infoEl('div',c.name,'nm'),infoEl('div',c.desc,'meta'),
       infoEl('div','Costs: '+Object.entries(c.cost).map(([k,v])=>`${v} ${DROPS[k][0]}`).join(', '),'meta')); row.append(d); b.append(row); });
-    b.append(infoEl('h3','WHY IT HELPS'),infoList([`Blast Charge and Jackhammer rescue a crowded board and score big.`,`A Rescue Potion saves you from one cave-in: it undoes your last move and deals fresh pieces.`]));
+    b.append(infoEl('h3','WHY IT HELPS'),infoList([`Blast Charge and Jackhammer rescue a crowded board and score big.`,`A Rescue Potion saves you from one cave-in: it undoes your last move and deals fresh pieces, and keeps your haul.`,`A Luck Tonic: tap it under the tray to drink. For the next 7 sets of pieces the dealer favours sets that clear rows and columns. A row of green dots shows how many are left.`]));
   },
   Specials(b){
     b.append(infoEl('p',`These appear on their own inside pieces, now and then, from the Medium difficulty up. You can't craft them. When the line they sit in clears, they trigger.`));
@@ -1266,8 +1082,8 @@ const K_PROFILE='deepcore-profile', K_DAY='deepcore-day', K_BOARD='deepcore-boar
 const lsGet=k=>{ try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch(e){ return null; } };
 const lsSet=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
 const lsDel=k=>{ try{ localStorage.removeItem(k); }catch(e){} };
-function saveProfile(){ lsSet(K_PROFILE,{bank,crafted,prospector}); }
-function loadProfile(){ const p=lsGet(K_PROFILE); if(p){ bank=p.bank||{}; crafted=p.crafted||{}; prospector=p.prospector||0;
+function saveProfile(){ lsSet(K_PROFILE,{bank,crafted,prospector,luck,luckLive}); }
+function loadProfile(){ const p=lsGet(K_PROFILE); if(p){ bank=p.bank||{}; crafted=p.crafted||{}; prospector=p.prospector||0; luck=p.luck||0; luckLive=!!p.luckLive;
     // lapis and quartz were retired: swap any held for copper so nothing is lost
     ['lapis','quartz'].forEach(k=>{ if(bank[k]){ bank.copper=(bank.copper||0)+bank[k]; } delete bank[k]; }); } }
 function saveDay(){ lsSet(K_DAY,dayState); }
@@ -1277,16 +1093,16 @@ function checkDay(){
   if(s && s.day===today) dayState=s;
   else { dayState={day:today,done:[],scores:{},prospector:false}; saveDay(); const b=lsGet(K_BOARD); if(b && b.day!==today) lsDel(K_BOARD); }
 }
-function saveBoard(){ if(!pieces) return; lsSet(K_BOARD,{day:dayState.day,idx:level-1,mode,grid,pieces,score,combo,sinceClear,collected,since,bigNext,moves,over,undo,dealt}); saveProfile(); }
+function saveBoard(){ if(!pieces) return; lsSet(K_BOARD,{day:dayState.day,idx:level-1,mode,grid,pieces,score,combo,sinceClear,collected,hand,since,bigNext,moves,over,undo,dealt}); saveProfile(); }
 function clearBoardSave(){ lsDel(K_BOARD); }
 function savedBoard(){ const b=lsGet(K_BOARD); return (b && b.day===dayState.day && !b.over && b.moves>0) ? b : null; }
 const okMat=m=>MATS[m]?m:'copper';   // blocks retired since the save was written
 function restoreBoard(b){
   level=b.idx+1; ({grid,pieces,score,combo,sinceClear,collected}=b);
   grid=grid.map(row=>row.map(m=>m&&okMat(m))); pieces=pieces.map(p=>p&&{...p,mats:p.mats.map(okMat)});
-  since=b.since||{}; bigNext=!!b.bigNext; moves=b.moves||0; over=!!b.over; undo=b.undo||null; dealt=b.dealt||{}; shownCol={...collected}; shown=score; busy=false;
+  hand=b.hand||{}; since=b.since||{}; bigNext=!!b.bigNext; moves=b.moves||0; over=!!b.over; undo=b.undo||null; dealt=b.dealt||{}; shownCol={...collected}; shown=score; busy=false;
   $('over').hidden=true; buildGoals(); updateHUD(); updateStash(); renderCrafted(); drawTray();
-  boardT0=lastAct=performance.now(); A.setBoard(boardLabel(b.idx)); A.track('board_resume',{idx:b.idx,label:boardLabel(b.idx),score,moves});
+  updateLuckUI(); boardT0=lastAct=performance.now(); A.setBoard(boardLabel(b.idx)); A.track('board_resume',{idx:b.idx,label:boardLabel(b.idx),score,moves});
   if(over) showOver();
 }
 window.addEventListener('pagehide',()=>{ if(screen==='game') saveBoard(); saveProfile(); });
@@ -1569,17 +1385,17 @@ function render(now){
 
 // ---------- boot ----------
 function start(){
-  loadProfile(); checkDay(); buildStash(); renderCrafted();
+  loadProfile(); checkDay(); buildStash(); renderCrafted(); updateLuckUI();
   grid=emptyGrid(); pieces=null; showHome();
   layout(); drawTray(); requestAnimationFrame(render);
   if(document.fonts&&document.fonts.load) Promise.all(['700 20px Silkscreen','600 16px "Barlow Semi Condensed"'].map(f=>document.fonts.load(f))).catch(()=>{});
 }
 // Test hooks exist only when the page is served from this machine with ?debug; they are never exposed on a published site.
 if(['localhost','127.0.0.1','[::1]'].includes(location.hostname) && /[?&]debug\b/.test(location.search)) window.__deepcore={TEX,MATS,ITEM,test:{
-  place:(i,r,c)=>place(i,r,c), state:()=>({grid,pieces,score,busy,over,bank,crafted,dealt,screen,level,dayState}),
+  place:(i,r,c)=>place(i,r,c), state:()=>({grid,pieces,score,busy,over,bank,hand,luck,luckLive,crafted,dealt,screen,level,dayState}),
   fits:(p,r,c)=>fitsAt(p,r,c), setCell:(r,c,m)=>{grid[r][c]=m;}, setPieces:(ps)=>{pieces=ps; drawTray();},
   give:(b)=>{Object.assign(bank,b); updateStash();}, def:()=>levelDef(level), start:(i)=>{show('game'); startBoard(i);},
-  setScore:(v)=>{score=v;}, allClearBonus, audioState:()=>ac?ac.state:'none',
+  setScore:(v)=>{score=v;}, allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:()=>drinkLuck(), deal:()=>dealSet(), complete:()=>completeBoard(), audioState:()=>ac?ac.state:'none',
 }};
 start();
 })();

@@ -43,11 +43,11 @@ console.log(`board 1: ${moves} random moves, ended: ${end}`);
 if (end === 'stuck') fail('a dealt set had no legal placement');
 
 // crafting limits: one of each craftable
-await T(() => { const t = window.__deepcore.test; t.start(5); t.give({ coal: 99, iron: 99, gold: 99, cinnabar: 99, diamond: 9, emerald: 9 }); });
+await T(() => { const t = window.__deepcore.test; t.start(5); t.give({ coal: 99, iron: 99, gold: 99, cinnabar: 99, copper: 99, diamond: 9, emerald: 9 }); });
 await page.waitForTimeout(2400);
 await page.click('#anvilBtn'); await page.waitForTimeout(150);
 const names = await page.$$eval('.recipe .nm', e => e.map(x => x.textContent));
-if (names.join() !== 'Blast charge,Jackhammer,Rescue Potion') fail('unexpected recipes: ' + names);
+if (names.join() !== 'Blast charge,Jackhammer,Rescue Potion,Luck Tonic') fail('unexpected recipes: ' + names);
 await (await page.$$('.recipe button.go'))[0].click(); await page.waitForTimeout(80);
 const blastBtn = await page.$$eval('.recipe button.go', e => e[0].disabled);
 if (!blastBtn) fail('blast charge should be limited to one');

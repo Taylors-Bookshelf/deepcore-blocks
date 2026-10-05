@@ -20,7 +20,7 @@
   <header>
     <div class="stat">
       <span class="label">Today</span>
-      <span class="val" id="best">0</span>
+      <span class="val"><span id="best">0</span><span class="plus" id="bestPlus"></span></span>
     </div>
     <div class="hdrBtns">
       <button id="infoBtn" type="button" aria-label="How to play and item guide">i</button>
@@ -52,6 +52,7 @@
   <div id="stash">
     <div id="stashItems" aria-label="Ores and gems collected"></div>
   </div>
+  <div id="luckBadge" hidden><span class="pips"></span><span id="luckTxt"></span></div>
   <div id="tray">
     <div class="slot" data-i="0"><canvas></canvas></div>
     <div class="slot" data-i="1"><canvas></canvas></div>
@@ -129,6 +130,8 @@
 <script src="src/version.js"></script>
 <script src="src/config.js"></script>
 <script src="src/analytics.js"></script>
+<script src="src/data.js"></script>
+<script src="src/core.js"></script>
 <script src="src/game.js"></script>
 <script>
 if('serviceWorker' in navigator && location.protocol!=='file:') navigator.serviceWorker.register('sw.js').catch(()=>{});

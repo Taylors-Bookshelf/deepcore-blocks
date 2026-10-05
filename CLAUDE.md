@@ -15,7 +15,8 @@ A mining-themed 8×8 block puzzle (drag 3-piece sets onto the board, clear rows/
 
 - `index.html`: markup for all screens (home, world map, board, anvil, overlays).
 - `src/styles.css`: all styles. Single dark "mine" look on purpose, no light theme.
-- `src/game.js`: the whole game in one IIFE, in this order:
+- `src/data.js`: tables only (ores, values, zones, recipes, difficulty modes, `boardParams`). `src/core.js`: bitboard, solver, piece families, `chooseSet` dealer, `dressPiece` (no DOM; runs in Node). `tools/sim.mjs` / `tools/day.mjs` simulate bot players for tuning (`--bot mid` is calibrated to a typical player).
+- `src/game.js`: the screen layer in one IIFE, in this order (rules/data now live in the files above):
   1. **Textures** (`makeTex`, `PAL`, `inclusionMask`): procedural block art. Each ore has one fixed 3-piece inclusion layout seeded by its name, drawn on whichever host rock the zone uses (`TEX['iron@deep']` etc.).
   2. **Catalog** (`MATS`, `ORES`, `VAL`, `SPECIAL_MIX`, `DROPS`, `FX`): every block, its kind, drop, rarity and point value.
     4. **Bitboard core** (`SHAPES`, `applyMove`, `countHoles`, `healthy`, `solveCount`, `pocketInfo`): the board is two 32-bit ints; the solver counts the ways a 3-piece set can be placed (any order, with line clears between).

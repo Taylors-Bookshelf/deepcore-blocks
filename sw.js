@@ -3,7 +3,7 @@
 importScripts('src/version.js');
 const VERSION = 'deepcore-' + self.APP_VERSION;
 const CORE = ['./', './index.html', './manifest.webmanifest',
-  './src/version.js', './src/config.js', './src/analytics.js', './src/styles.css', './src/game.js',
+  './src/version.js', './src/config.js', './src/analytics.js', './src/data.js', './src/core.js', './src/styles.css', './src/game.js',
   './fonts/silkscreen-latin-400-normal.woff2', './fonts/silkscreen-latin-700-normal.woff2',
   './fonts/barlow-semi-condensed-latin-400-normal.woff2', './fonts/barlow-semi-condensed-latin-500-normal.woff2',
   './fonts/barlow-semi-condensed-latin-600-normal.woff2', './fonts/barlow-semi-condensed-latin-700-normal.woff2',

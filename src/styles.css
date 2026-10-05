@@ -107,7 +107,7 @@ button:focus-visible{outline:2px solid var(--torch);outline-offset:2px}
 /* stash + anvil */
 #stash{width:100%;max-width:520px;display:flex;align-items:center;gap:8px}
 #stashItems{flex:1 1 auto;min-width:0;display:flex;justify-content:space-between;gap:4px;overflow:hidden;background:var(--rock);border:2px solid var(--slot-edge);border-radius:4px;padding:3px 6px}
-.si{display:flex;align-items:center;gap:2px;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;min-width:0}
+.si{display:flex;align-items:center;gap:3px;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;min-width:0}
 .si canvas{width:18px;height:18px;image-rendering:pixelated;flex:none}
 .si.zero{opacity:.55}
 .si.bump{animation:bump .3s}
@@ -204,3 +204,16 @@ button.go:disabled{opacity:.4;cursor:not-allowed}
 .settings .fine{margin:0}
 h2{font-weight:400;letter-spacing:.02em}
 #nodeCard h2{font-size:22px}
+
+/* stash: banked count, with this attempt's unbanked haul shown as +n underneath */
+.si .t{display:flex;flex-direction:column;line-height:1.05;min-width:14px}
+.si .pl{font-size:11px;color:#8bf0a0;font-weight:700;min-height:11px}
+#stashItems{padding:3px 6px;align-items:center}
+.plus{margin-left:4px;font-size:14px;color:#8bf0a0;font-weight:700}
+/* luck tonic */
+#luckBadge{display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;font-weight:700;color:#ffe9a0;background:linear-gradient(180deg,#2e4a2a,#22381f);border:2px solid #7dff9a;border-radius:20px;padding:3px 14px;box-shadow:0 0 14px rgba(125,255,154,.35)}
+#luckBadge .pips{display:flex;gap:4px}
+#luckBadge .pips i{width:10px;height:10px;border-radius:50%;background:#1a2b19;border:1px solid #4d7a4a}
+#luckBadge .pips i.on{background:#7dff9a;border-color:#d8ffe0;box-shadow:0 0 6px #7dff9a}
+#tray.lucky .slot canvas{filter:drop-shadow(0 0 6px rgba(125,255,154,.8))}
+.chip.tap{cursor:pointer;border-color:#4d9a5e}
