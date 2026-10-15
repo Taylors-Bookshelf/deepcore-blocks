@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.3.1
+- Possible fix for the map sometimes ignoring taps after finishing a board (iPhone): the map's scroll area is rebuilt each time it opens, an old iOS scrolling setting is removed, and finishing a board can no longer run twice.
+
 ## 1.3.0 — playtest round 3: tidier screens and map
 - Points and bonus text from clears now sit on a dark plate with crisp text, readable on any block; the line-clear banner (Double!, Quad!) got the same treatment.
 - Magmastone redrawn darker and redder with glowing flecks, so it no longer reads as dirt.

@@ -982,7 +982,9 @@ function showClearPrompt(){
   bankb.onclick=()=>{ closeSheet(); bankBoard(); };
   $('sheetScrim').hidden=false;
 }
+let banking=false;
 function bankBoard(){
+  if(banking) return; banking=true; setTimeout(()=>{ banking=false; },2500);
   busy=true; const idx=level-1, dd=levelDef(level); ensureReached(); recordClear();
   const stars=Math.max(1,starsNow()), sb=starBonus(stars,dd.target);
   const haul=bankHand(), pts=score+clearBonus+sb;
@@ -1640,7 +1642,9 @@ function showMap(opts){
   buildMap.opts=opts; const {current,sb}=buildMap();
   const focusIdx = opts.justStrip!==undefined ? STRIP_BASE+opts.justStrip : opts.justDone!==undefined ? Math.min(BOARD_COUNT-1,opts.justDone+1) : (sb?sb.idx:(current<0?BOARD_COUNT-1:current));
   const fp=focusIdx>=STRIP_BASE?MAP.strip[focusIdx-STRIP_BASE]:MAP.nodes[focusIdx], ts=Math.min(window.innerWidth,520)/10;
-  requestAnimationFrame(()=>{ const sc=$('mapScroll'); sc.scrollTop=Math.max(0,fp.y*ts - sc.clientHeight/2); });
+  // iOS can leave a scroll area that was hidden unresponsive to taps until it is laid out again: rebuild its scrolling layer each time
+  { const sc=$('mapScroll'); sc.style.overflowY='hidden'; void sc.offsetHeight;
+    requestAnimationFrame(()=>{ sc.style.overflowY=''; void sc.offsetHeight; sc.scrollTop=Math.max(0,fp.y*ts - sc.clientHeight/2); }); }
   if(opts.prospector) setTimeout(showProspector,700);
 }
 // what a strip-mine board asks for: whatever the next lights are short of, and at least half a light's worth as a stock-up
