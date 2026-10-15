@@ -121,7 +121,7 @@ function drawMap(cv,ts,m,st,TEX,dpr){
   m.features.forEach(f=>{ if(f.y>reveal+3.5||f.y<SURFACE+1.5) return; const col=Math.floor(f.x), row=Math.floor(f.y); if(carve.has(row*COLS+col)) return; drawFeature(x,f,ts,q); });
   // rails + supports along dug tunnels in the stone zones
   m.segs.forEach(sg=>{ const z=Math.floor(sg.to/4); if(!st.dug(sg.to)||!(z>=1&&z<=3)||!m.features.some(f=>f.zone===z&&f.type==='rails')) return; const [ax,ay]=sg.pts[0],[bx,by]=sg.pts[sg.pts.length-1];
-    for(let t=.15;t<.9;t+=.2){ const px=ax+(bx-ax)*t, py=ay+(by-ay)*t; F(px-.5,py-.12,1,.06,'#6a4a2a'); F(px-.5,py-.78,.08,.7,'#6a4a2a'); F(px+.42,py-.78,.08,.7,'#6a4a2a'); F(px-.5,py-.82,1,.07,'#7a5a34'); } });
+    [.35,.75].forEach(t=>{ const px=ax+(bx-ax)*t, py=ay+(by-ay)*t; F(px-.42,py-.7,.12,.7,'#5a3d20'); F(px+.3,py-.7,.12,.7,'#5a3d20'); F(px-.5,py-.78,1,.12,'#6f4c28'); F(px-.5,py-.78,1,.04,'#8a6236'); }); });
   // lamps with a warm halo: lit tunnels glow, so the way you've lit is easy to see
   lamps.forEach(l=>{ const gr=x.createRadialGradient(l.x*ts,l.y*ts,0,l.x*ts,l.y*ts,ts*2.4); gr.addColorStop(0,'rgba(255,196,90,.55)'); gr.addColorStop(1,'rgba(255,150,40,0)'); x.fillStyle=gr; x.fillRect((l.x-2.4)*ts,(l.y-2.4)*ts,4.8*ts,4.8*ts);
     if(l.z===0) drawTorch(x,(l.x-.5)*ts,(l.y-.55)*ts,ts); else drawLantern(x,(l.x-.5)*ts,(l.y-.5)*ts,ts); });
@@ -147,6 +147,7 @@ function drawMap(cv,ts,m,st,TEX,dpr){
 }
 function drawFeature(x,f,ts,q){
   const X=f.x*ts, Y=f.y*ts, P=(a,b,w,h,c)=>{ x.fillStyle=c; x.fillRect(X+a*q,Y+b*q,w*q,h*q); };
+  const PAT=(rows,cols)=>rows.forEach((row,j)=>[...row].forEach((ch,i)=>{ if(cols[ch]) P(i,j,1,1,cols[ch]); }));
   switch(f.type){
     case 'pebbles': P(0,4,3,2,'#9a8a78'); P(5,5,2,2,'#7a6a5a'); P(9,3,2,2,'#b0a090'); break;
     case 'burrow': P(0,0,5,4,'#120c08'); P(1,-1,3,1,'#120c08'); P(5,3,2,1,'#6a4a34'); break;
@@ -154,9 +155,9 @@ function drawFeature(x,f,ts,q){
     case 'mushrooms': P(2,0,5,2,'#d9573a'); P(3,2,3,3,'#efe4d0'); P(3,0,1,1,'#fff'); P(8,3,3,1,'#c8a0d8'); P(9,4,1,2,'#efe4d0'); break;
     case 'pool': P(0,0,10,4,'#1f5f9a'); P(1,0,5,1,'#5fb0e8'); P(0,4,10,1,'#10304e'); break;
     case 'bones': P(0,2,8,1,'#e8e2d0'); P(0,1,2,3,'#e8e2d0'); P(6,1,2,3,'#e8e2d0'); P(3,5,5,1,'#cfc8b4'); break;
-    case 'fossil': P(0,0,6,6,'#6b5332'); P(1,1,4,4,'#d9c9a0'); P(2,2,2,2,'#6b5332'); break;
+    case 'fossil': PAT(['.XXXX.','XYYYYX','XYXXYX','XYXYYX','XYYYXX','.XXXX.'],{X:'#6b5332',Y:'#d9c9a0'}); break;
     case 'crystals': { const c=f.s<.33?['#7fe8ff','#c8f6ff']:f.s<.66?['#d98cff','#f0d0ff']:['#7dff9a','#d0ffd8']; P(1,2,2,6,c[0]); P(0,5,1,3,c[0]); P(3,0,2,8,c[0]); P(3,0,1,5,c[1]); P(5,3,2,5,c[0]); P(1,2,1,3,c[1]); break; }
-    case 'geode': P(1,0,8,8,'#5a4a6a'); P(2,1,6,6,'#8a4ad0'); P(3,2,4,4,'#d9a8ff'); P(4,3,2,2,'#fff'); break;
+    case 'geode': PAT(['..XXX..','.XYYYX.','XYZZZYX','XYZWZYX','XYZZZYX','.XYYYX.','..XXX..'],{X:'#4a3a5a',Y:'#8a4ad0',Z:'#d9a8ff',W:'#ffffff'}); break;
     case 'lavafall': P(1,0,3,12,'#ff7a1f'); P(2,0,1,12,'#ffd23f'); P(0,12,5,2,'#ff7a1f'); break;
     case 'embers': P(0,0,2,2,'#ff9a3a'); P(5,3,2,2,'#ffd23f'); P(9,1,1,1,'#fff2b0'); break;
     case 'rails': break;

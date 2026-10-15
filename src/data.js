@@ -15,7 +15,7 @@ const VAL = { grass:2, log:2, dirt:2, sand:2, stone:4, granite:5, deep:6, obsidi
   coal:15, copper:20, iron:30, ruby:30, gold:50, emerald:150, diamond:200 };
 // Specials: per-piece chance by difficulty tier, and how often each type is picked
 const SPECIAL_RATE = {Easy:0, Medium:.01, Hard:.02, Expert:.03};
-const SPECIAL_MIX = {prism:.4, fossil:.32, treasure:.28}; // random-only specials; blast, jackhammer and rescue are craft-only
+const SPECIAL_MIX = {prism:.4, fossil:.32, treasure:.28}; // random-only specials; blast, sledgehammer, rescue and luck are craft-only
 
 const DROPS = {
   dirt:['Topsoil','dirt'], sand:['Sand','sand'], wood:['Wood','log'], stone:['Limestone','stone'], granite:['Granite','granite'], deep:['Slate','deep'],
@@ -42,14 +42,14 @@ const BOARDS_PER_ZONE=4, BOARD_COUNT=ZONES.length*BOARDS_PER_ZONE, STRIP_BASE=BO
 // Craftable specials (anvil). Never spawn randomly.
 const RECIPES=[
   {m:'blast',      cost:{coal:12, iron:3},                                  desc:'Explodes when its line clears, breaking the 8 blocks around it and mining their ore.'},
-  {m:'jackhammer', cost:{copper:10, ruby:8, iron:8, gold:4},            desc:'Shakes the remaining blocks into a fresh arrangement with no trapped gaps.'},
+  {m:'sledgehammer', cost:{copper:10, ruby:8, iron:8, gold:4},            desc:'Swing it to shake the remaining blocks into a fresh arrangement with no trapped gaps.'},
   {m:'rescue',     cost:{ruby:20, emerald:1},                           desc:'Used automatically on a cave-in: undoes your last placement and deals a fresh set of pieces.'},
   {m:'luck',       cost:{ruby:12, diamond:1},                           desc:'Tap to drink. For the next 7 sets, the dealer leans toward pieces that clear rows, columns, and even the whole board.'},
 ];
 // Torches (forest) and lanterns (every deeper zone): two must be placed to open the fourth board of a zone.
 const LIGHTS={ torch:{name:'Torch', plural:'torches', cost:{coal:10, wood:5}}, lantern:{name:'Lantern', plural:'lanterns', cost:{coal:20, copper:10}} };
 const LIGHTS_NEEDED=2, lightKind=z=>z===0?'torch':'lantern';
-const STASH_KEYS=['wood','coal','copper','iron','ruby','gold','emerald','diamond'];
+const STASH_KEYS=['wood','coal','iron','copper','gold','ruby','emerald','diamond'];
 const GEM_KEYS=['ruby','emerald','diamond'];
 
 

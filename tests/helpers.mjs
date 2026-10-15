@@ -12,7 +12,7 @@ export function serve() {
     const server = http.createServer(async (req, rs) => {
       try { let p = decodeURIComponent(new URL(req.url, 'http://x').pathname); if (p.endsWith('/')) p += 'index.html';
         const file = normalize(join(root, p)); if (!file.startsWith(root)) throw 0;
-        rs.writeHead(200, { 'content-type': types[extname(file)] || 'application/octet-stream' }); rs.end(await readFile(file)); }
+        const body = await readFile(file); rs.writeHead(200, { 'content-type': types[extname(file)] || 'application/octet-stream' }); rs.end(body); }
       catch { rs.writeHead(404); rs.end(); } }).listen(0, () => res({ server, base: `http://localhost:${server.address().port}/` }));
   });
 }

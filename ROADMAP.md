@@ -15,14 +15,14 @@ Status key: [ ] todo · [~] in progress · [x] done and live. Every item names t
 - [x] Save migration (cinnabar to ruby, today's map reset, schema version)
 
 ## Release 2 · v0.7.0 · The new look (design package, no rule changes)
-- [ ] Fonts bundled: Jersey 10 (numbers, titles) and Chakra Petch (UI text)
-- [ ] Sprites: 7 block textures, ores, gems, Blast Charge, Sledgehammer, anvil; glow/idle effects
-- [ ] Play screen to spec: header (level badge, zone, difficulty chip, Today, Map + Sound + info icons), progress bar, resource strip (ore | gem), flat 42pt board with 2pt seams, specials dock (3 slots + Craft), 114pt tray, no footer, no hint line
-- [ ] Jackhammer renamed Sledgehammer
-- [ ] Map restyled to the new art; field guide restyled
-- [ ] Art the package lacks (potions, torch, lantern, wood, prism, fossil, treasure) restyled to match
-- [ ] #18 Empty-cell contrast verified on the new art; #22 title font fixed by Jersey 10
-- [ ] Spec-conformance test (pixel sizes) added
+- [x] Fonts bundled: Jersey 10 (numbers, titles) and Chakra Petch (UI text)
+- [x] Sprites: 7 block textures, ores, gems, Blast Charge, Sledgehammer, anvil; glow/idle effects
+- [x] Play screen to spec: header (level badge, zone, difficulty chip, Today, Map + Sound + info icons), progress bar, resource strip (ore | gem), flat 42pt board with 2pt seams, specials dock (3 slots + Craft), 114pt tray, no footer, no hint line
+- [x] Jackhammer renamed Sledgehammer
+- [x] Map restyled to the new art; field guide restyled
+- [x] Art the package lacks (potions, torch, lantern, wood, prism, fossil, treasure) restyled to match
+- [x] #18 Empty-cell contrast verified on the new art; #22 title font fixed by Jersey 10
+- [x] Spec-conformance test (pixel sizes) added
 
 ## Release 3 · v0.8.0 · Specials and interaction
 - [ ] Dock holds up to 3 specials in any mix; Blast, Sledgehammer, Rescue, Luck each take a slot

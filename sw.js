@@ -3,10 +3,9 @@
 importScripts('src/version.js');
 const VERSION = 'deepcore-' + self.APP_VERSION;
 const CORE = ['./', './index.html', './manifest.webmanifest',
-  './src/version.js', './src/config.js', './src/analytics.js', './src/data.js', './src/core.js', './src/maps.js', './src/styles.css', './src/game.js',
-  './fonts/silkscreen-latin-400-normal.woff2', './fonts/silkscreen-latin-700-normal.woff2',
-  './fonts/barlow-semi-condensed-latin-400-normal.woff2', './fonts/barlow-semi-condensed-latin-500-normal.woff2',
-  './fonts/barlow-semi-condensed-latin-600-normal.woff2', './fonts/barlow-semi-condensed-latin-700-normal.woff2',
+  './src/version.js', './src/config.js', './src/analytics.js', './src/data.js', './src/core.js', './src/maps.js', './src/assets.js', './src/styles.css', './src/game.js',
+  './fonts/jersey-10-latin-400-normal.woff2', './fonts/chakra-petch-latin-500-normal.woff2', './fonts/chakra-petch-latin-600-normal.woff2', './fonts/chakra-petch-latin-700-normal.woff2',
+  './assets/blocks/topsoil.png', './assets/blocks/wood-bark.png', './assets/blocks/limestone.png', './assets/blocks/granite.png', './assets/blocks/slate.png', './assets/blocks/basalt.png', './assets/blocks/magmastone.png', './assets/ores/coal.png', './assets/ores/iron.png', './assets/ores/copper.png', './assets/ores/gold.png', './assets/gems/ruby.png', './assets/gems/emerald.png', './assets/gems/diamond.png', './assets/specials/blast-charge.png', './assets/specials/sledgehammer.png', './assets/ui/anvil.png',
   './icons/icon-192.png', './icons/icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));

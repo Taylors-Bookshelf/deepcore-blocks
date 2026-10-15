@@ -7,25 +7,21 @@ check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWid
 check(await page.evaluate(() => { const b = document.getElementById('mapBtn').getBoundingClientRect(); return b.left >= 0 && b.right <= innerWidth && b.bottom <= innerHeight; }), 'home buttons are on screen');
 await page.tap('#mapBtn'); await page.waitForTimeout(300); await page.tap('.node.open'); await page.tap('#ncGo'); await page.waitForTimeout(2600);
 
-// header: Today | (info, anvil) | Board, and no separate big score
-const hdr = await page.evaluate(() => { const r = id => document.getElementById(id).getBoundingClientRect(); const t = document.querySelector('header .stat').getBoundingClientRect(), b = document.querySelector('header .stat.right').getBoundingClientRect();
-  return { todayR: t.right, boardL: b.left, infoL: r('infoBtn').left, infoR: r('infoBtn').right, anvilL: r('anvilBtn').left, anvilR: r('anvilBtn').right, anvilH: r('anvilBtn').height, score: !!document.getElementById('score') }; });
-check(hdr.infoL > hdr.todayR && hdr.anvilR < hdr.boardL && hdr.infoR < hdr.anvilL, 'info and anvil sit between Today and Board');
-check(hdr.anvilH >= 60, `anvil button is large (${Math.round(hdr.anvilH)}px tall)`);
-check(!hdr.score, 'redundant big score removed');
-check(await page.evaluate(() => /\d+ \/ \d+/.test(document.getElementById('ptxt').textContent)), 'progress bar shows score / target');
+// header controls and the score bar
+check(await page.evaluate(() => ['infoBtn', 'homeBtn', 'sound', 'anvilBtn'].every(id => !!document.getElementById(id))), 'header has info, map and sound; the dock has CRAFT');
+check(await page.evaluate(() => !document.getElementById('score') && !document.querySelector('.btns') && !document.getElementById('crafted')), 'old big score, footer buttons and hint line are gone');
+check(await page.evaluate(() => /\d/.test(document.getElementById('pscore').textContent) && /\d/.test(document.getElementById('pgoal').textContent)), 'progress bar shows score / target');
 
-// tray: no boxes, one fixed piece size even with a 1x5 bar; sizes never change when a piece is placed
+// tray: one fixed piece size even with a 1x5 bar; sizes never change when a piece is placed
 await page.evaluate(() => { const t = window.__deepcore.test; const mk = (cells, w, h) => ({ cells, h, w, mats: cells.map(() => 'dirt'), sid: 0 });
   t.setPieces([mk([[0,0],[0,1],[0,2],[0,3],[0,4]], 5, 1), mk([[0,0],[0,1]], 2, 1), mk([[0,0],[1,0],[1,1]], 2, 2)]); });
-const px = () => page.evaluate(() => [...document.querySelectorAll('.slot')].map(s => { const c = s.firstElementChild; const sp = window.__deepcore.test.state().pieces[+s.dataset.i]; return c.hidden || !sp ? null : { cs: Math.round(c.clientWidth / sp.w), w: c.clientWidth, slotW: s.clientWidth }; }));
+const px = () => page.evaluate(() => [...document.querySelectorAll('.slot')].map(s => { const c = s.firstElementChild; const sp = window.__deepcore.test.state().pieces[+s.dataset.i]; return c.hidden || !sp ? null : { cs: Math.round((c.clientWidth + 2) / sp.w), w: c.clientWidth, slotW: s.clientWidth }; }));
 const s0 = await px();
-check(new Set(s0.filter(Boolean).map(o => o.cs)).size === 1, `all tray pieces share one cell size (${JSON.stringify(s0.map(o => o && o.cs))})`);
+check(new Set(s0.filter(Boolean).map(o => o.cs)).size === 1, `all tray pieces share one block pitch (${JSON.stringify(s0.map(o => o && o.cs))})`);
 check(s0[0].w <= s0[0].slotW, '1x5 bar fits inside its slot at full size');
-check(await page.evaluate(() => getComputedStyle(document.querySelector('.slot')).backgroundColor === 'rgba(0, 0, 0, 0)'), 'tray slots have no background box');
 
 // real touch drag: the piece rides ABOVE the finger
-const geo = () => page.evaluate(() => { const b = document.getElementById('board').getBoundingClientRect(); const s = [...document.querySelectorAll('.slot')].map(e => { const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }); return { b: [b.left, b.top, b.width], s, cell: b.width / 8 }; });
+const geo = () => page.evaluate(() => { const b = document.getElementById('board').getBoundingClientRect(); const s = [...document.querySelectorAll('.slot')].map(e => { const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }); return { b: [b.left, b.top, b.width], s, cell: (b.width + 2) / 8 }; });
 let g = await geo();
 const fingerY = g.b[1] + g.cell * 5 + g.cell * 1.15;       // finger below row 4's bottom edge -> bar's bottom row should be row 4 (0-based)
 await touchDrag(page, cdp, g.s[0], [g.b[0] + g.cell * 4, fingerY]); await page.waitForTimeout(500);

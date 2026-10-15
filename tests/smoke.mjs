@@ -47,10 +47,10 @@ await T(() => { const t = window.__deepcore.test; t.start(5); t.give({ coal: 99,
 await page.waitForTimeout(2400);
 await page.click('#anvilBtn'); await page.waitForTimeout(150);
 const names = await page.$$eval('.recipe .nm', e => e.map(x => x.textContent));
-if (names.join() !== 'Blast charge,Jackhammer,Rescue Potion,Luck Tonic') fail('unexpected recipes: ' + names);
-await (await page.$$('.recipe button.go'))[0].click(); await page.waitForTimeout(80);
-const blastBtn = await page.$$eval('.recipe button.go', e => e[0].disabled);
-if (!blastBtn) fail('blast charge should be limited to one');
+if (names.join() !== 'Blast charge,Sledgehammer,Rescue Potion,Luck Tonic') fail('unexpected recipes: ' + names);
+for (let k = 0; k < 3; k++) { await (await page.$$('.recipe button.go'))[0].click(); await page.waitForTimeout(80); }
+const full = await page.$$eval('.recipe button.go', e => e.map(b => b.disabled && /Slots full/.test(b.textContent)));
+if (!full.every(Boolean)) fail('with three specials in the dock every craft button should say Slots full');
 await page.click('#anvilClose');
 
 // retired ores are gone, all-clear is capped at 15% of the target, the day key is Pacific, analytics fire

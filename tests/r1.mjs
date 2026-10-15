@@ -78,9 +78,9 @@ check(await T(() => ['stone', 'granite', 'deep', 'ember', 'obsidian'].every(r =>
 // save migration from the old format
 await ctx.addInitScript(() => { localStorage.clear(); localStorage.setItem('deepcore-profile', JSON.stringify({ bank: { cinnabar: 7, coal: 3 }, crafted: { jackhammer: 1 }, prospector: 1 })); localStorage.setItem('deepcore-day', JSON.stringify({ day: '2099-01-01', done: [0, 1, 2], scores: {}, prospector: false })); localStorage.setItem('deepcore-mode', '2'); });
 await page.reload(); await page.waitForTimeout(700);
-s = await st(); const mig = await T(() => ({ schema: localStorage.getItem('deepcore-schema'), mode: localStorage.getItem('deepcore-mode'), crafted: window.__deepcore.test.state().crafted }));
+s = await st(); const mig = await T(() => ({ schema: localStorage.getItem('deepcore-schema'), mode: localStorage.getItem('deepcore-mode'), specials: window.__deepcore.test.state().specials }));
 check(s.bank.ruby === 7 && s.bank.cinnabar === undefined && s.bank.coal === 3, `old cinnabar became ruby (${JSON.stringify(s.bank)})`);
-check(mig.crafted.jackhammer === 1 && mig.schema === '2' && mig.mode === null, 'specials kept, schema version stamped, old difficulty setting removed');
+check(mig.specials.join() === 'sledgehammer' && mig.schema === '3' && mig.mode === null, 'specials kept (jackhammer is now the sledgehammer), schema stamped, old difficulty setting removed');
 check(s.day.done.length === 0, "today's map restarts because the boards were renumbered");
 check(errors.length === 0, 'no page errors ' + errors.join(' | '));
 await close();

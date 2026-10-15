@@ -1,0 +1,59 @@
+/* Deepcore Blocks — sprite effects & motion (web reference).
+   Port the values, not necessarily the CSS, if the game isn't web-based. */
+
+.pixel { image-rendering: pixelated; background-size: 100% 100%; }
+
+/* Ores: no glow, just a thin light edge so dark ores read on dark rock */
+.ore { filter: drop-shadow(0 0 .8px rgba(255,255,255,.55)); }
+
+/* Gold: faint glint */
+.ore.gold { --g: rgba(255,220,80,.7);
+  filter: drop-shadow(0 0 .8px rgba(255,255,255,.55)) drop-shadow(0 0 2px var(--g));
+  animation: glint 3.2s ease-in-out infinite; }
+@keyframes glint { 50% { filter: drop-shadow(0 0 .8px rgba(255,255,255,.55)) drop-shadow(0 0 3px var(--g)); } }
+
+/* Gems: soft colored shimmer */
+.gem { filter: drop-shadow(0 0 .8px rgba(255,255,255,.6)) drop-shadow(0 0 4px var(--g));
+  animation: shimmer 4s ease-in-out infinite; }
+.gem.ruby    { --g: rgba(255,50,80,.75); }
+.gem.emerald { --g: rgba(50,230,120,.70); }
+.gem.diamond { --g: rgba(90,235,255,.75); }
+@keyframes shimmer { 50% { filter: drop-shadow(0 0 .8px rgba(255,255,255,.6)) drop-shadow(0 0 6px var(--g)); } }
+
+/* Specials idle */
+.spark { position:absolute; width:6px; height:6px; border-radius:50%; background:#fff3b0;
+  box-shadow:0 0 6px 2px rgba(255,180,40,.85); animation: fizz .45s steps(2) infinite; }
+/* place spark at sprite pixel (11,1) of blast-charge: left = 8 + 11*2.5, top = 8 + 1*2.5 inside a 56px slot w/ 40px sprite */
+@keyframes fizz { 50% { transform: scale(.55); opacity: .7; } }
+.swing { transform-origin: 50% 90%; animation: swing 1.8s ease-in-out infinite; }
+@keyframes swing { 0%,100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+
+/* Slots-full sheet */
+.sheet { animation: sheetUp .28s cubic-bezier(.2,.9,.3,1); }
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: none; } }
+
+/* Destroy sequence (in the specials dock): crack+shake 450ms -> shatter 800ms -> new item lands 500ms */
+.shake { animation: shake .45s linear; }
+@keyframes shake { 20%{transform:translate(-2px,0)} 40%{transform:translate(2px,-1px)} 60%{transform:translate(-2px,1px)} 80%{transform:translate(2px,0)} }
+.cracks { animation: crackIn .2s steps(2) forwards; }
+@keyframes crackIn { from { opacity:0; transform:scale(.6); } to { opacity:1; transform:none; } }
+/* Shatter: the sprite is split into 4 quadrant shards (same image, background-position offsets) */
+.shard { position:absolute; width:20px; height:20px; background-size:40px 40px; image-rendering:pixelated;
+  animation-duration:.8s; animation-timing-function:cubic-bezier(.45,-.35,.9,.6); animation-fill-mode:forwards; }
+.sh1{left:0;top:0;background-position:0 0;animation-name:f1}
+.sh2{left:20px;top:0;background-position:-20px 0;animation-name:f2;animation-delay:.04s}
+.sh3{left:0;top:20px;background-position:0 -20px;animation-name:f3;animation-delay:.08s}
+.sh4{left:20px;top:20px;background-position:-20px -20px;animation-name:f4;animation-delay:.02s}
+@keyframes f1{30%{transform:translate(-14px,-22px) rotate(-40deg)}100%{transform:translate(-40px,320px) rotate(-260deg);opacity:.9}}
+@keyframes f2{30%{transform:translate(14px,-26px) rotate(50deg)}100%{transform:translate(46px,330px) rotate(300deg);opacity:.9}}
+@keyframes f3{30%{transform:translate(-10px,-10px) rotate(-30deg)}100%{transform:translate(-22px,300px) rotate(-200deg);opacity:.9}}
+@keyframes f4{30%{transform:translate(12px,-12px) rotate(35deg)}100%{transform:translate(28px,310px) rotate(220deg);opacity:.9}}
+.dust { position:absolute; left:50%; top:50%; width:6px; height:6px; margin:-3px; background:#c9ccd2; animation: dust .5s ease-out forwards; }
+.d1{--dx:-26px;--dy:-18px} .d2{--dx:24px;--dy:-22px} .d3{--dx:-20px;--dy:16px} .d4{--dx:22px;--dy:14px}
+@keyframes dust { to { transform: translate(var(--dx),var(--dy)); opacity: 0; } }
+.land { animation: land .5s cubic-bezier(.3,1.6,.5,1); }
+@keyframes land { from { transform: translateY(-70px) scale(.8); opacity:0; } to { transform:none; opacity:1; } }
+
+/* "Leave it behind": the found special flips up, spins and falls off the bottom of the screen */
+.tossed { animation: toss 1s cubic-bezier(.35,-.2,.85,.5) forwards; }
+@keyframes toss { 0%{transform:translate(0,0) rotate(0)} 25%{transform:translate(18px,-60px) rotate(70deg)} 100%{transform:translate(70px,520px) rotate(420deg)} }

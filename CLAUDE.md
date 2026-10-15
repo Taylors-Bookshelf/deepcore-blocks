@@ -9,22 +9,19 @@ A mining-themed 8×8 block puzzle (drag 3-piece sets onto the board, clear rows/
 - Add `?debug` to the URL to expose `window.__deepcore.test`. It only works on localhost/127.0.0.1 (never on a published host). The smoke test relies on it; never depend on it in game code.
 - Each release: bump `APP_VERSION` in `src/version.js` (the service worker's cache name derives from it, so installed copies update).
 - Analytics: `src/analytics.js` + `src/config.js` (PostHog key; empty = off). Events are fired from `game.js` through the `A` shim. Players can opt out in Settings; DNT/GPC are honoured.
-- Fonts are self-hosted in `fonts/` (Silkscreen for titles, Barlow Semi Condensed for text; both OFL).
 
 ## Files
 
-- `index.html`: markup for all screens (home, world map, board, anvil, overlays).
-- `src/styles.css`: all styles. Single dark "mine" look on purpose, no light theme.
-- `src/data.js`: tables only (ores, values, zones, recipes, difficulty modes, `boardParams`). `src/core.js`: bitboard, solver, piece families, `chooseSet` dealer, `dressPiece` (no DOM; runs in Node). `tools/sim.mjs` / `tools/day.mjs` simulate bot players for tuning (`--bot mid` is calibrated to a typical player).
-- `src/game.js`: the screen layer in one IIFE, in this order (rules/data now live in the files above):
-  1. **Textures** (`makeTex`, `PAL`, `inclusionMask`): procedural block art. Each ore has one fixed 3-piece inclusion layout seeded by its name, drawn on whichever host rock the zone uses (`TEX['iron@deep']` etc.).
-  2. **Catalog** (`MATS`, `ORES`, `VAL`, `SPECIAL_MIX`, `DROPS`, `FX`): every block, its kind, drop, rarity and point value.
-    4. **Bitboard core** (`SHAPES`, `applyMove`, `countHoles`, `healthy`, `solveCount`, `pocketInfo`): the board is two 32-bit ints; the solver counts the ways a 3-piece set can be placed (any order, with line clears between).
-  5. **Zones and daily boards** (`MODES`, `ZONES`, `boardDef`): 5 zones × 4 boards, regenerated from the device's local date.
-  6. **Dealer** (`chooseSet`, `dressPiece`, `prefill`): every dealt set is solver-checked; difficulty sets the target number of solutions and how much the dealer "helps".
-  7. **UI, effects, sound** (goal bar, stash, flyers, `playSpecial`, `playSplash`, `playAllClear`, WebAudio blips).
-  8. **Game flow** (`startBoard`, async `place`, `detonate`, `doShake`, `completeBoard`, `gameOver`, `useRescue`).
-  9. **Stash / anvil / crafted specials**, **saving**, **home**, **world map**, **drag**, **render loop**, **boot**.
+- `index.html`: markup for all screens (home, world map, board, anvil, craft panel, field guide, overlays). `game.js` is loaded only after `assets.js` has loaded the sprites.
+- `src/styles.css`: all styles, built from the design package (`design/tokens.json`). Flat slate ground, panel surfaces with a 1px inset line, amber lamp accent.
+- `design/`: the design package as delivered (spec, tokens, effects, mockups, SVG + PNG sprites). `assets/`: the 16x16 PNGs the game actually loads. `fonts/`: Jersey 10 (numbers, titles) and Chakra Petch (text), both OFL.
+- `src/assets.js`: preloads the PNG sprites. `src/data.js`: tables (ores, values, zones, recipes). `src/core.js`: bitboard, solver, piece families, dealer, `dressPiece` (no DOM). `src/maps.js`: daily map generator and renderer. `src/game.js`: the screen layer in one IIFE: sprite pipeline (`TEX`, `OVERC`, `SPR`; procedural art is the fallback when a PNG is missing), catalog (`MATS`), state, dealer glue, UI, effects, sound, game flow (`startBoard`, async `place`, `detonate`, `completeBoard`, `gameOver`), specials dock, anvil and craft panels, field guide, saving (schema versioned), home, world map, drag, render loop, boot.
+- `tools/`: simulators (`sim.mjs`, `day.mjs`, `mercy.mjs`). `tests/`: see Run and test.
+
+## Look and feel (design package)
+- Board: 8x8, 42pt blocks with 2pt seams on a 390pt screen (`cell` is the pitch, `bs` the block size), flat empty cells, no block borders. Ores/gems/specials are transparent overlays drawn over the rock; gold glints and gems shimmer (`GLOWS`). Magmastone never glows.
+- Header: level badge, zone name, difficulty chip, Today; info, map and sound icons. Progress bar shows score/target. Resource strip: ore | gems, with the unbanked haul as +n. Specials dock: 3 flat 56pt slots + CRAFT. Tray: 3 slots 114pt tall, 20pt piece cells (shrinks only on very short screens).
+- `tests/spec.mjs` asserts these pixel sizes at 390 wide and that a 375x667 phone fits without clipping.
 
 ## Design rules agreed with the designer (keep these unless told otherwise)
 
@@ -44,10 +41,10 @@ A mining-themed 8×8 block puzzle (drag 3-piece sets onto the board, clear rows/
 - All mined ore and gems go to the persistent stash (shown under the board).
 
 **Specials**
-- Craft-only (anvil), one of each held at a time: **Blast Charge**, **Jackhammer**, **Rescue Potion**, **Luck Tonic** (`RECIPES`; Luck is tapped to drink and favours the next 7 sets). Never spawn randomly.
+- Craft-only (anvil), held in a 3-slot dock in any mix (duplicates allowed): **Blast Charge**, **Sledgehammer**, **Rescue Potion**, **Luck Tonic** (`RECIPES`; Luck is tapped to drink and favours the next 7 sets). Never spawn randomly.
 - Random-only, never craftable: **Prism Stone**, **Fossil**, **Buried Treasure** (`SPECIAL_MIX`, `SPECIAL_RATE`).
 - Blast Charge: flares on the board, explodes, breaks the 8 neighbours (their ore flies to the stash), then a short splash.
-- Jackhammer: shakes remaining blocks into a random layout with no trapped gaps, no full lines, and room for the tray pieces (`shakeLayout`).
+- Sledgehammer (was Jackhammer): shakes remaining blocks into a random layout with no trapped gaps, no full lines, and room for the tray pieces (`shakeLayout`).
 - Rescue Potion: consumed automatically on a cave-in; undoes the last placement and deals a fresh set. If the player can afford one at a cave-in, the overlay offers "Craft a Rescue Potion".
 - Buried Treasure: one haul of 5–9 iron, 4–7 gold, 2–4 emeralds or 1–3 diamonds; odds and amounts lean to gems in the Gem Depths and Underworld.
 - Prism Stone: 3 of a random ore/gem from the current zone (redefined after goals were removed).

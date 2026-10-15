@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#14110f">
+<meta name="theme-color" content="#46494f">
 <meta name="description" content="Deepcore Blocks: a mining block puzzle. Place pieces, clear lines, dig from the forest to the Underworld.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -11,57 +11,55 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="preload" href="fonts/silkscreen-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="fonts/barlow-semi-condensed-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/jersey-10-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/chakra-petch-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="src/styles.css">
 </head>
 <body>
 <div id="app">
-  <header>
-    <div class="stat">
-      <span class="label">Today</span>
-      <span class="val"><span id="best">0</span><span class="plus" id="bestPlus"></span></span>
+  <header id="hdr">
+    <div id="lvlBadge" aria-label="Board"><span id="level">1-1</span></div>
+    <div class="hmid">
+      <div id="zoneName">THE FOREST</div>
+      <div class="hrow"><span class="tier" id="tier">Easy</span><span id="todayTxt">Today <span id="best">0</span><span class="plus" id="bestPlus"></span></span></div>
     </div>
-    <div class="hdrBtns">
-      <button id="infoBtn" type="button" aria-label="How to play and item guide">i</button>
-      <button id="anvilBtn" type="button" aria-label="Open the anvil"><canvas id="anvilIcon" width="16" height="16"></canvas><span>Anvil</span></button>
-    </div>
-    <div class="stat right">
-      <span class="label">Board</span>
-      <span class="val" id="level">1</span>
-      <span class="tier" id="tier">Easy</span>
-    </div>
+    <button id="infoBtn" class="ibtn" type="button" aria-label="Field guide"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.5" r=".6" fill="currentColor"/></svg></button>
+    <button id="homeBtn" class="ibtn" type="button" aria-label="Map"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg></button>
+    <button id="sound" class="ibtn" type="button" aria-label="Sound" aria-pressed="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="wv" d="M17 9a4 4 0 0 1 0 6"/><path class="xx" d="M17 9l5 6M22 9l-5 6"/></svg></button>
   </header>
   <div id="goalsBar"></div>
+  <div id="stash"><div id="stashItems" aria-label="Ores and gems collected"></div></div>
   <div id="boardWrap">
-    <canvas id="board"></canvas>
-    <div id="combo"></div>
-    <div id="banner"><span class="lvl" id="bLvl"></span><h2 id="bName"></h2><p id="bGoals"></p></div>
-    <div id="over" hidden>
-      <h2>Cave-in!</h2>
-      <p id="overWhy">No room left to place the next block.</p>
-      <div class="big" id="finalScore">0</div>
-      <p id="finalNote"></p>
-      <div class="row">
-        <button id="rescueBtn" class="primary" type="button" hidden>Craft a Rescue Potion</button>
-        <button id="retry" class="secondary" type="button">Retry board</button>
-        <button id="again" class="secondary" type="button">Map</button>
+    <div id="boardWell">
+      <canvas id="board"></canvas>
+      <div id="combo"></div>
+      <div id="banner"><span class="lvl" id="bLvl"></span><h2 id="bName"></h2><p id="bGoals"></p></div>
+      <div id="over" hidden>
+        <h2>Cave-in!</h2>
+        <p id="overWhy">No room left to place the next block.</p>
+        <div class="big" id="finalScore">0</div>
+        <p id="finalNote"></p>
+        <div class="row">
+          <button id="rescueBtn" class="go" type="button" hidden>Craft a Rescue Potion</button>
+          <button id="retry" class="go" type="button">Retry board</button>
+          <button id="again" type="button">Map</button>
+        </div>
       </div>
     </div>
   </div>
-  <div id="stash">
-    <div id="stashItems" aria-label="Ores and gems collected"></div>
+  <div id="dock" aria-label="Specials">
+    <div id="dockSlots"></div>
+    <div class="dockSp"></div>
+    <div class="dockDiv"></div>
+    <button id="anvilBtn" type="button" aria-label="Open the anvil to craft specials"><canvas id="anvilIcon" width="16" height="16"></canvas><span>CRAFT</span></button>
   </div>
-  <div id="luckBadge" hidden><span class="pips"></span><span id="luckTxt"></span></div>
-  <div id="tray">
-    <div class="slot" data-i="0"><canvas></canvas></div>
-    <div class="slot" data-i="1"><canvas></canvas></div>
-    <div class="slot" data-i="2"><canvas></canvas></div>
-  </div>
-  <div id="crafted"></div>
-  <div class="btns">
-    <button id="homeBtn" type="button">Map</button>
-    <button id="sound" type="button" aria-label="Sound" aria-pressed="true"><svg viewBox="0 0 16 16" width="26" height="26" shape-rendering="crispEdges" aria-hidden="true"><path class="spk" d="M2 6h3l4-3v10l-4-3H2z"/><path class="wv" d="M11 5h1v1h1v4h-1v1h-1v-1h1V6h-1zM13 3h1v1h1v8h-1v1h-1v-1h1V4h-1z"/><path class="xx" d="M11 6h1v1h1V6h1v1h-1v1h1v1h-1v1h-1V9h-1v1h-1V9h1V8h-1V7h1z"/></svg></button>
+  <div id="trayWrap">
+    <div id="luckBadge" hidden><span class="pips"></span><span id="luckTxt"></span></div>
+    <div id="tray">
+      <div class="slot" data-i="0"><canvas></canvas></div>
+      <div class="slot" data-i="1"><canvas></canvas></div>
+      <div class="slot" data-i="2"><canvas></canvas></div>
+    </div>
   </div>
 </div>
 <div id="craftPanel" hidden>
@@ -113,7 +111,7 @@
     <div class="ppanel">
       <canvas id="pMedal" width="16" height="16"></canvas>
       <h2>Prospector</h2>
-      <p>You mined all 20 boards today.</p>
+      <p id="pText">You mined every board today.</p>
       <p class="label" id="pCount"></p>
       <button id="pOk" class="go" type="button">Back to the map</button>
     </div>
@@ -147,7 +145,8 @@
 <script src="src/data.js"></script>
 <script src="src/core.js"></script>
 <script src="src/maps.js"></script>
-<script src="src/game.js"></script>
+<script src="src/assets.js"></script>
+<script>DeepcoreAssets.ready.then(function(){ var s=document.createElement("script"); s.src="src/game.js"; document.body.appendChild(s); });</script>
 <script>
 if('serviceWorker' in navigator && location.protocol!=='file:') navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>

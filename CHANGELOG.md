@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0 — Release 2: the new look
+- Design package applied: Jersey 10 + Chakra Petch fonts, new block/ore/gem/special sprites with the specified glows, flat 42pt board with 2pt seams, new header, progress bar, resource strip, specials dock with CRAFT button, 114pt tray, no footer or hint line.
+- Specials dock: three slots, any mix; Jackhammer renamed Sledgehammer; Rescue and Luck drawn transparent.
+- World map restyled onto the new rocks and palette; field guide, anvil, craft panel, cave-in, prospector and day-end screens restyled.
+- Spec conformance tests (pixel sizes at 390 wide, short-phone fit) and dock tests.
+
 ## 0.6.0 — Release 1: foundation
 - Six zones, 24 boards a day: new Granite Halls between Limestone Caves and Slate Caverns. Map generator, gates, strip mines and day-end tally all handle six zones.
 - Ruby replaces cinnabar (new gem art, same common-resource behaviour); recipes updated.
