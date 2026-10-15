@@ -31,8 +31,8 @@ const tt = (f, ...a) => page.evaluate(([f, a]) => window.__deepcore.test[f](...a
 const st = () => T(() => { const s = window.__deepcore.test.state(); return { bank: s.bank, day: s.dayState, screen: s.screen, pieces: s.pieces, hint: s.hintInfo }; });
 
 // home screen
-let home = await T(() => ({ cont: document.getElementById('contBtn').hidden, twist: document.getElementById('hcTwist').textContent, reset: document.getElementById('hcReset').textContent, streak: document.getElementById('hcStreak').textContent, share: document.getElementById('shareBtn').hidden }));
-check(home.cont && /\d+(h \d+m|m)/.test(home.reset) && /Clear a board/.test(home.streak) && home.share, `a new player's home shows the reset countdown and no Continue/Share yet (${home.reset})`);
+let home = await T(() => ({ cont: document.getElementById('contBtn').hidden, twist: document.getElementById('hcTwist').textContent, streak: document.getElementById('hcStreak').hidden, share: document.getElementById('shareBtn').hidden }));
+check(home.cont && home.streak && home.share, `a new player's home is quiet: no Continue, streak or Share yet`);
 check(home.twist === await tt('mod').then(m => m.name), "home shows today's twist");
 
 // tutorial: scripted first set on board 1-1
@@ -63,8 +63,8 @@ let life = await tt('life'); check(life.mined.coal === 2 && life.mined.iron === 
 await tt('complete'); await page.waitForTimeout(3200); life = await tt('life');
 check(life.streak.cur === 1 && life.cleared === 1 && life.stars >= 1 && life.records.bestBoard > 0 && life.records.bestLines >= 1 && life.firstDay, 'clearing a board starts the streak and updates the records');
 await T(() => window.__deepcore.test.showHome()); await page.waitForTimeout(200);
-home = await T(() => ({ cont: document.getElementById('contBtn').hidden, streak: document.getElementById('hcStreak').textContent, share: document.getElementById('shareBtn').hidden, today: document.getElementById('hcToday').textContent }));
-check(/1 day/.test(home.streak) && !home.share && /1\/24/.test(home.today), `home now shows the streak and a Share button (${home.streak} | ${home.today})`);
+home = await T(() => ({ cont: document.getElementById('contBtn').hidden, streak: document.getElementById('hcStreak').hidden, share: document.getElementById('shareBtn').hidden, today: document.getElementById('hcToday').textContent }));
+check(home.streak && !home.share && /1 \/ 24/.test(home.today), `home shows today's count and a Share button; a 1-day streak is not shown (${home.today})`);
 await page.tap('#profileBtn'); await page.waitForTimeout(200);
 check(await T(() => /Rookie Miner/.test(document.getElementById('profBody').textContent) && document.querySelectorAll('.stat').length === 12), 'the profile shows the rank and twelve stats');
 await page.tap('#profTabs button:nth-child(2)'); await page.waitForTimeout(200);
@@ -83,7 +83,7 @@ check(await T(() => !document.getElementById('contBtn').hidden && /Continue 1-3/
 await page.tap('#contBtn'); await page.waitForTimeout(800); check((await st()).screen === 'game', 'Continue resumes it');
 // map countdown
 await T(() => window.__deepcore.test.openMap()); await page.waitForTimeout(300);
-check(await T(() => /new map in \d/.test(document.getElementById('mapDate').textContent)), 'the map shows the countdown');
+check(await T(() => !/new map in/i.test(document.getElementById('mapDate').textContent) && document.getElementById('mapDate').textContent === document.getElementById('hcTwist').textContent), 'the map header shows the twist, not a date or countdown');
 
 // settings
 await T(() => window.__deepcore.test.showHome()); await page.tap('#settingsBtn'); await page.waitForTimeout(200);

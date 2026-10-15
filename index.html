@@ -132,12 +132,8 @@
     <button id="mapBtn" class="go" type="button">World Map</button>
     <div class="menuRow"><button id="profileBtn" type="button">Profile</button><button id="settingsBtn" type="button">Settings</button></div>
     <div id="homeCard">
-      <div class="hc"><span class="k">TODAY</span><span id="hcToday"></span></div>
-      <div class="hc"><span class="k">TWIST</span><span id="hcTwist"></span></div>
-      <div class="hc"><span class="k">NEW MAP IN</span><span id="hcReset"></span></div>
-      <div class="hc"><span class="k">STREAK</span><span id="hcStreak"></span></div>
-      <div class="hc" id="hcYest" hidden><span class="k">YESTERDAY</span><span id="hcYestV"></span></div>
-      <button id="shareBtn" type="button" hidden>Share today</button>
+      <div class="hcTop"><div><b id="hcToday"></b><span class="k">boards today</span></div><span id="hcPts"></span></div>
+      <div class="hcChips"><span class="chip" id="hcTwist"></span><span class="chip" id="hcStreak" hidden></span><button id="shareBtn" type="button" hidden>Share</button></div>
     </div>
     <div id="installHint" hidden><p id="installText"></p><div class="row"><button id="installBtn" class="go" type="button" hidden>Install</button><button id="installClose" type="button">Not now</button></div></div>
   </div>

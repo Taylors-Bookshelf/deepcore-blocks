@@ -112,7 +112,7 @@ check(await T(() => window.DCA.buffer.some(e => e.event === 'hint_used')), 'anal
 // 9. daily twist shown, and Bright Lamps cheaper
 await T(() => window.__deepcore.test.openMap());
 const modName = await T(() => window.__deepcore.test.mod().name);
-check(await T((n) => document.getElementById('mapProg').textContent.includes(n), modName), `the map shows today's twist (${modName})`);
+check(await T((n) => document.getElementById('mapDate').textContent.includes(n), modName), `the map shows today's twist (${modName})`);
 const lampDay = days.find(d => D.modifierFor(d).id === 'bright_lamps'); await tt('previewDay', lampDay);
 const lc = await tt('lcost', 0); check(lc.coal === 8 && lc.wood === 4, `on a Bright Lamps day a torch costs 8 coal + 4 wood (${JSON.stringify(lc)})`);
 check(errors.filter(e => !/404/.test(e)).length === 0, 'no page errors ' + errors.join(' | '));

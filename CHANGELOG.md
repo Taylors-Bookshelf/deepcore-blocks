@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0 — playtest round 3: tidier screens and map
+- Points and bonus text from clears now sit on a dark plate with crisp text, readable on any block; the line-clear banner (Double!, Quad!) got the same treatment.
+- Magmastone redrawn darker and redder with glowing flecks, so it no longer reads as dirt.
+- Map header: just today's twist and "n / 24 boards mined" (no date or countdown). Home screen card trimmed to today's boards, points, twist, and a streak chip from 2 days on. Play header drops the "Today" line; the resource strip shows only what you hold or can find on this board.
+- Map: the first tunnel now breaks through the grass (no roof over a dug cave); the thin vertical root lines are gone; tunnels and chambers are narrower and tidier; the odd blue pools, burrows and tiny fossil marks are gone; the map now scrolls to a waiting gate instead of the bottom.
+- Gates: tapping a gate shows the cost and, with enough in your stash, places both torches or lanterns in one tap; otherwise it sends you to the strip mine.
+- Crafting split: the map's Craft panel is torches and lanterns only; specials are crafted from the CRAFT button during a board (and from the end-of-day tally).
+
 ## 1.2.0 — playtest round 2
 - Music: the bright bell-like overtone is gone (rounder, lower plucks) and the music plays at about a third of its old level, well under the sound effects.
 - The first Forest board has no ore, so its stars come from wood (30 for two stars, 42 for three).

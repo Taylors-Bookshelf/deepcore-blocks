@@ -860,13 +860,18 @@ function rateMove(i,r0,c0){
   if(!chosen||!good.includes(chosen)||good.length>3) return null;
   return good.length===1 ? {word:'Perfect!',pts:50,col:'#ffe36a'} : {word:'Great fit!',pts:25,col:'#9fe8ff'};
 }
+// points and bonuses that rise from a clear: crisp text on a dark plate, so it reads on any block colour
 function floatText(x,y,text,col){
-  const t0=performance.now(), D=900;
+  const t0=performance.now(), D=1000;
   fxList.push({draw(ctx,now){ const t=(now-t0)/D; if(t>=1) return false;
-    const pop=1+.35*Math.max(0,1-t/.15);
-    ctx.save(); ctx.globalAlpha=t>.7?(1-t)/.3:1; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.font=`700 ${Math.round((cell*.55*pop)*1.15)}px ${FONT_D}`; ctx.lineWidth=5; ctx.strokeStyle='#120a04'; ctx.shadowColor=col; ctx.shadowBlur=12;
-    const yy=y-cell*.9*easeOut(t); ctx.strokeText(text,x,yy); ctx.fillStyle=col; ctx.fillText(text,x,yy); ctx.restore(); return true; }});
+    const pop=1+.25*Math.max(0,1-t/.12), fs=Math.round(cell*.62*pop);
+    ctx.save(); ctx.globalAlpha=t>.75?(1-t)/.25:1; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font=`400 ${fs}px ${FONT_D}`;
+    const yy=y-cell*.8*easeOut(t), w=ctx.measureText(text).width+fs*.7, h=fs*1.15;
+    ctx.fillStyle='rgba(18,19,23,.86)'; const rx=x-w/2, ry=yy-h/2, rr=h*.3;
+    ctx.beginPath(); ctx.moveTo(rx+rr,ry); ctx.arcTo(rx+w,ry,rx+w,ry+h,rr); ctx.arcTo(rx+w,ry+h,rx,ry+h,rr); ctx.arcTo(rx,ry+h,rx,ry,rr); ctx.arcTo(rx,ry,rx+w,ry,rr); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle=col; ctx.globalAlpha*=.55; ctx.lineWidth=1.5; ctx.stroke(); ctx.globalAlpha=t>.75?(1-t)/.25:1;
+    ctx.fillStyle='#000'; ctx.fillText(text,x,yy+2); ctx.fillStyle=col; ctx.fillText(text,x,yy); ctx.restore(); return true; }});
 }
 let undo=null;
 // A multi-line clear, a long combo or an All Clear pays out extra ore as well as points: a share of the ore mined in that play.
@@ -1138,8 +1143,11 @@ function buildStash(){
 }
 function updateAnvilGlow(){ const b=$('anvilBtn'); if(b) b.classList.toggle('afford',!dockFull()&&RECIPES.some(r=>canAfford(r))); }
 function updateStash(bumped=[]){
-  document.querySelectorAll('.si').forEach(el=>{ const k=el.dataset.k, v=bank[k]||0, h=hand[k]||0; el.querySelector('.n').textContent=v; el.querySelector('.pl').textContent=h?'+'+h:''; el.classList.toggle('zero',!v&&!h);
+  // only what matters right now: anything you hold, plus what this board can give you
+  const dd=screen==='game'&&level?levelDef(level):null, here=new Set(dd?[...(dd.ores||[]),...Object.keys(dd.gems||{}),...(dd.base&&dd.base.log?['wood']:[]),...Object.keys(curGoals||{})]:STASH_KEYS);
+  document.querySelectorAll('.si').forEach(el=>{ const k=el.dataset.k, v=bank[k]||0, h=hand[k]||0; el.querySelector('.n').textContent=v; el.querySelector('.pl').textContent=h?'+'+h:''; el.classList.toggle('zero',!v&&!h); el.hidden=!v&&!h&&!here.has(k);
     if(bumped.includes(k)){ el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } });
+  { const dv=document.querySelector('#stashItems .sdiv'); if(dv) dv.hidden=![...document.querySelectorAll('.si')].some(e=>!e.hidden&&GEM_KEYS.includes(e.dataset.k)); }
   updateAnvilGlow(); updateStripGoals(); updateHintBtn();
 }
 // ---- the dock: three flat slots, one special each, no counts ----
@@ -1251,8 +1259,7 @@ function renderCraft(){
     else { const g=stripGoalsFor(z); body.append(note(`Short on resources? Mine the strip mine: ${Object.entries(g).map(([k,v])=>v+' '+DROPS[k][0].toLowerCase()).join(', ')}.`));
       const r2=document.createElement('div'); r2.className='row2'; const sb=document.createElement('button'); sb.type='button'; sb.className='go'; sb.textContent='Strip mine'; sb.onclick=()=>{ $('craftPanel').hidden=true; openCard(STRIP_BASE+z); }; r2.append(sb); body.append(r2); }
   }
-  body.append(h3('SPECIALS')); const sp=document.createElement('div'); sp.id='craftRecipes'; sp.style.cssText='display:flex;flex-direction:column;gap:10px'; body.append(sp); recipeRows(sp);
-  body.append(note(`Your stash resets at midnight Pacific and leftovers turn into bonus points (worth ${leftoverPoints()} now). Specials you craft are kept.`));
+  body.append(note('Specials are crafted during a board, from the CRAFT button next to your dock.'));
 }
 function craftLight(z){
   const L=LIGHTS[lightKind(z)], cost=lcost(z); if(lit(z)||!Object.entries(cost).every(([k,v])=>(bank[k]||0)>=v)) return;
@@ -1273,7 +1280,7 @@ function showDayEnd(){
   $('dayEndTotal').textContent=`Leftovers are worth ${leftoverPoints()} bonus points as they stand.`;
   $('dayEnd').hidden=false; A.track('day_end_open',{leftover_pts:leftoverPoints()});
 }
-$('dayEndCraft').onclick=()=>{ $('dayEnd').hidden=true; openCraft(); };
+$('dayEndCraft').onclick=()=>{ $('dayEnd').hidden=true; renderAnvil(); $('anvil').hidden=false; };
 $('dayEndOk').onclick=()=>{ $('dayEnd').hidden=true; };
 function smelt(rc){
   if(!canAfford(rc) || dockFull()) return;
@@ -1460,11 +1467,9 @@ const sbStr=sb=>sb?`Continue ${boardLabel(sb.idx)}`:'';
 function fillHome(){
   const sb=savedBoard(), cont=$('contBtn'); cont.hidden=!sb; cont.textContent=sbStr(sb); $('mapBtn').classList.toggle('go',!sb);
   const m=MOD(), n=Meta.streakNow(life,dayState.day);
-  $('hcToday').textContent=`${dayState.done.length}/${BOARD_COUNT} boards · ${todayScore().toLocaleString()} pts`+(prospector?` · ${prospector}★ badge${prospector>1?'s':''}`:'');
+  $('hcToday').textContent=`${dayState.done.length} / ${BOARD_COUNT}`; $('hcPts').textContent=`${todayScore().toLocaleString()} pts`;
   $('hcTwist').textContent=m.name; $('hcTwist').title=m.desc;
-  $('hcReset').textContent=Meta.resetText();
-  $('hcStreak').textContent=n>0?`${n} day${n===1?'':'s'}`+(life.streak.best>n?` (best ${life.streak.best})`:''):'Clear a board today to start one';
-  $('hcYest').hidden=!lastDay; if(lastDay) $('hcYestV').textContent=`${lastDay.boards}/${BOARD_COUNT} · ${lastDay.total.toLocaleString()} pts`+(bestDay&&bestDay.total>lastDay.total?` · best ${bestDay.total.toLocaleString()}`:'');
+  $('hcStreak').hidden=n<2; $('hcStreak').textContent=`${n}-day streak`;
   $('shareBtn').hidden=dayState.done.length===0;
 }
 // the Pacific day can end while the app sits open on the home or map screen: refresh into the new day
@@ -1472,7 +1477,7 @@ function refreshIfNewDay(){
   if(screen==='game'||dayState.day===todayKey()) return;
   if(screen==='map') showMap({}); else { checkDay(); fillHome(); }
 }
-setInterval(()=>{ refreshIfNewDay(); if(screen==='home'&&!$('homeMain').hidden) $('hcReset').textContent=Meta.resetText(); if(screen==='map') updateMapDate(); },30000);
+setInterval(refreshIfNewDay,30000);
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') refreshIfNewDay(); });
 $('homeBtn').onclick=()=>showMap({});
 $('mapBtn').onclick=()=>showMap({});
@@ -1604,7 +1609,7 @@ function mapState(){
 }
 const MOD=()=>modifierFor(dayState.day), lcost=z=>lightCost(lightKind(z),MOD());
 function curZone(){ for(let z=0;z<ZONES.length;z++) if(!isDone(4*z+3)) return z; return ZONES.length-1; }
-function updateMapDate(){ if(!dayState) return; const [py,pm,pd]=dayState.day.split('-').map(Number); $('mapDate').textContent=new Date(py,pm-1,pd).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})+` · new map in ${Meta.resetText()}`; }
+function updateMapDate(){ if(!dayState) return; $('mapDate').textContent=MOD().name; $('mapDate').title=MOD().desc; }
 function buildMap(){
   if(!MAP||mapDay!==dayState.day){ MAP=M.genMap(dayState.day); mapDay=dayState.day; }
   const W=Math.min(window.innerWidth,520), ts=W/10;
@@ -1615,7 +1620,7 @@ function buildMap(){
   const sb=savedBoard(); let current=-1;
   const addNode=(i,pos)=>{ const b=document.createElement('button'); b.type='button'; b.className='node'; b.style.left=pos.x*ts+'px'; b.style.top=pos.y*ts+'px';
     if(i>=STRIP_BASE){ const z=i-STRIP_BASE, d=stripDone(z); b.classList.add('strip'); if(d) b.classList.add('done'); b.innerHTML=d?'<span>✓</span>':'<span>S</span>'; b.setAttribute('aria-label',`Strip mine, ${ZONES[z].name}${d?', cleared':''}`); }
-    else if(gateWaiting(i)){ b.classList.add('gate'); b.append(iconOf(ITEM[lightKind(Math.floor(i/4))])); b.setAttribute('aria-label',`Board ${boardLabel(i)}, needs ${LIGHTS[lightKind(Math.floor(i/4))].plural}`); }
+    else if(gateWaiting(i)){ b.classList.add('gate'); if(current<0) current=i; b.append(iconOf(ITEM[lightKind(Math.floor(i/4))])); b.setAttribute('aria-label',`Board ${boardLabel(i)}, needs ${LIGHTS[lightKind(Math.floor(i/4))].plural}`); }
     else { const done=isDone(i); if(done) b.classList.add('done'); else { b.classList.add('open'); if(current<0) current=i; }
       b.innerHTML=done?'<span>✓</span>':`<span>${i%BOARDS_PER_ZONE+1}</span>`; b.setAttribute('aria-label',`Board ${boardLabel(i)}${done?', mined':''}`); }
     if(sb&&sb.idx===i) b.classList.add('progress'); if(opts_.justDone===i||opts_.justStrip===i-STRIP_BASE) b.classList.add('fresh');
@@ -1624,7 +1629,7 @@ function buildMap(){
   MAP.nodes.forEach((p,i)=>{ if(unlocked(i)||gateWaiting(i)) addNode(i,p); });
   MAP.strip.forEach((p,z)=>{ if(unlocked(STRIP_BASE+z)) addNode(STRIP_BASE+z,p); });
   updateMapDate();
-  $('mapProg').textContent=`${dayState.done.length}/${BOARD_COUNT} boards mined`+(dayState.bonus?` · bonus ${dayState.bonus}`:'')+` · ${MOD().name}`;
+  $('mapProg').textContent=`${dayState.done.length} / ${BOARD_COUNT} boards mined`;
   $('mapBadge').hidden=!prospector; $('mapBadge').textContent=`Prospector ×${prospector}`;
   return {current,sb};
 }
@@ -1659,7 +1664,13 @@ function openCard(i){
     else { go.disabled=false; go.textContent=(sb&&sb.idx===i)?'Continue':'Start strip mine'; note.textContent=`Not counted in your ${BOARD_COUNT} boards. Gather the resources to clear it; your score becomes a daily bonus.`; if(sb&&sb.idx!==i) note.textContent=`Starting this board ends your run on ${boardLabel(sb.idx)}.`; }
   } else if(gate){
     const L=LIGHTS[lightKind(z)], tgt=document.createElement('span'); tgt.className='tgt'; tgt.textContent=`Needs ${LIGHTS_NEEDED} ${L.plural} (${lightsOf(z)}/${LIGHTS_NEEDED})`; g.append(tgt);
-    go.disabled=false; go.textContent='Craft '+L.plural; note.textContent=`Too dark to dig deeper. Craft ${L.plural} from coal${z===0?' and wood':' and copper'}, or mine a strip mine for more.`;
+    const need=LIGHTS_NEEDED-lightsOf(z), cost=lcost(z); g.append(costChips(Object.fromEntries(Object.entries(cost).map(([k,v])=>[k,v*need]))));
+    const can=Object.entries(cost).every(([k,v])=>(bank[k]||0)>=v*need), stripOk=isDone(4*z+2)&&!stripDone(z);
+    go.disabled=false;
+    if(can){ go.textContent=`Place ${need} ${need===1?L.name.toLowerCase():L.plural}`; note.textContent=`Each ${L.name.toLowerCase()} costs ${Object.entries(cost).map(([k,v])=>v+' '+DROPS[k][0].toLowerCase()).join(' + ')}.`; }
+    else if(stripOk){ go.textContent='Go to the strip mine'; note.textContent=`Not enough yet. The strip mine next to board ${boardLabel(4*z+2)} has exactly what you're missing.`; }
+    else { go.textContent='Open Craft'; note.textContent=`Not enough yet. Replay boards in this zone to gather more.`; }
+    go.dataset.gate=can?'place':stripOk?'strip':'craft';
   } else {
     const tgt=document.createElement('span'); tgt.className='tgt'; tgt.textContent=`Score ${def.target} to clear`; g.append(tgt);
     [...def.ores, ...Object.keys(def.gems||{})].forEach(res=>{ const s=document.createElement('span'); s.title=DROPS[res][0]; s.append(iconOf(ITEM[res])); g.append(s); });
@@ -1669,7 +1680,7 @@ function openCard(i){
       if(sb&&sb.idx!==i) note.textContent=`Starting this board ends your run on ${boardLabel(sb.idx)}.`; }
   }
   go.onclick=()=>{ $('nodeCard').hidden=true;
-    if(gate){ openCraft(); return; }
+    if(gate){ const how=go.dataset.gate; if(how==='place'){ while(!lit(z)&&Object.entries(lcost(z)).every(([k,v])=>(bank[k]||0)>=v)) craftLight(z); showMap({}); } else if(how==='strip'){ openCard(STRIP_BASE+z); } else openCraft(); return; }
     const s2=savedBoard(); show('game');
     if(s2&&s2.idx===i){ restoreBoard(s2); } else { clearBoardSave(); startBoard(i); } };
   card.hidden=false;

@@ -91,3 +91,11 @@ Judgment calls I made without asking, so you can review and ask me to change or 
 - **Combo display:** the corner badge is removed. A clear shows "+points ×combo" where the lines cleared; the separate "Combo ×n" banner is gone too (it said the same thing). Double/Triple/Quad names still show.
 - **Wording:** BANK IT → FINISH, KEEP GOING → KEEP MINING, the bar's BANK → FINISH, "your ore is banked" → "your ore is safe in your stash". (Internally the code still calls it banking.)
 - **Tray bug:** when the placement that reached the target cleared lines, the game stopped before redrawing the tray, so that piece stayed visible but was already used. The tray now refreshes first, and if KEEP MINING leaves no playable piece, the cave-in happens straight away.
+
+## Playtest round 3 (v1.3.0)
+- **Readable clear text:** a dark rounded plate behind every floating score/bonus with a thin outline in the text colour, and a hard drop shadow instead of a soft glow. The Double/Triple/Quad banner uses the same plate in lamp yellow.
+- **Magmastone:** recoloured the design package's sprite (same pixel pattern): maroon-charcoal body, and its darkest crack pixels now glow orange. The original stays in `design/`; the game uses `assets/blocks/magmastone.png`.
+- **Less on screen:** the countdown and date are gone from the map; the home card no longer shows the countdown or yesterday (Profile has your history); the streak only shows from 2 days. In play the "Today" total is hidden (home and map show it) and the resource strip hides resources you have none of and cannot find on this board.
+- **Map:** removed the root lines, burrows, blue pools and the small fossil marks; narrower tunnels (half to two-thirds of a tile) and smaller chambers; the first tunnel opens the grass as a pit.
+- **Gate flow:** one tap places all remaining lights when you can afford them; if not, the gate sends you to the strip mine (when it's open) or the Craft panel.
+- **Crafting split:** map Craft = torches/lanterns (plus the strip-mine shortcut); board CRAFT = specials. The end-of-day "spend leftovers" button now opens the specials anvil.

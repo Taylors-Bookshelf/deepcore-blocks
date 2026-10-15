@@ -9,7 +9,7 @@ const zoneAt=row=>{ let z=0; for(let k=1;k<ZONE_TOP.length;k++) if(row>=ZONE_TOP
 const WEATHER=['clear','clear','cloudy','overcast','rain','snow','sunset','dusk'];
 const SCENERY=['mountains','hills','lake','meadow','mountains','lake','hills'];
 const TREES=['oak','pine','birch','mixed','autumn','mixed'];
-const FEATURES=[ ['roots','pebbles','burrow'], ['rails','mushrooms','pool','bones'], ['pebbles','geode','rails','fossil'], ['crystals','pool','rails','fossil','mushrooms'], ['crystals','geode','pool','crystals'], ['lavafall','embers','bones','crystals'] ];
+const FEATURES=[ ['pebbles','pebbles','pebbles'], ['rails','mushrooms','bones'], ['pebbles','geode','rails','bones'], ['crystals','rails','mushrooms'], ['crystals','geode','crystals'], ['lavafall','embers','bones','crystals'] ];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 // ---------------------------------------------------------------- generator
@@ -26,7 +26,7 @@ function genMap(day){
     m.nodes.push({x:+x.toFixed(2),y:+ys[i].toFixed(2)});
   }
   // ---- tunnels between nodes: straight, elbow or wiggle, with a width per zone
-  for(let z=0;z<NZ;z++) m.tunnelW.push(pick([.5,.7,.95]));
+  for(let z=0;z<NZ;z++) m.tunnelW.push(pick([.45,.55,.65]));   // narrow, tidy tunnels
   for(let i=1;i<NB;i++){
     const a=m.nodes[i-1], b=m.nodes[i], z=Math.floor(i/4), style=i===1?'diag':pick(['diag','elbowV','elbowH','wiggle','diag']);
     let pts=[[a.x,a.y],[b.x,b.y]];
@@ -108,10 +108,10 @@ function drawMap(cv,ts,m,st,TEX,dpr){
 
   // ---- tunnels: only what has been dug
   const carve=new Set(), lit=[];
-  const brush=(px,py,r)=>{ for(let dy=-r;dy<=r;dy+=.4) for(let dx=-r;dx<=r;dx+=.4){ if(dx*dx+dy*dy>r*r+.25) continue; const cx=Math.floor(px+dx), cy=Math.floor(py+dy); if(cy>=SURFACE+1&&cx>=0&&cx<COLS) carve.add(cy*COLS+cx); } };
-  const walk=(pts,w)=>{ for(let k=1;k<pts.length;k++){ const [ax,ay]=pts[k-1],[bx,by]=pts[k]; const len=Math.hypot(bx-ax,by-ay); for(let s=0;s<=len;s+=.18){ const t=len?s/len:0; brush(ax+(bx-ax)*t,ay+(by-ay)*t,w); } } };
-  m.segs.forEach(sg=>{ if(st.dug(sg.to)) walk(sg.pts,sg.w); });
-  m.nodes.forEach((n,i)=>{ if(st.dug(i)&&n.y>SURFACE+.8) brush(n.x,n.y,1.05); });
+  const brush=(px,py,r,top=SURFACE+1)=>{ for(let dy=-r;dy<=r;dy+=.25) for(let dx=-r;dx<=r;dx+=.25){ if(dx*dx+dy*dy>r*r) continue; const cx=Math.floor(px+dx), cy=Math.floor(py+dy); if(cy>=top&&cx>=0&&cx<COLS) carve.add(cy*COLS+cx); } };
+  const walk=(pts,w,top)=>{ for(let k=1;k<pts.length;k++){ const [ax,ay]=pts[k-1],[bx,by]=pts[k]; const len=Math.hypot(bx-ax,by-ay); for(let s=0;s<=len;s+=.18){ const t=len?s/len:0; brush(ax+(bx-ax)*t,ay+(by-ay)*t,w,top); } } };
+  m.segs.forEach(sg=>{ if(st.dug(sg.to)) walk(sg.pts,sg.w,sg.from===0?SURFACE:SURFACE+1); });   // the first tunnel breaks through the grass: an open pit, not a roofed cave
+  m.nodes.forEach((n,i)=>{ if(st.dug(i)&&n.y>SURFACE+.8) brush(n.x,n.y,.85); });
   m.strip.forEach((s,z)=>{ if(!st.stripOpen(z)) return; const p=m.nodes[z*4+2]; walk([[p.x,p.y],[s.x,p.y],[s.x,s.y]],.5); brush(s.x,s.y,st.stripDone(z)?1.9:1.15); });
   const lamps=[]; Object.entries(st.lights||{}).forEach(([z,n])=>{ for(let k=0;k<Math.min(2,n);k++) lamps.push({z:+z,k,...m.lightSlots[+z][k]}); });
   lamps.forEach(l=>brush(l.x,l.y,.25));
@@ -127,8 +127,6 @@ function drawMap(cv,ts,m,st,TEX,dpr){
     if(l.z===0) drawTorch(x,(l.x-.5)*ts,(l.y-.55)*ts,ts); else drawLantern(x,(l.x-.5)*ts,(l.y-.5)*ts,ts); });
   // trees and surface details
   m.trees_list.forEach(t=>drawTree(x,t,m,ts,q,TEX));
-  // roots into the dirt tunnels
-  for(let col=0;col<COLS;col++) if(R()<.5){ x.fillStyle='#4a3420'; x.fillRect((col+R()*.8)*ts,(SURFACE+1)*ts,ts*.06,ts*(.3+R()*.8)); }
   // route line (only through dug ground)
   x.strokeStyle='rgba(255,226,140,.75)'; x.lineWidth=Math.max(2,ts*.08); x.setLineDash([ts*.18,ts*.18]);
   m.segs.forEach(sg=>{ if(!st.dug(sg.to)) return; x.beginPath(); sg.pts.forEach(([px,py],k)=>{ if(k===0) x.moveTo(px*ts,py*ts); else x.lineTo(px*ts,py*ts); }); x.stroke(); });
