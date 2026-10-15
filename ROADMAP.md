@@ -39,13 +39,13 @@ Status key: [ ] todo · [~] in progress · [x] done and live. Every item names t
 - [x] #14 Hint button
 
 ## Release 5 · v0.10.0 · Retention and onboarding
-- [ ] #5 Guided first board
-- [ ] #21 Home redesign (Continue, yesterday, streak, best day)
-- [ ] #15 Lifetime rank, discovery log, streaks, records
-- [ ] #16 Share card · #17 Reset countdown · #4 Feedback button
-- [ ] #3 iOS Add-to-Home-Screen hint + save export/import
-- [ ] #24 Settings: reset progress, reduce motion, text size
-- [ ] #23 Ambient music + volume slider
+- [x] #5 Guided first board
+- [x] #21 Home redesign (Continue, yesterday, streak, best day)
+- [x] #15 Lifetime rank, discovery log, streaks, records
+- [x] #16 Share card · #17 Reset countdown · #4 Feedback button
+- [x] #3 iOS Add-to-Home-Screen hint + save export/import
+- [x] #24 Settings: reset progress, reduce motion, text size
+- [x] #23 Ambient music + volume slider
 
 ## Release 6 · v1.0.0 · Hardening
 - [ ] Full regression, accessibility and performance pass; final balance run; dead code removal; docs rewritten

@@ -80,7 +80,7 @@
     <p id="dayEndNote"></p>
     <div id="dayEndItems"></div>
     <p class="fine" id="dayEndTotal"></p>
-    <div class="row"><button id="dayEndCraft" class="go" type="button">Spend on specials</button><button id="dayEndOk" type="button">Done</button></div>
+    <div class="row"><button id="dayEndCraft" class="go" type="button">Spend on specials</button><button id="dayEndShare" type="button">Share</button><button id="dayEndOk" type="button">Done</button></div>
   </div>
 </div>
 <div id="info" hidden>
@@ -127,23 +127,61 @@
   <h1>Deepcore<br>Blocks</h1>
   <canvas id="homeStrip" width="80" height="16"></canvas>
   <div id="homeMain" class="menu">
-    <button id="mapBtn" class="primary" type="button">World Map</button>
-    <button id="settingsBtn" type="button">Settings</button>
-    <p class="note" id="homeNote"></p>
-    <p class="note" id="homeNote2"></p>
-    <p class="note" id="homeMod"></p>
+    <button id="contBtn" class="go" type="button" hidden></button>
+    <button id="mapBtn" class="go" type="button">World Map</button>
+    <div class="menuRow"><button id="profileBtn" type="button">Profile</button><button id="settingsBtn" type="button">Settings</button></div>
+    <div id="homeCard">
+      <div class="hc"><span class="k">TODAY</span><span id="hcToday"></span></div>
+      <div class="hc"><span class="k">TWIST</span><span id="hcTwist"></span></div>
+      <div class="hc"><span class="k">NEW MAP IN</span><span id="hcReset"></span></div>
+      <div class="hc"><span class="k">STREAK</span><span id="hcStreak"></span></div>
+      <div class="hc" id="hcYest" hidden><span class="k">YESTERDAY</span><span id="hcYestV"></span></div>
+      <button id="shareBtn" type="button" hidden>Share today</button>
+    </div>
+    <div id="installHint" hidden><p id="installText"></p><div class="row"><button id="installBtn" class="go" type="button" hidden>Install</button><button id="installClose" type="button">Not now</button></div></div>
   </div>
   <div id="homeSettings" class="settings" hidden>
     <h2>Settings</h2>
-    <p class="fine">There is no difficulty setting: the dealer is tuned zone by zone, and eases up if you cave in repeatedly on the same board.</p>
+    <h3>SOUND</h3>
+    <label class="check"><input id="sfxOn" type="checkbox" checked> Sound effects</label>
+    <label class="check"><input id="musicOn" type="checkbox"> Ambient music</label>
+    <label class="slider">Volume <input id="volRange" type="range" min="0" max="100" step="5" value="70"></label>
+    <h3>DISPLAY</h3>
+    <label class="check"><input id="reduceOn" type="checkbox"> Reduce motion</label>
+    <label class="check"><input id="largeOn" type="checkbox"> Larger text in panels</label>
+    <h3>YOUR PROGRESS</h3>
+    <div class="row"><button id="backupBtn" type="button">Back up</button><button id="restoreBtn" type="button">Restore</button></div>
+    <div id="codeBox" hidden><textarea id="codeText" rows="4" spellcheck="false" aria-label="Save code"></textarea><div class="row"><button id="codeCopy" type="button">Copy code</button><button id="codeApply" class="go" type="button" hidden>Restore from this code</button></div><p class="fine" id="codeMsg"></p></div>
+    <button id="tutorBtn" type="button">Replay the tutorial</button>
+    <button id="resetBtn" type="button" class="danger">Reset all progress</button>
+    <h3>HELP US IMPROVE IT</h3>
+    <button id="feedbackBtn" type="button">Send feedback</button>
     <div id="privacyRow" hidden>
       <label class="check"><input id="shareData" type="checkbox" checked> Share anonymous play data</label>
       <p class="fine">Helps improve the game. No name, email or account: just how boards are played.</p>
     </div>
-    <button id="settingsBack" type="button">Back</button>
+    <p class="fine">There is no difficulty setting: the dealer is tuned zone by zone, and eases up if you cave in repeatedly on the same board.</p>
+    <button id="settingsBack" type="button" class="go">Back</button>
     <p class="fine" id="verLine"></p>
   </div>
 </div>
+<div id="profile" hidden>
+  <div class="panel" role="dialog" aria-labelledby="profTitle">
+    <div class="top"><h2 id="profTitle">Profile</h2><button id="profClose" type="button">Close</button></div>
+    <div id="profTabs" role="tablist"></div>
+    <div id="profBody"></div>
+  </div>
+</div>
+<div id="feedback" hidden>
+  <div class="panel" role="dialog" aria-labelledby="fbTitle">
+    <div class="top"><h2 id="fbTitle">Feedback</h2><button id="fbClose" type="button">Close</button></div>
+    <div id="fbChips" role="radiogroup" aria-label="Kind of feedback"></div>
+    <textarea id="fbText" rows="5" maxlength="500" placeholder="What happened, or what would make the game better? Please don't include personal information." aria-label="Your feedback"></textarea>
+    <p class="fine" id="fbMsg"></p>
+    <div class="row"><button id="fbSend" class="go" type="button">Send</button></div>
+  </div>
+</div>
+<div id="tutor" hidden><div class="tbox"><p id="tutorText"></p><div class="row"><button id="tutorNext" class="go" type="button">Got it</button><button id="tutorSkip" type="button">Skip tutorial</button></div></div></div>
 <canvas id="fx"></canvas>
 <canvas id="ghost" hidden></canvas>
 <script src="src/version.js"></script>
@@ -152,6 +190,7 @@
 <script src="src/data.js"></script>
 <script src="src/core.js"></script>
 <script src="src/maps.js"></script>
+<script src="src/meta.js"></script>
 <script src="src/assets.js"></script>
 <script>DeepcoreAssets.ready.then(function(){ var s=document.createElement("script"); s.src="src/game.js"; document.body.appendChild(s); });</script>
 <script>

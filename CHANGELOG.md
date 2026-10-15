@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.0 — Release 5: retention and onboarding
+- Guided first board; new home screen (Continue, today's card, streak, countdown to the daily reset, yesterday and best day); Profile with lifetime rank, stats and a 33-entry discovery log.
+- Share card, feedback form, add-to-Home-Screen hint, save-code backup/restore, settings for volume, ambient music (off by default), reduce motion, larger text, reset.
+- Tests no longer send analytics to PostHog.
+
 ## 0.9.0 — Release 4: gameplay depth
 - Stars and push-your-luck: clear banks your ore; BANK IT or KEEP GOING for 2 and 3 stars (bonus points), with the extra ore at risk.
 - Combo meter; near-miss cave-in screen with tips and mercy note; hint button (3 coal); six daily twists.

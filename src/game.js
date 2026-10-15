@@ -2,7 +2,7 @@
 const N = 8, T = 16;
 const A = window.DCA || { track(){}, attempt(){}, setScreen(){}, setBoard(){}, isOn:()=>false, canConfigure:()=>false, setOptOut(){} };
 const {rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARDS_PER_ZONE,BOARD_COUNT,STRIP_BASE,RECIPES,STASH_KEYS,GEM_KEYS,LIGHTS,LIGHTS_NEEDED,lightKind,lineScore,lineName,STAR_AT,starsFor,starBonus,modifierFor,lightCost}=DeepcoreData;
-const M=DeepcoreMaps;
+const M=DeepcoreMaps, Meta=DeepcoreMeta;
 const {SHAPES,SHAPE_STRS,SHAPE_BY_KEY,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,getBit,bitOf,chooseSet,BIG_IDS,pickWeighted,rankMoves}=DeepcoreCore;
 const FONT_D = '"Jersey 10", "Courier New", monospace';
 
@@ -359,7 +359,7 @@ function drinkLuck(){
   if(dockAnim) return;
   const li=specials.indexOf('luck'); if(busy||over||uiOpen()||li<0||luck>0) return;
   dockRemove(li); luck=7; renderDock(); updateLuckUI(); updateAnvilGlow(); saveProfile(); saveBoard();
-  A.track('luck_drunk',{idx:level-1,score,moves});
+  A.track('luck_drunk',{idx:level-1,score,moves}); life.seen.luck=true;
   busy=true; const d=playSplash('Luck Tonic','The next 7 sets favour you','luck'); setTimeout(()=>{ busy=false; },d);
 }
 let bigNext=false;
@@ -367,7 +367,8 @@ let bigNext=false;
 const mercyTilt=()=>Math.min(.75,Math.max(0,((dayState.fails||{})[level-1]||0)-1)*.35);
 function dealSet(){
   const [lo,hi]=occBits(grid); let set;
-  if(bigNext && lo===0 && hi===0){ set=BIG_IDS.map(ids=>SHAPES[ids[Math.floor(Math.random()*ids.length)]]).sort(()=>Math.random()-.5); bigNext=false; }
+  if(tut.active&&tut.stage===0){ set=TUT_SET.map(str=>SHAPES[SHAPE_STRS.indexOf(str)]); tut.stage=1; }
+  else if(bigNext && lo===0 && hi===0){ set=BIG_IDS.map(ids=>SHAPES[ids[Math.floor(Math.random()*ids.length)]]).sort(()=>Math.random()-.5); bigNext=false; }
   else set=chooseSet(lo,hi,difficulty(),{luck:luck>0?1:0,tilt:mercyTilt()});
   if(luck>0){ luck--; luckLive=true; } else if(luckLive){ luckLive=false; showCombo('Luck Tonic wore off'); blip(330,.2,'sine',.05); }
   updateLuckUI();
@@ -408,7 +409,7 @@ const boardC=$('board'), bx=boardC.getContext('2d'), ghost=$('ghost'), gx=ghost.
 const fxC=$('fx'), fx=fxC.getContext('2d');
 const slots=[...document.querySelectorAll('.slot')];
 const SEAM=2; let cell=44, bs=42, trayCell=20; const dpr=Math.max(1,window.devicePixelRatio||1);
-const REDUCE=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const MEDIA_REDUCE=matchMedia('(prefers-reduced-motion: reduce)').matches; let REDUCE=MEDIA_REDUCE;
 
 // Board geometry: `cell` is the pitch between blocks, `bs` the block size (pitch minus the 2px seam). 42px blocks on a 390pt screen.
 function layout(){
@@ -692,6 +693,21 @@ function renderFx(now){
   fx.restore();
 }
 
+// ---------- settings and the lifetime profile (rank, streaks, records, discovery log) ----------
+const K_SET='deepcore-settings', K_LIFE='deepcore-life', K_INST='deepcore-install';
+let settings={volume:70,music:false,reduce:false,large:false}, life=Meta.newLife();
+function saveSettings(){ lsSet(K_SET,settings); }
+function loadSettings(){ const v=lsGet(K_SET); if(v) Object.assign(settings,v); }
+function saveLife(){ lsSet(K_LIFE,life); }
+function loadLife(){ const v=lsGet(K_LIFE), base=Meta.newLife(); if(v&&v.v===1) life=Object.assign(base,v,{streak:{...base.streak,...v.streak},records:{...base.records,...v.records}}); else life=base; }
+const todayScore=()=>Object.values(dayState.scores).reduce((a,b)=>a+b,0)+(dayState.bonus||0);
+function applyDisplaySettings(){ REDUCE=MEDIA_REDUCE||settings.reduce; document.documentElement.classList.toggle('reduce',!!settings.reduce); document.documentElement.classList.toggle('large',!!settings.large); }
+const masterLevel=()=>2.2*(settings.volume/70);
+function applyAudioSettings(){ if(master) master.gain.value=masterLevel(); if(settings.music&&soundMusicWanted()) startMusic(); else stopMusic(); }
+let music=null; const soundMusicWanted=()=>!!settings.music;
+function startMusic(){ const c=audioCtx(); if(!c||!master) return; if(c.state!=='running'){ c.resume().catch(()=>{}); } if(!music) music=Meta.createMusic(c,master); music.start(); }
+function stopMusic(){ if(music) music.stop(); }
+
 // ---------- sound ----------
 let comboQueue=[], comboBusy=false;
 function showCombo(text){ comboQueue.push(text); if(!comboBusy) nextCombo(); }
@@ -700,7 +716,7 @@ function nextCombo(){ const t=comboQueue.shift(); if(!t){ comboBusy=false; retur
 let ac=null, master=null, soundOn=true;
 try{ if(localStorage.getItem('deepcore-sound')==='off') soundOn=false; }catch(e){}
 function audioCtx(){
-  if(!ac){ try{ ac=new (window.AudioContext||window.webkitAudioContext)(); master=ac.createGain(); master.gain.value=2.2;
+  if(!ac){ try{ ac=new (window.AudioContext||window.webkitAudioContext)(); master=ac.createGain(); master.gain.value=masterLevel();
     const comp=ac.createDynamicsCompressor(); master.connect(comp); comp.connect(ac.destination); }catch(e){ ac=null; } }
   return ac;
 }
@@ -708,11 +724,11 @@ function audioCtx(){
 function unlockAudio(){
   try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){}
   const c=audioCtx(); if(!c) return;
-  if(c.state!=='running') c.resume().catch(()=>{});
+  if(c.state!=='running') c.resume().then(()=>{ if(settings.music) startMusic(); }).catch(()=>{}); else if(settings.music&&(!music||!music.isOn())) startMusic();
   try{ const b=c.createBuffer(1,1,22050), src=c.createBufferSource(); src.buffer=b; src.connect(c.destination); src.start(0); }catch(e){}
 }
 ['pointerdown','touchstart','touchend','click','keydown'].forEach(ev=>document.addEventListener(ev,unlockAudio,{capture:true,passive:true}));
-document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&ac&&ac.state!=='running') ac.resume().catch(()=>{}); });
+document.addEventListener('visibilitychange',()=>{ if(!ac) return; if(document.visibilityState==='visible'){ if(ac.state!=='running') ac.resume().catch(()=>{}); } else if(settings.music) ac.suspend().catch(()=>{}); });
 function blip(freq,dur=.08,type='square',vol=.05,when=0){
   if(!soundOn) return;
   try{ const c=audioCtx(); if(!c) return; if(c.state!=='running'){ c.resume().catch(()=>{}); return; }
@@ -721,7 +737,7 @@ function blip(freq,dur=.08,type='square',vol=.05,when=0){
     g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
     o.connect(g).connect(master); o.start(t); o.stop(t+dur); }catch(e){}
 }
-function setSoundUI(){ const b=$('sound'); b.setAttribute('aria-pressed',soundOn); b.title=soundOn?'Sound on':'Sound off'; }
+function setSoundUI(){ const b=$('sound'); b.setAttribute('aria-pressed',soundOn); b.title=soundOn?'Sound on':'Sound off'; const x=$('sfxOn'); if(x) x.checked=soundOn; }
 setSoundUI();
 $('sound').onclick=()=>{ soundOn=!soundOn; try{ localStorage.setItem('deepcore-sound',soundOn?'on':'off'); }catch(e){} setSoundUI(); A.track('setting_change',{setting:'sound',value:soundOn}); if(soundOn){ unlockAudio(); blip(660,.08,'triangle',.08); blip(990,.1,'triangle',.08,.08); } };
 function shake(big){ if(REDUCE) return; const w=$('boardWell'); w.classList.remove('shake','bigshake'); void w.offsetWidth; w.classList.add(big?'bigshake':'shake'); }
@@ -747,12 +763,14 @@ function prepStrip(def){
   def.oreBoost=boost; if(curGoals.wood) def.base={log:2.4,dirt:1,grass:.4};
 }
 function startBoard(idx){
+  tut.active=!life.tutorialDone&&idx===0; tut.stage=0; tut.placed=0; $('tutor').hidden=true;
   practice=idx<STRIP_BASE&&isDone(idx); reached=false; reachScore=0; clearBonus=0; decided=true; clearHint(); closeSheet();
-  { const dd=boardDef(idx); curGoals=dd.strip?stripGoalsFor(dd.zone):null; if(dd.strip) prepStrip(dd); }
+  { const dd=boardDef(idx); curGoals=dd.strip?stripGoalsFor(dd.zone):null; if(dd.strip) prepStrip(dd); life.zones[dd.zone]=true; }
   const att=dayState.attempts=dayState.attempts||{}; att[idx]=(att[idx]||0)+1; saveDay();
   undo=null; hand={}; dealt={}; level=idx+1; score=0; shown=0; collected={}; shownCol={}; since={}; bigNext=false; grid=emptyGrid(); pieces=null; combo=0; sinceClear=0; over=false; moves=0; busy=false;
   prefill();
   updateStash(); $('over').hidden=true; buildGoals(); updateHUD(); dealSet(); drawTray(); showBanner(); saveBoard();
+  if(tut.active) setTimeout(()=>{ if(tut.active&&screen==='game') tutorStart(); },2300);
   boardT0=lastAct=performance.now(); A.setBoard(boardLabel(idx));
   const d=levelDef(level); A.track('board_start',{strip:!!d.strip,idx,label:boardLabel(idx),zone:d.zoneName,tier:tierOf(d.d),target:d.target,practice,mod:modifierFor(dayState.day).id,attempt:att[idx],starter_blocks:d.pre});
 }
@@ -770,7 +788,7 @@ function credit(ctx,res,amt,showNow){
   if(showNow){ shownCol[res]=(shownCol[res]||0)+amt; if(!ctx.instant.includes(res)) ctx.instant.push(res); }
 }
 function mineCell(r,c,ctx){
-  const m=grid[r][c]; if(!m) return; const M=MATS[m];
+  const m=grid[r][c]; if(!m) return; const M=MATS[m]; { const lm=m==='grass'?'dirt':m; life.mined[lm]=(life.mined[lm]||0)+1; }
   burst(r,c,m,7); flashes.push({r,c,life:1});
   score+=VAL[m]||0;
   if(M.drop){
@@ -791,6 +809,7 @@ function flushCtx(ctx){ updateGoals(ctx.instant); updateStash(ctx.stash);
   if(ctx.gems) [988,1319,1568].forEach((f,j)=>blip(f,.16,'sine',.06,.25+j*.08)); }
 // a non-blast special caught in a clear: work out its reward now, celebrate after
 function specialHit(m,r,c,ctx){
+  life.seen[m]=true;
   const M=MATS[m], goals=levelDef(level).goals, sp={m,r,c,title:M.name,sub:'',pts:0};
   if(m==='prism'){ sp.pts=M.pts;
     const def=levelDef(level), opts=[...def.ores.map(k=>({k,w:ORES[k].p})), ...Object.entries(def.gems||{}).map(([k,g])=>({k,w:g.p*3}))];
@@ -868,6 +887,7 @@ async function place(i,r0,c0){
   score+=p.cells.length; pieces[i]=null; blip(140,.07,'square',.06); moves++;
   if(rating){ score+=rating.pts; const B=boardC.getBoundingClientRect(); floatText(B.left+(c0+p.w/2)*cell,B.top+(r0+p.h/2)*cell,`${rating.word} +${rating.pts}`,rating.col); blip(1175,.08,'triangle',.05); blip(1568,.1,'triangle',.05,.07); }
   const {rows,cols}=linesNow(), n=rows.length+cols.length;
+  if(combo>life.records.bestCombo) life.records.bestCombo=combo; if(n>life.records.bestLines) life.records.bestLines=n;
   { const now=performance.now(); let filled=0; grid.forEach(row=>row.forEach(v=>{ if(v) filled++; }));
     A.track('piece_place',{sid:p.sid,cells:p.cells.length,r:r0,c:c0,slot:i,lines:n,combo,rating:rating?rating.word:null,
       has_special:p.mats.some(m=>MATS[m].kind==='special'),think_ms:Math.round(now-lastAct),moves,filled,score_after:score});
@@ -890,7 +910,7 @@ async function place(i,r0,c0){
     [392,494,587,784].slice(0,Math.min(4,1+n)).forEach((f,j)=>blip(f*(1+Math.min(combo,6)*.06),.12,'triangle',.06,j*.06));
     shake(false);
     if(blasts.length){
-      let count=0; for(const [r,c] of blasts) if(grid[r][c]==='blast') count+=await detonate(r,c,hit);
+      life.seen.blast=true; let count=0; for(const [r,c] of blasts) if(grid[r][c]==='blast') count+=await detonate(r,c,hit);
       const pts=MATS.blast.pts*count; score+=pts; A.track('special_triggered',{m:'blast',count});
       await skippable(REDUCE?100:350);
       showSkip(); await skippable(playSplash(count>1?`Blast charge ×${count}`:'Blast charge',`+${pts}`,'blast'));
@@ -911,24 +931,28 @@ async function place(i,r0,c0){
     else if(!reached){ if(score>=dd.target){ reachTarget(); return; } }
     else if(starsFor(score,dd.target)>=3){ bankBoard(); return; } }   // three stars: banked automatically
   if(pieces.every(q=>!q)) dealSet();
-  updateHUD(); drawTray(); updateComboMeter(); clearHint(); updateHintBtn();
+  updateHUD(); drawTray(); updateComboMeter(); clearHint(); updateHintBtn(); tutorAfterPlace(n);
   if(pieces.every(q=>!q||!canPlaceAnywhere(q))) gameOver();
   saveBoard(); saveProfile();
 }
 // Reaching the target clears the board for good and banks the haul. After that you choose: bank it now, or keep playing for stars.
 // Extra stars are worth bonus points, but a cave-in while playing on loses the ore gathered since the clear (you keep the clear).
+let firstClear=false;
 function ensureReached(){
-  if(reached) return; const idx=level-1;
+  if(reached) return; const idx=level-1; firstClear=!dayState.done.includes(idx);
   reached=true; reachScore=score; clearBonus=150+50*Math.floor(idx/BOARDS_PER_ZONE)*2;
   if(!dayState.done.includes(idx)) dayState.done.push(idx);
 }
 function recordClear(){
   const idx=level-1; dayState.stars=dayState.stars||{};
+  if(!life.firstDay) life.firstDay=dayState.day; if(firstClear){ life.cleared++; firstClear=false; } Meta.touchStreak(life,dayState.day);
+  { const prev=dayState.stars[idx]||0; if(prev<1) life.stars+=1-prev; }
   dayState.scores[idx]=Math.max(dayState.scores[idx]||0,reachScore+clearBonus); dayState.stars[idx]=Math.max(dayState.stars[idx]||0,1);
   if(dayState.done.length>=BOARD_COUNT && !dayState.prospector){ dayState.prospector=true; prospector++; pendingProspector=true; dayState.prospectorShown=false; }
 }
 function bankHand(){ const haul={...hand}; Object.entries(hand).forEach(([k,v])=>{ bank[k]=(bank[k]||0)+v; }); hand={}; updateStash(Object.keys(haul)); return haul; }
 function reachTarget(){
+  if(tut.active) tutorFinish(false);
   const dd=levelDef(level); ensureReached(); decided=false; busy=true;
   bankHand(); recordClear(); saveDay(); saveProfile(); saveBoard();
   A.track('board_cleared',{idx:level-1,label:boardLabel(level-1),score,target:dd.target,moves,duration_ms:Math.round(performance.now()-boardT0),attempt:(dayState.attempts||{})[level-1]||1,practice});
@@ -951,7 +975,9 @@ function bankBoard(){
   busy=true; const idx=level-1, dd=levelDef(level); ensureReached(); recordClear();
   const stars=Math.max(1,starsFor(score,dd.target)), sb=starBonus(stars,dd.target);
   const haul=bankHand(), pts=score+clearBonus+sb;
+  { const prev=dayState.stars[idx]||0; if(stars>prev) life.stars+=stars-prev; }
   dayState.scores[idx]=Math.max(dayState.scores[idx]||0,pts); dayState.stars[idx]=Math.max(dayState.stars[idx]||0,stars);
+  life.records.bestBoard=Math.max(life.records.bestBoard,pts);
   A.track('board_complete',{stars,star_bonus:sb,haul:Object.values(haul).reduce((a,b)=>a+b,0),idx,label:boardLabel(idx),score,target:dd.target,moves,duration_ms:Math.round(performance.now()-boardT0),attempt:(dayState.attempts||{})[idx]||1,practice});
   showCombo(`${'★'.repeat(stars)} Board mined! +${clearBonus+sb}`);
   [523,659,784,1047].forEach((f,j)=>blip(f,.18,'triangle',.07,.1+j*.1));
@@ -1005,14 +1031,14 @@ function overtimeCaveIn(){
 function gameOver(){
   if(dockCount('rescue')>0){ setTimeout(()=>useRescue(),450); return; }
   if(reached){ overtimeCaveIn(); return; }
-  { const f=dayState.fails=dayState.fails||{}; f[level-1]=(f[level-1]||0)+1; saveDay(); }
+  { const f=dayState.fails=dayState.fails||{}; f[level-1]=(f[level-1]||0)+1; saveDay(); life.caveIns++; }
   const tg=levelDef(level).target||1, lost=loseHand();
   A.track('board_fail',{hand_lost:lost,idx:level-1,label:boardLabel(level-1),score,target:tg,pct:Math.round(100*score/tg),moves,duration_ms:Math.round(performance.now()-boardT0),can_craft_rescue:canAfford(RESCUE()),attempt:(dayState.attempts||{})[level-1]||1});
   over=true; saveBoard(); setTimeout(()=>{ if(over) showOver(); },650);
 }
 const RESCUE=()=>RECIPES.find(r=>r.m==='rescue');
 function useRescue(free){
-  A.track('rescue_used',{idx:level-1,score,moves});
+  A.track('rescue_used',{idx:level-1,score,moves}); life.seen.rescue=true;
   if(!free) dockRemove(specials.indexOf('rescue'));
   if(undo){ ({grid,pieces,score,combo,sinceClear,collected,hand,since,bigNext,moves,dealt}=JSON.parse(JSON.stringify(undo))); hand=hand||{}; shown=score; shownCol={...collected}; }
   undo=null; over=false; $('over').hidden=true; updateComboMeter();
@@ -1158,7 +1184,7 @@ function destroyAndCraft(rc,idx){
   if(!dockFull()||!canAfford(rc)) return;
   Object.entries(rc.cost).forEach(([k,v])=>bank[k]-=v);
   const old=specials[idx]; specials[idx]=rc.m;
-  A.track('special_destroyed',{destroyed:old,crafted:rc.m});
+  A.track('special_destroyed',{destroyed:old,crafted:rc.m}); life.specialsCrafted++;
   updateStash(Object.keys(rc.cost)); saveProfile(); updateAnvilGlow();
   if(screen==='game'){ $('anvil').hidden=true; playDestroy(idx,old); } else { renderDock(); refreshCraft(); }
 }
@@ -1246,7 +1272,7 @@ $('dayEndCraft').onclick=()=>{ $('dayEnd').hidden=true; openCraft(); };
 $('dayEndOk').onclick=()=>{ $('dayEnd').hidden=true; };
 function smelt(rc){
   if(!canAfford(rc) || dockFull()) return;
-  A.track('craft',{m:rc.m});
+  A.track('craft',{m:rc.m}); life.specialsCrafted++;
   Object.entries(rc.cost).forEach(([k,v])=>bank[k]-=v);
   specials.push(rc.m);
   updateStash(Object.keys(rc.cost)); renderDock(); refreshCraft(); saveProfile();
@@ -1353,10 +1379,11 @@ window.addEventListener('pointerup',endSpecialDrag); window.addEventListener('po
 // ---------- saving: profile (stash, specials, achievements), today's map, the board in progress ----------
 const K_PROFILE='deepcore-profile', K_DAY='deepcore-day', K_BOARD='deepcore-board';
 const lsGet=k=>{ try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch(e){ return null; } };
-const lsSet=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
+let noSave=false;   // set just before a reload that has rewritten the saved data (restore / reset), so the closing page cannot overwrite it
+const lsSet=(k,v)=>{ if(noSave) return; try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
 const lsDel=k=>{ try{ localStorage.removeItem(k); }catch(e){} };
 let history=[], bestDay=null, lastDay=null;
-function saveProfile(){ lsSet(K_PROFILE,{bank,specials,prospector,luck,luckLive,history,bestDay,lastDay}); }
+function saveProfile(){ lsSet(K_PROFILE,{bank,specials,prospector,luck,luckLive,history,bestDay,lastDay}); saveLife(); }
 function loadProfile(){ const p=lsGet(K_PROFILE); if(p){ bank=p.bank||{}; specials=Array.isArray(p.specials)?p.specials.slice(0,DOCK_SLOTS):[]; prospector=p.prospector||0; luck=p.luck||0; luckLive=!!p.luckLive; history=p.history||[]; bestDay=p.bestDay||null; lastDay=p.lastDay||null;
     // lapis and quartz were retired: swap any held for copper so nothing is lost
     ['lapis','quartz'].forEach(k=>{ if(bank[k]){ bank.copper=(bank.copper||0)+bank[k]; } delete bank[k]; }); } }
@@ -1367,14 +1394,15 @@ function rollover(prev){
   const left=leftoverPoints(), scoreSum=Object.values(prev.scores||{}).reduce((a,b)=>a+b,0), bonus=prev.bonus||0;
   const rec={day:prev.day,boards:(prev.done||[]).length,score:scoreSum,bonus,leftover:left,total:scoreSum+bonus+left,prospector:!!prev.prospector};
   history=[...history,rec].slice(-14); lastDay=rec; if(!bestDay||rec.total>bestDay.total) bestDay=rec;
+  life.points+=rec.total; if(rec.boards>0) life.days++; life.records.bestDay=Math.max(life.records.bestDay,rec.total);
   A.track('day_end',{boards:rec.boards,total:rec.total,leftover:left,bonus,prospector:rec.prospector});
   bank={}; hand={}; saveProfile();
 }
 function checkDay(){
   const s=lsGet(K_DAY), today=todayKey();
-  if(s && s.day===today){ dayState=Object.assign(freshDay(today),s); return; }
+  if(s && s.day===today){ dayState=Object.assign(freshDay(today),s); life.twists[modifierFor(today).id]=true; return; }
   if(s) rollover(s);
-  dayState=freshDay(today); saveDay(); updateStash(); const b=lsGet(K_BOARD); if(b && b.day!==today) lsDel(K_BOARD);
+  dayState=freshDay(today); saveDay(); updateStash(); life.twists[modifierFor(today).id]=true; const b=lsGet(K_BOARD); if(b && b.day!==today) lsDel(K_BOARD);
 }
 function saveBoard(){ if(!pieces) return; lsSet(K_BOARD,{day:dayState.day,idx:level-1,practice,reached,reachScore,clearBonus,decided,grid,pieces,score,combo,sinceClear,collected,hand,goals:curGoals,since,bigNext,moves,over,undo,dealt}); saveProfile(); }
 function clearBoardSave(){ lsDel(K_BOARD); }
@@ -1407,27 +1435,140 @@ document.addEventListener('pointerdown',e=>{
 // ---------- screens ----------
 let screen='home';
 function show(which){
+  if(which!=='game'&&tut.active){ tut.active=false; $('tutor').hidden=true; }
   if(screen!==which||which==='home') A.track('screen_view',{screen:which});
   screen=which; A.setScreen(which); if(which!=='game') closeSheet();
   $('home').hidden = which!=='home'; $('map').hidden = which!=='map'; $('anvil').hidden=true; $('info').hidden=true;
   if(which==='game'){ layout(); drawTray(); ensureLoop(); }
 }
-function homeView(v){ ['homeMain','homeSettings'].forEach(id=>$(id).hidden = id!==v); }
+function homeView(v){ ['homeMain','homeSettings'].forEach(id=>$(id).hidden = id!==v); $('home').classList.toggle('sub',v!=='homeMain'); }
 function showHome(){
   if(screen==='game') saveBoard();
-  checkDay(); homeView('homeMain');
-  const done=dayState.done.length;
-  $('homeNote').textContent=`Today: ${done}/${BOARD_COUNT} boards mined`+(prospector?` · Prospector ×${prospector}`:'');
-  { const m=modifierFor(dayState.day); $('homeMod').textContent=`Today's twist: ${m.name}. ${m.desc}`; }
-  $('homeNote2').textContent=(lastDay?`Yesterday: ${lastDay.boards}/${BOARD_COUNT} boards · ${lastDay.total.toLocaleString()} points`:'')+(bestDay&&lastDay?` · Best day ${bestDay.total.toLocaleString()}`:'');
-  show('home');
+  checkDay(); homeView('homeMain'); fillHome(); show('home'); showInstallHintIfDue();
 }
+const sbStr=sb=>sb?`Continue ${boardLabel(sb.idx)}`:'';
+function fillHome(){
+  const sb=savedBoard(), cont=$('contBtn'); cont.hidden=!sb; cont.textContent=sbStr(sb); $('mapBtn').classList.toggle('go',!sb);
+  const m=MOD(), n=Meta.streakNow(life,dayState.day);
+  $('hcToday').textContent=`${dayState.done.length}/${BOARD_COUNT} boards · ${todayScore().toLocaleString()} pts`+(prospector?` · ${prospector}★ badge${prospector>1?'s':''}`:'');
+  $('hcTwist').textContent=m.name; $('hcTwist').title=m.desc;
+  $('hcReset').textContent=Meta.resetText();
+  $('hcStreak').textContent=n>0?`${n} day${n===1?'':'s'}`+(life.streak.best>n?` (best ${life.streak.best})`:''):'Clear a board today to start one';
+  $('hcYest').hidden=!lastDay; if(lastDay) $('hcYestV').textContent=`${lastDay.boards}/${BOARD_COUNT} · ${lastDay.total.toLocaleString()} pts`+(bestDay&&bestDay.total>lastDay.total?` · best ${bestDay.total.toLocaleString()}`:'');
+  $('shareBtn').hidden=dayState.done.length===0;
+}
+setInterval(()=>{ if(screen==='home'&&!$('homeMain').hidden) $('hcReset').textContent=Meta.resetText(); if(screen==='map') updateMapDate(); },30000);
 $('homeBtn').onclick=()=>showMap({});
 $('mapBtn').onclick=()=>showMap({});
-$('settingsBtn').onclick=()=>{ homeView('homeSettings'); A.setScreen('settings'); };
+$('contBtn').onclick=()=>{ const sb=savedBoard(); if(!sb){ showMap({}); return; } show('game'); restoreBoard(sb); A.track('continue_board',{idx:sb.idx}); };
+$('settingsBtn').onclick=()=>{ homeView('homeSettings'); syncSettingsUI(); A.setScreen('settings'); };
 $('settingsBack').onclick=()=>showHome();
 $('privacyRow').hidden=!A.canConfigure(); $('shareData').checked=A.isOn(); $('verLine').textContent='Version '+(self.APP_VERSION||'dev');
 $('shareData').addEventListener('change',e=>{ if(e.target.checked){ A.setOptOut(false); A.track('analytics_opt',{on:true}); } else { A.track('analytics_opt',{on:false}); A.setOptOut(true); } });
+
+// ---- toast ----
+let toastTimer=0;
+function toast(msg,ms=2200){ let t=document.getElementById('toast'); if(!t){ t=document.createElement('div'); t.id='toast'; t.style.cssText='position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 30px);transform:translateX(-50%);z-index:60;background:#2f3136;color:#fff;box-shadow:inset 0 0 0 1px #ffcf5c;border-radius:10px;padding:10px 16px;font-size:15px;font-weight:600;max-width:90%;text-align:center;pointer-events:none'; document.body.append(t); }
+  t.textContent=msg; t.hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ t.hidden=true; },ms); }
+
+// ---- settings screen ----
+function syncSettingsUI(){ $('sfxOn').checked=soundOn; $('musicOn').checked=!!settings.music; $('volRange').value=settings.volume; $('reduceOn').checked=!!settings.reduce; $('largeOn').checked=!!settings.large; $('codeBox').hidden=true; resetArmed=false; $('resetBtn').textContent='Reset all progress'; }
+$('sfxOn').addEventListener('change',e=>{ soundOn=e.target.checked; try{ localStorage.setItem('deepcore-sound',soundOn?'on':'off'); }catch(err){} setSoundUI(); A.track('setting_change',{setting:'sound',value:soundOn}); if(soundOn){ unlockAudio(); blip(660,.08,'triangle',.08); } });
+$('musicOn').addEventListener('change',e=>{ settings.music=e.target.checked; saveSettings(); unlockAudio(); applyAudioSettings(); A.track('setting_change',{setting:'music',value:settings.music}); });
+$('volRange').addEventListener('input',e=>{ settings.volume=+e.target.value; saveSettings(); applyAudioSettings(); });
+$('volRange').addEventListener('change',e=>{ A.track('setting_change',{setting:'volume',value:settings.volume}); unlockAudio(); blip(660,.08,'triangle',.08); });
+$('reduceOn').addEventListener('change',e=>{ settings.reduce=e.target.checked; saveSettings(); applyDisplaySettings(); A.track('setting_change',{setting:'reduce_motion',value:settings.reduce}); });
+$('largeOn').addEventListener('change',e=>{ settings.large=e.target.checked; saveSettings(); applyDisplaySettings(); A.track('setting_change',{setting:'large_text',value:settings.large}); });
+$('tutorBtn').onclick=()=>{ life.tutorialDone=false; saveLife(); toast('Start board 1-1 to replay the tutorial'); A.track('tutorial_replay'); };
+let resetArmed=false;
+$('resetBtn').onclick=()=>{
+  if(!resetArmed){ resetArmed=true; $('resetBtn').textContent='Tap again to erase everything'; setTimeout(()=>{ resetArmed=false; $('resetBtn').textContent='Reset all progress'; },4000); return; }
+  A.track('progress_reset'); noSave=true; try{ Object.keys(localStorage).filter(k=>k.startsWith('deepcore-')&&k!=='deepcore-aid'&&k!=='deepcore-analytics').forEach(k=>localStorage.removeItem(k)); }catch(e){}
+  location.reload();
+};
+// ---- back up and restore with a save code ----
+$('backupBtn').onclick=()=>{ saveProfile(); const code=Meta.encodeSave({profile:lsGet(K_PROFILE),life,settings,day:lsGet(K_DAY),schema:SCHEMA}); $('codeText').value=code; $('codeText').readOnly=true; $('codeApply').hidden=true; $('codeCopy').hidden=false; $('codeMsg').textContent='Copy this code and keep it somewhere safe. Pasting it into Restore on any device brings your progress back.'; $('codeBox').hidden=false; A.track('save_backup'); };
+$('restoreBtn').onclick=()=>{ $('codeText').value=''; $('codeText').readOnly=false; $('codeApply').hidden=false; $('codeCopy').hidden=true; $('codeMsg').textContent='Paste a save code here. This replaces the progress on this device.'; $('codeBox').hidden=false; };
+$('codeCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText($('codeText').value); toast('Code copied'); }catch(e){ $('codeText').select(); toast('Select the code and copy it'); } };
+let restoreArmed=false;
+$('codeApply').onclick=()=>{
+  const data=Meta.decodeSave($('codeText').value); if(!data){ $('codeMsg').textContent="That code didn't look right. Check that you copied all of it."; return; }
+  if(!restoreArmed){ restoreArmed=true; $('codeApply').textContent='Tap again to replace this device'; setTimeout(()=>{ restoreArmed=false; $('codeApply').textContent='Restore from this code'; },4000); return; }
+  try{ lsSet(K_PROFILE,data.profile); if(data.life) lsSet(K_LIFE,data.life); if(data.settings) lsSet(K_SET,data.settings); if(data.day) lsSet(K_DAY,data.day); lsDel(K_BOARD); localStorage.setItem('deepcore-schema',String(data.schema||SCHEMA)); }catch(e){}
+  noSave=true; A.track('save_restore'); location.reload();
+};
+// ---- feedback ----
+let fbKind='Idea';
+function openFeedback(){
+  const chips=$('fbChips'); chips.innerHTML=''; ['Bug','Idea','Love it'].forEach(k=>{ const b=document.createElement('button'); b.type='button'; b.textContent=k; b.setAttribute('role','radio'); b.setAttribute('aria-checked',k===fbKind); b.onclick=()=>{ fbKind=k; chips.querySelectorAll('button').forEach(x=>x.setAttribute('aria-checked',x===b)); }; chips.append(b); });
+  $('fbText').value=''; $('fbSend').disabled=false;
+  const msg=$('fbMsg'); msg.textContent=''; if(!A.isOn()){ msg.innerHTML='Sending needs "Share anonymous play data" switched on in Settings. You can also open an issue on <a href="https://github.com/Taylors-Bookshelf/deepcore-blocks/issues/new" target="_blank" rel="noopener" style="color:#ffcf5c">GitHub</a>.'; }
+  $('feedback').hidden=false;
+}
+$('feedbackBtn').onclick=openFeedback; $('fbClose').onclick=()=>{ $('feedback').hidden=true; };
+$('fbSend').onclick=()=>{ const text=$('fbText').value.trim(); if(text.length<3){ $('fbMsg').textContent='Please write a few words first.'; return; } if(!A.isOn()){ openFeedback(); return; }
+  A.track('feedback',{kind:fbKind,message:text.slice(0,500),version:self.APP_VERSION,screen,board:screen==='game'?boardLabel(level-1):'',day:dayState.day}); A.flush();
+  $('fbSend').disabled=true; $('fbMsg').textContent='Thank you! Your note was sent.'; setTimeout(()=>{ $('feedback').hidden=true; },1400); };
+// ---- add to home screen / install ----
+let deferredInstall=null;
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredInstall=e; });
+const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const isIOS=()=>/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+function showInstallHintIfDue(){
+  const box=$('installHint'); box.hidden=true; if(standalone()) return;
+  let last=0; try{ last=+localStorage.getItem(K_INST)||0; }catch(e){} if(Date.now()-last<14*86400000) return;
+  if(isIOS()){ $('installText').textContent='Add Deepcore to your Home Screen to play full-screen and keep your progress safe: tap the Share button, then "Add to Home Screen".'; $('installBtn').hidden=true; box.hidden=false; A.track('install_hint_shown',{kind:'ios'}); }
+  else if(deferredInstall){ $('installText').textContent='Install Deepcore for full-screen play and offline use.'; $('installBtn').hidden=false; box.hidden=false; A.track('install_hint_shown',{kind:'prompt'}); }
+}
+$('installClose').onclick=()=>{ try{ localStorage.setItem(K_INST,String(Date.now())); }catch(e){} $('installHint').hidden=true; A.track('install_hint_dismissed'); };
+$('installBtn').onclick=async()=>{ if(!deferredInstall) return; deferredInstall.prompt(); try{ await deferredInstall.userChoice; }catch(e){} deferredInstall=null; $('installHint').hidden=true; };
+window.addEventListener('beforeinstallprompt',()=>{ if(screen==='home'&&!$('homeMain').hidden) showInstallHintIfDue(); });
+// ---- share ----
+async function doShare(){
+  const text=Meta.shareText({day:dayState.day,mod:MOD(),dayState,total:todayScore(),streak:Meta.streakNow(life,dayState.day),url:location.origin+location.pathname.replace(/index\.html$/,'')});
+  A.track('share',{boards:dayState.done.length,total:todayScore()});
+  if(navigator.share){ try{ await navigator.share({text}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
+  try{ await navigator.clipboard.writeText(text); toast('Copied to your clipboard'); }catch(e){ window.prompt('Copy your result:',text); }
+}
+$('shareBtn').onclick=doShare; $('dayEndShare').onclick=doShare;
+// ---- profile: rank, stats, records and the discovery log ----
+let profTab='Stats';
+function logIcon(e){
+  const cv=document.createElement('canvas'); cv.width=cv.height=T; const x=cv.getContext('2d'); x.imageSmoothingEnabled=false;
+  let src=null;
+  if(e.kind==='mined') src=ITEM[e.id]||TEX[e.id]; else if(e.kind==='seen') src=SPR[e.id]||TEX[e.id]; else if(e.kind==='zones') src=TEX[ZONES[+e.id].rock==='stone'&&+e.id===0?'grass':ZONES[+e.id].rock];
+  else { const m={gold_rush:'gold',ruby_rain:'ruby',gem_fever:'emerald',coal_seams:'coal',bright_lamps:'lantern'}[e.id]; src=m?ITEM[m]:TEX.treasure; }
+  if(src) x.drawImage(src,0,0); return cv;
+}
+const PROF_TABS={
+  Stats(b){
+    const pts=life.points+todayScore(), rk=Meta.rankFor(pts), st=Meta.streakNow(life,dayState.day);
+    const box=infoEl('div',undefined,'rankBox'); box.append(infoEl('div','Your rank','label'),infoEl('div',rk.name,'rankName'));
+    const bar=infoEl('div',undefined,'rankBar'); bar.append(infoEl('div')); bar.firstChild.style.width=Math.round(rk.progress*100)+'%'; box.append(bar,infoEl('div',rk.next?`${rk.toNext.toLocaleString()} points to ${rk.next}`:'The highest rank',"fine")); b.append(box);
+    const grid=infoEl('div',undefined,'stats');
+    const days=life.days+(dayState.done.length?1:0);
+    [[pts.toLocaleString(),'Lifetime points'],[(life.cleared).toLocaleString(),'Boards cleared'],[life.stars.toLocaleString(),'Stars earned'],[days,'Days played'],
+     [st+(life.streak.best?` / ${Math.max(st,life.streak.best)}`:''),'Streak / best'],[Math.max(life.records.bestDay,todayScore()).toLocaleString(),'Best day'],
+     [life.records.bestBoard.toLocaleString(),'Best board'],['×'+life.records.bestCombo,'Best combo'],[life.records.bestLines,'Most lines at once'],
+     [prospector,'Prospector badges'],[life.specialsCrafted,'Specials crafted'],[life.caveIns,'Cave-ins survived']].forEach(([v,k])=>{ const d=infoEl('div',undefined,'stat'); d.append(infoEl('b',String(v)),infoEl('span',k)); grid.append(d); });
+    b.append(grid);
+  },
+  Log(b){
+    const total=Meta.LOG.length, got=Meta.LOG.filter(e=>Meta.discovered(life,e)).length;
+    b.append(infoEl('p',`${got} of ${total} discovered. Mine, craft and dig deeper to fill the log.`));
+    let group=''; let wrap=null;
+    Meta.LOG.forEach(e=>{ if(e.group!==group){ group=e.group; b.append(infoEl('h3',group.toUpperCase())); wrap=infoEl('div',undefined,'logGrid'); b.append(wrap); }
+      const have=Meta.discovered(life,e), it=infoEl('div',undefined,'logItem'+(have?'':' no')); it.append(logIcon(e),infoEl('span',have?e.name:'???'));
+      if(have&&e.kind==='mined') it.append(infoEl('small',`×${(life.mined[e.id]||0).toLocaleString()}`)); wrap.append(it); });
+  },
+};
+function renderProfile(tab){
+  profTab=tab; const tabs=$('profTabs'); tabs.innerHTML='';
+  Object.keys(PROF_TABS).forEach(t=>{ const bt=document.createElement('button'); bt.type='button'; bt.textContent=t==='Log'?'Discovery log':t; bt.setAttribute('role','tab'); bt.setAttribute('aria-selected',t===tab); bt.onclick=()=>{ A.track('profile_tab',{tab:t}); renderProfile(t); }; tabs.append(bt); });
+  const body=$('profBody'); body.innerHTML=''; body.scrollTop=0; PROF_TABS[tab](body);
+}
+$('profileBtn').onclick=()=>{ renderProfile('Stats'); $('profile').hidden=false; A.track('profile_open'); };
+$('profClose').onclick=()=>{ $('profile').hidden=true; };
 (function homeStrip(){ const x=$('homeStrip').getContext('2d'); x.imageSmoothingEnabled=false;
   ['grass','stone','coal@stone','iron@deep','diamond@deep'].forEach((k,i)=>x.drawImage(TEX[k],i*16,0)); })();
 
@@ -1447,6 +1588,7 @@ function mapState(){
 }
 const MOD=()=>modifierFor(dayState.day), lcost=z=>lightCost(lightKind(z),MOD());
 function curZone(){ for(let z=0;z<ZONES.length;z++) if(!isDone(4*z+3)) return z; return ZONES.length-1; }
+function updateMapDate(){ if(!dayState) return; const [py,pm,pd]=dayState.day.split('-').map(Number); $('mapDate').textContent=new Date(py,pm-1,pd).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})+` · new map in ${Meta.resetText()}`; }
 function buildMap(){
   if(!MAP||mapDay!==dayState.day){ MAP=M.genMap(dayState.day); mapDay=dayState.day; }
   const W=Math.min(window.innerWidth,520), ts=W/10;
@@ -1465,7 +1607,7 @@ function buildMap(){
   let opts_=buildMap.opts||{};
   MAP.nodes.forEach((p,i)=>{ if(unlocked(i)||gateWaiting(i)) addNode(i,p); });
   MAP.strip.forEach((p,z)=>{ if(unlocked(STRIP_BASE+z)) addNode(STRIP_BASE+z,p); });
-  const [py,pm,pd]=dayState.day.split('-').map(Number); $('mapDate').textContent=new Date(py,pm-1,pd).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+  updateMapDate();
   $('mapProg').textContent=`${dayState.done.length}/${BOARD_COUNT} boards mined`+(dayState.bonus?` · bonus ${dayState.bonus}`:'')+` · ${MOD().name}`;
   $('mapBadge').hidden=!prospector; $('mapBadge').textContent=`Prospector ×${prospector}`;
   return {current,sb};
@@ -1531,7 +1673,7 @@ let drag=null;
 slots.forEach(s=>s.addEventListener('pointerdown',e=>{
   const i=+s.dataset.i; if(over||busy||uiOpen()||!pieces||!pieces[i]) return;
   e.preventDefault(); unlockAudio();
-  clearTimeout(returnTimer); ghost.style.transition=''; clearHint();
+  clearTimeout(returnTimer); ghost.style.transition=''; if(!tut.active) clearHint();
   const p=pieces[i]; drag={i,p,touch:e.pointerType!=='mouse',target:null,t0:performance.now(),x0:e.clientX,y0:e.clientY,moved:0,raw:null};
   { const cr=s.firstElementChild.getBoundingClientRect(); drag.cx=cr.left+cr.width/2; drag.cy=cr.top+cr.height/2; drag.k0=(trayCell+2)/cell; }
   const gw=p.w*cell-SEAM, gh=p.h*cell-SEAM; ghost.width=Math.round(gw*dpr); ghost.height=Math.round(gh*dpr); ghost.style.width=gw+'px'; ghost.style.height=gh+'px';
@@ -1613,9 +1755,23 @@ function useHint(){
   const [lo,hi]=occBits(grid), ranked=rankMoves(lo,hi,pieces.map(p=>p?SHAPES[p.sid]:null)); if(!ranked.length) return;
   const best=ranked[0]; bank[ 'coal']-=HINT_COST; updateStash(['coal']); saveProfile(); clearHint();
   hintInfo={i:best.i,r0:best.pl.r0,c0:best.pl.c0}; slots[best.i].classList.add('hint'); updateHintBtn(); blip(988,.08,'triangle',.05); blip(1319,.1,'triangle',.05,.08);
-  A.track('hint_used',{idx:level-1,score,moves,sid:pieces[best.i].sid,lines:best.nb[2]}); setTimeout(()=>{ if(hintInfo&&hintInfo.i===best.i) clearHint(); },4500);
+  life.hints++; A.track('hint_used',{idx:level-1,score,moves,sid:pieces[best.i].sid,lines:best.nb[2]}); setTimeout(()=>{ if(hintInfo&&hintInfo.i===best.i) clearHint(); },4500);
 }
 $('hintBtn').onclick=useHint;
+// ---- guided first board: a scripted first set that fills the bottom row, with the glowing hint and short captions ----
+const tut={active:false,stage:0,placed:0}, TUT_SET=['###','###','##'], TUT_TARGETS=[[7,0],[7,3],[7,6]];
+function showTutor(text,withNext){ $('tutorText').textContent=text; $('tutorNext').hidden=!withNext; $('tutor').style.top='calc(max(env(safe-area-inset-top,0px),14px) + 54px)'; $('tutor').hidden=false; }
+function tutorHintFor(i){ const t=TUT_TARGETS[i]; if(!t||!pieces||!pieces[i]||!fitsAt(pieces[i],t[0],t[1])) return false; hintInfo={i,r0:t[0],c0:t[1]}; slots.forEach(sl=>sl.classList.remove('hint')); slots[i].classList.add('hint'); return true; }
+function tutorStart(){ tut.active=true; tut.placed=0; showTutor('Welcome to the mine! Drag a piece from the tray onto the glowing spot.',false); tutorHintFor(0); A.track('tutorial_start'); }
+function tutorFinish(skipped){ if(!tut.active&&life.tutorialDone) return; tut.active=false; life.tutorialDone=true; saveLife(); $('tutor').hidden=true; clearHint(); A.track(skipped?'tutorial_skip':'tutorial_complete',{placed:tut.placed}); }
+function tutorAfterPlace(n){
+  if(!tut.active) return; tut.placed++;
+  if(n>0){ showTutor('Row cleared! Every block in it was mined, and the ore goes to your haul (the green +numbers). Fill the bar at the top to clear the board. If no piece fits, the cave collapses.',true); clearHint(); return; }
+  const next=pieces.findIndex(p=>p);
+  if(next>=0&&tutorHintFor(next)) showTutor(tut.placed===1?'Nice! Fill the rest of the bottom row.':'One more piece completes the row.',false);
+  else { clearHint(); showTutor('Fill a whole row or a whole column to clear it.',false); }
+}
+$('tutorNext').onclick=()=>tutorFinish(false); $('tutorSkip').onclick=()=>tutorFinish(true);
 let looping=false;
 function ensureLoop(){ if(!looping){ looping=true; requestAnimationFrame(render); } }
 function render(now){
@@ -1675,7 +1831,7 @@ function migrate(){
   try{ localStorage.removeItem('deepcore-mode'); localStorage.setItem('deepcore-schema',String(SCHEMA)); }catch(e){}
 }
 function start(){
-  migrate(); loadProfile(); checkDay(); buildStash(); renderDock(); updateLuckUI();
+  migrate(); loadSettings(); loadLife(); applyDisplaySettings(); setSoundUI(); loadProfile(); checkDay(); buildStash(); renderDock(); updateLuckUI();
   grid=emptyGrid(); pieces=null; showHome();
   layout(); drawTray(); ensureLoop();
   if(document.fonts&&document.fonts.load) Promise.all(['20px "Jersey 10"','600 16px "Chakra Petch"'].map(f=>document.fonts.load(f))).catch(()=>{});
@@ -1685,7 +1841,7 @@ if(['localhost','127.0.0.1','[::1]'].includes(location.hostname) && /[?&]debug\b
   place:(i,r,c)=>place(i,r,c), state:()=>({reached,reachScore,clearBonus,decided,hintInfo,combo,sinceClear,grid,pieces,score,busy,over,bank,hand,luck,luckLive,specials,crafted:Object.fromEntries(RECIPES.map(r=>[r.m,dockCount(r.m)])),dealt,screen,level,dayState}),
   fits:(p,r,c)=>fitsAt(p,r,c), setCell:(r,c,m)=>{grid[r][c]=m;}, setPieces:(ps)=>{pieces=ps; drawTray();},
   give:(b)=>{Object.assign(bank,b); updateStash();}, def:()=>levelDef(level), start:(i)=>{show('game'); startBoard(i);},
-  setScore:(v)=>{score=v;}, reach:()=>reachTarget(), hint:()=>useHint(), mod:()=>modifierFor(dayState.day), lcost:(z)=>lcost(z), addSpecial:(m)=>{ specials.push(m); renderDock(); updateAnvilGlow(); }, tilt:()=>mercyTilt(), practice:()=>practice, previewDay:(d)=>{ dayState.day=d; buildMap(); }, lightUp:(z,n=2)=>{ dayState.lights[z]=n; saveDay(); }, markDone:(a)=>{ dayState.done=a.slice(); saveDay(); }, openMap:()=>showMap({}), buildMap:()=>buildMap(), mapInfo:()=>({maxY:mapState().maxY,map:MAP}), newDay:(d)=>{ const s0=lsGet(K_DAY); if(s0){ s0.day=d; lsSet(K_DAY,s0); } checkDay(); }, history:()=>({history,bestDay,lastDay}), setBank:(b)=>{ bank=b; updateStash(); }, craftLight:(z)=>craftLight(z), goals:()=>curGoals, stripMet:()=>stripMet(), completeStrip:()=>completeStrip(), allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:()=>drinkLuck(), deal:()=>dealSet(), complete:()=>completeBoard(), audioState:()=>ac?ac.state:'none',
+  setScore:(v)=>{score=v;}, musicOn:()=>!!(music&&music.isOn()), life:()=>life, settings:()=>settings, tut:()=>tut, fillHome:()=>fillHome(), showHome:()=>showHome(), resetText:()=>Meta.resetText(), share:()=>doShare(), reach:()=>reachTarget(), hint:()=>useHint(), mod:()=>modifierFor(dayState.day), lcost:(z)=>lcost(z), addSpecial:(m)=>{ specials.push(m); renderDock(); updateAnvilGlow(); }, tilt:()=>mercyTilt(), practice:()=>practice, previewDay:(d)=>{ dayState.day=d; buildMap(); }, lightUp:(z,n=2)=>{ dayState.lights[z]=n; saveDay(); }, markDone:(a)=>{ dayState.done=a.slice(); saveDay(); }, openMap:()=>showMap({}), buildMap:()=>buildMap(), mapInfo:()=>({maxY:mapState().maxY,map:MAP}), newDay:(d)=>{ const s0=lsGet(K_DAY); if(s0){ s0.day=d; lsSet(K_DAY,s0); } checkDay(); }, history:()=>({history,bestDay,lastDay}), setBank:(b)=>{ bank=b; updateStash(); }, craftLight:(z)=>craftLight(z), goals:()=>curGoals, stripMet:()=>stripMet(), completeStrip:()=>completeStrip(), allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:()=>drinkLuck(), deal:()=>dealSet(), complete:()=>completeBoard(), audioState:()=>ac?ac.state:'none',
 }};
 start();
 })();

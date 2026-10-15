@@ -20,6 +20,8 @@ export async function phone(opts = {}) {
   const { server, base } = await serve();
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, ...opts });
+  // tests must never send analytics to the real PostHog project
+  await ctx.route(/posthog/, r => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
   const page = await ctx.newPage(); const errors = [];
   page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   const cdp = await ctx.newCDPSession(page);
