@@ -43,7 +43,7 @@ console.log(`board 1: ${moves} random moves, ended: ${end}`);
 if (end === 'stuck') fail('a dealt set had no legal placement');
 
 // crafting limits: one of each craftable
-await T(() => { const t = window.__deepcore.test; t.start(5); t.give({ coal: 99, iron: 99, gold: 99, cinnabar: 99, copper: 99, diamond: 9, emerald: 9 }); });
+await T(() => { const t = window.__deepcore.test; t.start(5); t.give({ coal: 99, iron: 99, gold: 99, ruby: 99, copper: 99, diamond: 9, emerald: 9 }); });
 await page.waitForTimeout(2400);
 await page.click('#anvilBtn'); await page.waitForTimeout(150);
 const names = await page.$$eval('.recipe .nm', e => e.map(x => x.textContent));

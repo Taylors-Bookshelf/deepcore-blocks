@@ -1,7 +1,7 @@
 (function(){
 const N = 8, T = 16;
 const A = window.DCA || { track(){}, attempt(){}, setScreen(){}, setBoard(){}, isOn:()=>false, canConfigure:()=>false, setOptOut(){} };
-const {rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,MODES,ZONES,BOARDS_PER_ZONE,BOARD_COUNT,RECIPES,STASH_KEYS,LIGHTS,LIGHTS_NEEDED,lightKind}=DeepcoreData;
+const {rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARDS_PER_ZONE,BOARD_COUNT,STRIP_BASE,RECIPES,STASH_KEYS,GEM_KEYS,LIGHTS,LIGHTS_NEEDED,lightKind,lineScore,lineName}=DeepcoreData;
 const M=DeepcoreMaps;
 const {SHAPES,SHAPE_STRS,SHAPE_BY_KEY,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,getBit,bitOf,chooseSet,BIG_IDS,pickWeighted}=DeepcoreCore;
 const FONT_D = '"Silkscreen", "Courier New", monospace';
@@ -13,6 +13,7 @@ function shade(rgb,f){ return rgb.map(v=>Math.max(0,Math.min(255,Math.round(v*f)
 // palettes ordered dark → light
 const PAL = {
   stone:   ['#656565','#717171','#7c7c7c','#878787','#939393'],
+  granite: ['#8c7f84','#988b90','#a4979b','#b0a4a8','#bcb1b4'],
   deep:    ['#3b3f4d','#454a59','#4f5565','#5a6072','#666d80'],
   dirt:    ['#5b402d','#6a4b35','#79573d','#876246','#966e4f'],
   sand:    ['#cbbf8d','#d5ca98','#ddd2a3','#e4daad','#ebe2b9'],
@@ -31,13 +32,14 @@ const MATS = {
   sand:    {kind:'base', gen:'sand',   drop:'sand'},
   log:     {kind:'base', gen:'log',    drop:'wood'},
   stone:   {kind:'base', gen:'stone',  drop:'stone'},
+  granite: {kind:'base', gen:'granite', drop:'granite'},
   deep:    {kind:'base', gen:'deep',   drop:'deep'},
   ember:   {kind:'base', gen:'ember',  drop:'ember'},
   obsidian:{kind:'base', gen:'obsidian', drop:'obsidian'},
   // ores — drawn on the level's host rock (stone, deep stone or ember rock)
   coal:    {kind:'ore', style:'blob',  ore:'#1e1e1e', hi:'#6e6e6e', dk:'#0a0a0a', rimDark:'#b3aca0', drop:'coal'},
   copper:  {kind:'ore', style:'blob',  ore:'#f08a3c', hi:'#ffc896', dk:'#2fbf9a', drop:'copper'},
-  cinnabar:{kind:'ore', style:'blob',  ore:'#ff2e2e', hi:'#ffb0a0', dk:'#a01010', drop:'cinnabar'},
+  ruby:    {kind:'gem', cut:'oval', ore:'#ff3b55', hi:'#ffd0d6', facets:{X:'#3a0610',L:'#ffd0d6',H:'#ff5a6e',M:'#d81e3a',D:'#8a0e24'}, drop:'ruby'},
   iron:    {kind:'ore', style:'fleck', ore:'#e3cdb8', hi:'#ffffff', dk:'#9a8070', drop:'iron'},
   gold:    {kind:'ore', style:'fleck', ore:'#ffd21a', hi:'#fff6b0', dk:'#d27a00', spark:'#ffffff', drop:'gold'},
   // gems
@@ -54,7 +56,7 @@ const MATS = {
 };
 const FX = {
   grass:['#5e9c37','#6a4b35'], dirt:['#79573d','#5b402d'], sand:['#ddd2a3','#cbbf8d'], log:['#5a4427','#3b2b17'],
-  stone:['#7c7c7c','#656565'], deep:['#4a4a51','#36363d'], obsidian:['#43325e','#a98ad8'], ember:['#88312e','#561818'],
+  stone:['#7c7c7c','#656565'], granite:['#a4979b','#8c7f84'], deep:['#4a4a51','#36363d'], obsidian:['#43325e','#a98ad8'], ember:['#88312e','#561818'],
   blast:['#ffd23f','#ff6a1f'], prism:['#ff6ad5','#6ae3ff'], fossil:['#fbf3dc','#c6a066'], treasure:['#ffe36a','#f5c93c'], jackhammer:['#ffd23f','#9fb4cc'], rescue:['#ff6a9a','#ffd0e0'], luck:['#7dff9a','#ffe36a'],
 };
 Object.entries(MATS).forEach(([k,m])=>{ if(!FX[k]) FX[k]=[m.ore,m.hi]; });
@@ -103,7 +105,8 @@ function makeTex(key, seedN, rock){
     for(let j=0;j<T;j++)for(let i=0;i<T;i++){ const v=mix*cl[(j>>1)*8+(i>>1)]+(1-mix)*r(); px(i,j,p[Math.min(p.length-1,Math.floor(v*p.length))]); }
   };
   const rockBase=(rk)=>{
-    if(rk==='stone'){ cluster('stone',.6); for(let n=0;n<6;n++){ const i=Math.floor(r()*14), j=Math.floor(r()*16); px(i,j,hex('#5d5d5d')); px(i+1,j,hex('#5d5d5d')); } }
+    if(rk==='granite'){ cluster('granite',.5); for(let n=0;n<16;n++){ const i=Math.floor(r()*14), j=Math.floor(r()*15); px(i,j,hex(r()<.5?'#4d4347':'#e2d9da')); if(r()<.5) px(i+1,j,hex('#6b5f63')); } }
+    else if(rk==='stone'){ cluster('stone',.6); for(let n=0;n<6;n++){ const i=Math.floor(r()*14), j=Math.floor(r()*16); px(i,j,hex('#5d5d5d')); px(i+1,j,hex('#5d5d5d')); } }
     else if(rk==='deep'){ cluster('deep',.5); for(let j=1;j<T;j+=4) for(let i=0;i<T;i++) if(r()<.55) px(i,j,shade(get(i,j),.78)); }
     else if(rk==='obsidian'){ cluster('obsidian',.55);
       for(let n=0;n<5;n++){ let i=Math.floor(r()*T), j=Math.floor(r()*T); for(let s=0;s<4;s++){ px(i,j,hex(s===0?'#a98ad8':'#7a5cad')); i=(i+1)%T; j=(j+(r()<.5?1:0))%T; } } }
@@ -127,7 +130,7 @@ function makeTex(key, seedN, rock){
   const sparkle=(a,b,c1,c2)=>{ px(a,b,hex(c1)); [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>px(a+dx,b+dy,hex(c2))); };
   const gen = (m.kind==='ore'||m.kind==='gem') ? 'ore' : m.gen;
   switch(gen){
-    case 'stone': case 'deep': case 'ember': case 'obsidian': rockBase(gen); break;
+    case 'stone': case 'granite': case 'deep': case 'ember': case 'obsidian': rockBase(gen); break;
     case 'dirt': cluster('dirt',.45); for(let n=0;n<10;n++) px(Math.floor(r()*T),Math.floor(r()*T),hex(r()<.5?'#4a3424':'#a07a58')); break;
     case 'sand': cluster('sand',.3); for(let n=0;n<8;n++) px(Math.floor(r()*T),Math.floor(r()*T),hex('#bfb281')); break;
     case 'grass': {
@@ -146,10 +149,8 @@ function makeTex(key, seedN, rock){
     case 'ore':
       rockBase(rock);
       if(m.kind==='gem'){
-        const S = m.cut==='brilliant'
-          ? ['.XXXXX.','XLHLHMX','XHHHMMX','.XHMMX.','..XMX..','...X...']
-          : ['.XXXX.','XLLHHX','XLHHMX','XHHMMX','XHMMDX','XMMDDX','.XXXX.'];
-        const spots = m.cut==='brilliant' ? [[1,2],[8,8]] : [[2,1],[9,8]];
+        const S = GEM_SPR[m.cut];
+        const spots = m.cut==='brilliant' ? [[1,2],[8,8]] : m.cut==='oval' ? [[1,2],[7,8]] : [[2,1],[9,8]];
         spots.forEach(([a,b])=>{ // dark socket shadow under each stone
           S.forEach((row,j)=>[...row].forEach((ch,i)=>{ if(ch!=='.') px(a+i+1,b+j+1,shade(get(a+i+1,b+j+1),.55)); }));
           gem(S,m.facets,a,b); });
@@ -260,10 +261,12 @@ function makeTex(key, seedN, rock){
   x.putImageData(img,0,0);
   return c;
 }
+const GEM_SPR={ brilliant:['.XXXXX.','XLHLHMX','XHHHMMX','.XHMMX.','..XMX..','...X...'], step:['.XXXX.','XLLHHX','XLHHMX','XHHMMX','XHMMDX','XMMDDX','.XXXX.'],
+  oval:['..XXXX..','.XLHHMX.','XLHHMMMX','XHHMMMDX','XHMMMDDX','.XMMDDX.','..XXXX..'] };
 const TEX = {};
 Object.keys(MATS).forEach((k,i)=>{
   const m=MATS[k];
-  if(m.kind==='ore'||m.kind==='gem') ['stone','deep','ember','obsidian'].forEach(rk=>TEX[k+'@'+rk]=makeTex(k,i,rk));
+  if(m.kind==='ore'||m.kind==='gem') ['stone','granite','deep','ember','obsidian'].forEach(rk=>TEX[k+'@'+rk]=makeTex(k,i,rk));
   else TEX[k]=makeTex(k,i);
 });
 const SLOT = (()=>{ const c=document.createElement('canvas'); c.width=c.height=T; const x=c.getContext('2d'); const r=rng(42);
@@ -278,25 +281,24 @@ const texOf=m=> (MATS[m].kind==='ore'||MATS[m].kind==='gem') ? TEX[m+'@'+levelDe
 
 // ---------- state ----------
 let dealt={}, grid, pieces, score=0, combo=0, sinceClear=0, over=false, busy=false, level=1, collected={}, shownCol={}, since={};
-let curGoals=null, bank={}, hand={}, crafted={}, luck=0, luckLive=false, moves=0, prospector=0, boardT0=0, lastAct=0;
-let mode=1; try{ const raw=localStorage.getItem('deepcore-mode'); if(raw!==null && ['0','1','2'].includes(raw)) mode=+raw; }catch(e){}
+let practice=false, curGoals=null, bank={}, hand={}, crafted={}, luck=0, luckLive=false, moves=0, prospector=0, boardT0=0, lastAct=0;
 
 // ---------- daily world map: 5 zones × 4 boards, regenerated every Pacific-time day ----------
 // The world map resets at midnight Pacific time for everyone, wherever they are.
 const PACIFIC=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit',day:'2-digit'});
 function todayKey(){ return PACIFIC.format(new Date()); }
-const freshDay=day=>({day,done:[],scores:{},prospector:false,lights:{},strip:{},bonus:0,attempts:{}});
+const freshDay=day=>({day,done:[],scores:{},prospector:false,lights:{},strip:{},bonus:0,attempts:{},fails:{}});
 let dayState=freshDay(todayKey());
 const _bd={};
 function boardDef(idx){
-  const key=dayState.day+':'+idx+':'+mode; if(_bd[key]) return _bd[key];
-  if(idx>=20) return _bd[key]={ idx, name:'Strip Mine', goals:{}, strip:true, ...DeepcoreData.boardParams(idx-20,1,mode), target:0 };   // a side tunnel: resource goals, no score target
+  const key=dayState.day+':'+idx; if(_bd[key]) return _bd[key];
+  if(idx>=STRIP_BASE) return _bd[key]={ idx, name:'Strip Mine', goals:{}, strip:true, ...DeepcoreData.boardParams(idx-STRIP_BASE,1), target:0 };   // a side tunnel: resource goals, no score target
   const zi=Math.floor(idx/BOARDS_PER_ZONE), j=idx%BOARDS_PER_ZONE, z=ZONES[zi];
   const RZ=rng(hashStr(dayState.day+'#zone'+zi)+7); const names=z.names.slice().sort(()=>RZ()-.5);
-  return _bd[key]={ idx, name:names[j], goals:{}, ...DeepcoreData.boardParams(zi,j,mode) };
+  return _bd[key]={ idx, name:names[j], goals:{}, ...DeepcoreData.boardParams(zi,j) };
 }
 function levelDef(L){ return boardDef(L-1); }
-const boardLabel=idx=>idx>=20?`${idx-19}-S`:`${Math.floor(idx/BOARDS_PER_ZONE)+1}-${idx%BOARDS_PER_ZONE+1}`;
+const boardLabel=idx=>idx>=STRIP_BASE?`${idx-STRIP_BASE+1}-S`:`${Math.floor(idx/BOARDS_PER_ZONE)+1}-${idx%BOARDS_PER_ZONE+1}`;
 
 const emptyGrid=()=>Array.from({length:N},()=>Array(N).fill(null));
 const difficulty=()=>levelDef(level).d;
@@ -324,10 +326,12 @@ function drinkLuck(){
   busy=true; const d=playSplash('Luck Tonic','The next 7 sets favour you','luck'); setTimeout(()=>{ busy=false; },d);
 }
 let bigNext=false;
+// after 2 cave-ins on the same board today the dealer starts leaning your way (0, 0, .35, .7, then .75)
+const mercyTilt=()=>Math.min(.75,Math.max(0,((dayState.fails||{})[level-1]||0)-1)*.35);
 function dealSet(){
   const [lo,hi]=occBits(grid); let set;
   if(bigNext && lo===0 && hi===0){ set=BIG_IDS.map(ids=>SHAPES[ids[Math.floor(Math.random()*ids.length)]]).sort(()=>Math.random()-.5); bigNext=false; }
-  else set=chooseSet(lo,hi,difficulty(),{luck:luck>0?1:0});
+  else set=chooseSet(lo,hi,difficulty(),{luck:luck>0?1:0,tilt:mercyTilt()});
   if(luck>0){ luck--; luckLive=true; } else if(luckLive){ luckLive=false; showCombo('Luck Tonic wore off'); blip(330,.2,'sine',.05); }
   updateLuckUI();
   const out=[]; set.forEach(s=>out.push(dressPiece(s,out))); pieces=out;
@@ -430,7 +434,7 @@ const ITEM={};
 (function makeItems(){
   const nug=[[[1,0],[0,1],[1,1],[2,1],[1,2]],[[0,0],[1,0],[0,1],[1,1]],[[0,0],[1,0],[1,1],[2,1]]];
   const spots=[[6,3],[2,9],[9,9]];
-  const SPR={brilliant:['.XXXXX.','XLHLHMX','XHHHMMX','.XHMMX.','..XMX..','...X...'], step:['.XXXX.','XLLHHX','XLHHMX','XHHMMX','XHMMDX','XMMDDX','.XXXX.']};
+  const SPR=GEM_SPR;
   Object.entries(MATS).forEach(([k,m])=>{
     if(m.kind!=='ore'&&m.kind!=='gem') return;
     const c=document.createElement('canvas'); c.width=c.height=T; const x=c.getContext('2d');
@@ -668,7 +672,7 @@ function shake(big){ if(REDUCE) return; const w=$('boardWrap'); w.classList.remo
 function showBanner(ms=2200){
   const def=levelDef(level);
   $('bLvl').textContent=def.strip?`${def.zoneName} · Strip mine · ${tierOf(def.d)}`:`${def.zoneName} · Board ${boardLabel(level-1)} · ${tierOf(def.d)}`; $('bName').textContent=def.name;
-  $('bGoals').textContent=def.strip?`Gather ${Object.entries(curGoals||{}).map(([k,v])=>v+' '+DROPS[k][0].toLowerCase()).join(', ')}`:`Score ${def.target} points to clear`;
+  $('bGoals').textContent=practice?`Score ${def.target} to beat your best. Practice run: no ore this time.`:def.strip?`Gather ${Object.entries(curGoals||{}).map(([k,v])=>v+' '+DROPS[k][0].toLowerCase()).join(', ')}`:`Score ${def.target} points to clear`;
   $('banner').classList.add('show'); setTimeout(()=>$('banner').classList.remove('show'),ms);
 }
 
@@ -680,13 +684,14 @@ function prepStrip(def){
   def.oreBoost=boost; if(curGoals.wood) def.base={log:2.4,dirt:1,grass:.4};
 }
 function startBoard(idx){
+  practice=idx<STRIP_BASE&&isDone(idx);
   { const dd=boardDef(idx); curGoals=dd.strip?stripGoalsFor(dd.zone):null; if(dd.strip) prepStrip(dd); }
   const att=dayState.attempts=dayState.attempts||{}; att[idx]=(att[idx]||0)+1; saveDay();
   undo=null; hand={}; dealt={}; level=idx+1; score=0; shown=0; collected={}; shownCol={}; since={}; bigNext=false; grid=emptyGrid(); pieces=null; combo=0; sinceClear=0; over=false; moves=0; busy=false;
   prefill();
   updateStash(); $('over').hidden=true; buildGoals(); updateHUD(); dealSet(); drawTray(); showBanner(); saveBoard();
   boardT0=lastAct=performance.now(); A.setBoard(boardLabel(idx));
-  const d=levelDef(level); A.track('board_start',{strip:!!d.strip,idx,label:boardLabel(idx),zone:d.zoneName,tier:tierOf(d.d),target:d.target,mode:MODES[mode].name,attempt:att[idx],starter_blocks:d.pre});
+  const d=levelDef(level); A.track('board_start',{strip:!!d.strip,idx,label:boardLabel(idx),zone:d.zoneName,tier:tierOf(d.d),target:d.target,practice,attempt:att[idx],starter_blocks:d.pre});
 }
 
 function linesNow(){ const rows=[],cols=[]; for(let i=0;i<N;i++){ if(grid[i].every(Boolean)) rows.push(i); if(grid.every(row=>row[i])) cols.push(i);} return {rows,cols}; }
@@ -706,7 +711,7 @@ function mineCell(r,c,ctx){
   burst(r,c,m,7); flashes.push({r,c,life:1});
   score+=VAL[m]||0;
   if(M.drop){
-    const item=(M.kind==='ore'||M.kind==='gem'||M.drop==='wood'), res=M.drop;
+    const item=(M.kind==='ore'||M.kind==='gem'||M.drop==='wood')&&!practice, res=M.drop;
     credit(ctx,res,1,true);
     if(item){
       hand[res]=(hand[res]||0)+1;
@@ -715,7 +720,7 @@ function mineCell(r,c,ctx){
         ctx.flyers++; }
       else ctx.stash.push(res);
     }
-    if(M.kind==='gem'){ ctx.gems++; ctx.msgs.push(`${DROPS[res][0]}! +${VAL[m]}`); }
+    if(M.kind==='gem'&&!ORES[res]){ ctx.gems++; ctx.msgs.push(`${DROPS[res][0]}! +${VAL[m]}`); }
   }
   grid[r][c]=null;
 }
@@ -727,13 +732,13 @@ function specialHit(m,r,c,ctx){
   if(m==='prism'){ sp.pts=M.pts;
     const def=levelDef(level), opts=[...def.ores.map(k=>({k,w:ORES[k].p})), ...Object.entries(def.gems||{}).map(([k,g])=>({k,w:g.p*3}))];
     const pick=opts.length?pickWeighted(opts).k:'coal';
-    hand[pick]=(hand[pick]||0)+3; sp.res=pick; sp.n=3; sp.sub=`+3 ${DROPS[pick][0]} · +${M.pts}`; }
+    if(!practice) hand[pick]=(hand[pick]||0)+3; sp.res=practice?null:pick; sp.n=3; sp.sub=`+3 ${DROPS[pick][0]} · +${M.pts}`; }
   if(m==='treasure'){ const z=levelDef(level).zone, deep=z>=3;
     const table=[['iron',5,9,deep?.22:.35],['gold',4,7,deep?.24:.30],['emerald',2,4,deep?.29:.20],['diamond',1,3,deep?.25:.15]];
     const pick=pickWeighted(table.map(([k,lo,hi,w])=>({k,lo,hi,w})));
     let u=Math.random(); if(deep && (pick.k==='emerald'||pick.k==='diamond')) u=Math.pow(u,.55);
     const n=pick.lo+Math.min(pick.hi-pick.lo,Math.floor(u*(pick.hi-pick.lo+1)));
-    hand[pick.k]=(hand[pick.k]||0)+n; sp.res=pick.k; sp.n=n; sp.pts=200; sp.sub=`${n} ${DROPS[pick.k][0]} · +200`; }
+    if(!practice) hand[pick.k]=(hand[pick.k]||0)+n; sp.res=practice?null:pick.k; sp.n=n; sp.pts=200; sp.sub=`${n} ${DROPS[pick.k][0]} · +200`; }
   if(m==='fossil'){ sp.pts=M.pts; sp.sub=`+${M.pts}`; }
   if(m==='jackhammer'){ sp.pts=M.pts; sp.sub=`Board shaken up · +${M.pts}`; }
   score+=sp.pts; burst(r,c,m,18); grid[r][c]=null;
@@ -812,11 +817,11 @@ async function place(i,r0,c0){
       if(m==='blast'){ blasts.push([r,c]); return; }
       if(MATS[m].kind==='special'){ hit.push(specialHit(m,r,c,ctx)); return; }
       mineCell(r,c,ctx); });
-    score+=n*10*n*combo;
+    score+=lineScore(n,combo);
     flushCtx(ctx);
     { const B=boardC.getBoundingClientRect(); const cr=rows.length?rows.reduce((a,b)=>a+b,0)/rows.length:3.5, cc=cols.length?cols.reduce((a,b)=>a+b,0)/cols.length:3.5;
       floatText(B.left+(cc+.5)*cell,B.top+(cr+.5)*cell,`+${score-clearStart}`,'#fff3c4'); }
-    const msgs=ctx.msgs.slice(); if(n>1||combo>1) msgs.push(n>1 ? `${n} lines!${combo>1?'  ×'+combo:''}` : `Combo ×${combo}`);
+    const msgs=ctx.msgs.slice(); if(n>1||combo>1) msgs.push(n>1 ? `${lineName(n)}${combo>1?'  ×'+combo:''}` : `Combo ×${combo}`);
     if(!hit.length && !blasts.length) msgs.slice(0,3).forEach(showCombo);
     [392,494,587,784].slice(0,Math.min(4,1+n)).forEach((f,j)=>blip(f*(1+Math.min(combo,6)*.06),.12,'triangle',.06,j*.06));
     shake(false);
@@ -875,7 +880,7 @@ function loseHand(){
   return total;
 }
 function completeStrip(){
-  busy=true; const idx=level-1, z=idx-20, bonus=score;
+  busy=true; const idx=level-1, z=idx-STRIP_BASE, bonus=score;
   A.track('strip_complete',{zone:z,score:bonus,moves,duration_ms:Math.round(performance.now()-boardT0),attempt:(dayState.attempts||{})[idx]||1});
   const haul={...hand}; Object.entries(hand).forEach(([k,v])=>{ bank[k]=(bank[k]||0)+v; }); hand={}; updateStash(Object.keys(haul));
   dayState.strip=dayState.strip||{}; dayState.strip[z]=true; dayState.bonus=(dayState.bonus||0)+bonus;
@@ -886,6 +891,7 @@ function completeStrip(){
 }
 function gameOver(){
   if((crafted.rescue||0)>0){ setTimeout(useRescue,450); return; }
+  { const f=dayState.fails=dayState.fails||{}; f[level-1]=(f[level-1]||0)+1; saveDay(); }
   const tg=levelDef(level).target||1, lost=loseHand();
   A.track('board_fail',{hand_lost:lost,idx:level-1,label:boardLabel(level-1),score,target:tg,pct:Math.round(100*score/tg),moves,duration_ms:Math.round(performance.now()-boardT0),can_craft_rescue:canAfford(RESCUE()),attempt:(dayState.attempts||{})[level-1]||1});
   over=true; saveBoard(); setTimeout(()=>{ if(over) showOver(); },650);
@@ -1009,7 +1015,7 @@ function renderCraft(){
   const body=$('craftBody'); body.innerHTML=''; const z=curZone(), kind=lightKind(z), L=LIGHTS[kind], placed=lightsOf(z), gateIdx=4*z+3;
   const h3=t=>{ const e=document.createElement('h3'); e.textContent=t; return e; }, note=t=>{ const e=document.createElement('p'); e.className='note'; e.textContent=t; return e; };
   body.append(h3('LIGHT THE WAY'));
-  if(isDone(gateIdx)) body.append(note(isDone(19)?'Every way down is lit for today.':`The way down in ${ZONES[z].name} is already lit.`));
+  if(isDone(gateIdx)) body.append(note(isDone(BOARD_COUNT-1)?'Every way down is lit for today.':`The way down in ${ZONES[z].name} is already lit.`));
   else {
     body.append(note(`The fourth board in ${ZONES[z].name} is too dark to dig. Place ${LIGHTS_NEEDED} ${L.plural} to open it.`));
     const row=document.createElement('div'); row.className='recipe'; const big=document.createElement('canvas'); big.className='big'; big.width=big.height=T; big.getContext('2d').drawImage(ITEM[kind],0,0);
@@ -1020,7 +1026,7 @@ function renderCraft(){
     if(!isDone(4*z+2)) body.append(note(`A strip mine opens off board ${boardLabel(4*z+2)} once you clear it. It's a side tunnel where you can gather what you're missing.`));
     else if(stripDone(z)) body.append(note('The strip mine here is cleared for today.'));
     else { const g=stripGoalsFor(z); body.append(note(`Short on resources? Mine the strip mine: ${Object.entries(g).map(([k,v])=>v+' '+DROPS[k][0].toLowerCase()).join(', ')}.`));
-      const r2=document.createElement('div'); r2.className='row2'; const sb=document.createElement('button'); sb.type='button'; sb.className='go'; sb.textContent='Strip mine'; sb.onclick=()=>{ $('craftPanel').hidden=true; openCard(20+z); }; r2.append(sb); body.append(r2); }
+      const r2=document.createElement('div'); r2.className='row2'; const sb=document.createElement('button'); sb.type='button'; sb.className='go'; sb.textContent='Strip mine'; sb.onclick=()=>{ $('craftPanel').hidden=true; openCard(STRIP_BASE+z); }; r2.append(sb); body.append(r2); }
   }
   body.append(h3('SPECIALS')); const sp=document.createElement('div'); sp.id='craftRecipes'; sp.style.cssText='display:flex;flex-direction:column;gap:10px'; body.append(sp); recipeRows(sp);
   body.append(note(`Your stash resets at midnight Pacific and leftovers turn into bonus points (worth ${leftoverPoints()} now). Specials you craft are kept.`));
@@ -1040,7 +1046,7 @@ $('craftPanel').addEventListener('pointerdown',e=>{ if(e.target.id==='craftPanel
 const leftoverPoints=()=>Object.entries(bank).reduce((a,[k,v])=>a+(v||0)*(VAL[k]||(k==='wood'?VAL.log:0)),0);
 function showDayEnd(){
   const box=$('dayEndItems'); box.innerHTML=''; Object.entries(bank).filter(([,v])=>v>0).forEach(([k,v])=>{ if(!ITEM[k]) return; const sp=document.createElement('span'); sp.append(iconOf(ITEM[k]),document.createTextNode(v)); sp.title=DROPS[k][0]; box.append(sp); });
-  $('dayEndNote').textContent='You mined all 20 boards. At midnight Pacific your stash resets and what is left turns into bonus points. Craft specials with it now to carry them into tomorrow.';
+  $('dayEndNote').textContent=`You mined all ${BOARD_COUNT} boards. At midnight Pacific your stash resets and what is left turns into bonus points. Craft specials with it now to carry them into tomorrow.`;
   $('dayEndTotal').textContent=`Leftovers are worth ${leftoverPoints()} bonus points as they stand.`;
   $('dayEnd').hidden=false; A.track('day_end_open',{leftover_pts:leftoverPoints()});
 }
@@ -1056,7 +1062,7 @@ function smelt(rc){
 }
 
 // ---------- field guide (the info panel): content is generated from the game's own tables so the numbers never go stale ----------
-const RARITY={ coal:'Common', copper:'Common', cinnabar:'Common', iron:'Unusual', gold:'Rare', emerald:'Rare', diamond:'Rare' };
+const RARITY={ coal:'Common', copper:'Common', ruby:'Unusual', iron:'Unusual', gold:'Rare', emerald:'Rare', diamond:'Rare' };
 const BASE_INFO=[['dirt','Dirt','dirt'],['wood','Wood','log'],['stone','Stone','stone'],['deep','Deep stone','deep'],['obsidian','Obsidian','obsidian'],['ember','Ember rock','ember']];
 function craftList(){ return [...RECIPES.map(r=>({name:MATS[r.m].name,cost:r.cost,mat:r.m,desc:r.desc})), ...Object.entries(LIGHTS).map(([k,l])=>({name:l.name,cost:l.cost,item:k,desc:k==='torch'?'Opens the 4th board of the Forest (place 2).':'Opens the 4th board of each deeper zone (place 2).'}))]; }
 function zonesFor(k){
@@ -1073,10 +1079,10 @@ function resRow(cv,name,rarity,pts,line1,line2){
 function iconOf(src){ const cv=document.createElement('canvas'); cv.width=cv.height=T; cv.getContext('2d').drawImage(src,0,0); return cv; }
 const INFO_TABS={
   Play(b){
-    b.append(infoEl('h3','THE GOAL'),infoEl('p',`Drag the three pieces onto the 8×8 board. Fill a whole row or column and it clears, mining every block in it. Earn enough points to fill the bar at the top and the board is cleared. Clear all 20 boards on the world map before the daily reset to earn the Prospector badge.`));
+    b.append(infoEl('h3','THE GOAL'),infoEl('p',`Drag the three pieces onto the 8×8 board. Fill a whole row or column and it clears, mining every block in it. Earn enough points to fill the bar at the top and the board is cleared. Clear all ${BOARD_COUNT} boards on the world map before the daily reset to earn the Prospector badge.`));
     b.append(infoEl('h3','CAVE-IN'),infoEl('p',`If none of your three pieces can fit anywhere, the cave collapses and the board ends. Ore you hauled on that attempt is lost, so keep your options open.`));
-    b.append(infoEl('h3','HAULING ORE'),infoList([`Ore, gems and wood you mine on a board show up under the stash as a green +number. That's your haul for this attempt.`,`Clear the board and the haul is added to your stash. Cave in without a Rescue Potion and it is lost, so a risky board costs you.`,`You can only craft with what's already in the stash, not with the current haul.`]));
-    b.append(infoEl('h3','SCORING'),infoList([`Every block you place scores a point, and every block you mine scores its value (see Resources).`,`Clearing several lines at once, or clearing on back-to-back turns, multiplies the bonus.`,`"Perfect!" (+50) means yours was the only placement that kept the whole tray playable. "Great fit!" (+25) means one of two or three.`,`All Clear (an empty board) pays a bonus worth 15% of the board's target, then deals a big easy set.`]));
+    b.append(infoEl('h3','HAULING ORE'),infoList([`Ore, gems and wood you mine on a board show up under the stash as a green +number. That's your haul for this attempt.`,`Clear the board and the haul is added to your stash. Cave in without a Rescue Potion and it is lost, so a risky board costs you.`,`You can only craft with what's already in the stash, not with the current haul.`,`Replaying a board you've already cleared is a practice run: you can beat your best score, but you collect no ore.`]));
+    b.append(infoEl('h3','SCORING'),infoList([`Every block you place scores a point, and every block you mine scores its value (see Resources).`,`Clearing several lines at once, or clearing on back-to-back turns, multiplies the bonus.`,`"Perfect!" (+50) means yours was the only placement that kept the whole tray playable. "Great fit!" (+25) means one of two or three.`,`Clearing 2, 3 or 4 lines at once pays a Double, Triple or Quad bonus on top.`,`All Clear (an empty board) pays a bonus worth 15% of the board's target, then deals a big easy set.`,`If you cave in twice on the same board, the dealer starts to go easier on you.`]));
     b.append(infoEl('h3','HOW TO GET BETTER'),infoList([`Look at all three pieces before you place any. Plan the order.`,`Keep one row and one column mostly open so long bars still fit.`,`Avoid sealing off single empty cells or tiny pockets; they can only be filled by a matching piece, if one ever comes.`,`Build rows and columns up to one piece away from full, then finish several at once for a combo.`,`Gold glow under your piece means the drop will clear a line.`,`Save Blast Charges and Jackhammers for tight spots, not to pad your score.`]));
     b.append(infoEl('h3','TOP BAR'),infoList([`TODAY is the total of your best scores on boards you've cleared since the last reset. BOARD is the one you're on, with its difficulty.`,`The map resets at midnight Pacific time. Every day brings a fresh set of 20 boards.`]));
   },
@@ -1094,7 +1100,7 @@ const INFO_TABS={
     craftList().forEach(c=>{ const row=infoEl('div',undefined,'irow'); row.append(iconOf(c.item?ITEM[c.item]:TEX[c.mat])); const d=infoEl('div'); d.append(infoEl('div',c.name,'nm'),infoEl('div',c.desc,'meta'),
       infoEl('div','Costs: '+Object.entries(c.cost).map(([k,v])=>`${v} ${DROPS[k][0]}`).join(', '),'meta')); row.append(d); b.append(row); });
     b.append(infoEl('h3','LIGHTING THE WAY'),infoList([`Going down is dark. To open the 4th board of any zone you must place 2 torches (in the Forest) or 2 lanterns (deeper). Use the Craft button on the map: a Torch is 10 coal + 5 wood, a Lantern is 20 coal + 10 copper.`,`Short on coal, copper or wood? After clearing the 3rd board of a zone, a side tunnel called the strip mine opens. Instead of a score it asks for exactly the resources you're missing. It isn't one of your 20 boards, and its score is added to your daily bonus. Once per zone each day.`]));
-    b.append(infoEl('h3','THE DAILY RESET'),infoList([`Everything resets at midnight Pacific: the map, your stash, your lights. Specials you've crafted are kept.`,`Leftover stash turns into bonus points. After clearing all 20 boards you can spend leftovers on specials first.`]));
+    b.append(infoEl('h3','THE DAILY RESET'),infoList([`Everything resets at midnight Pacific: the map, your stash, your lights. Specials you've crafted are kept.`,`Leftover stash turns into bonus points. After clearing all ${BOARD_COUNT} boards you can spend leftovers on specials first.`]));
     b.append(infoEl('h3','WHY IT HELPS'),infoList([`Blast Charge and Jackhammer rescue a crowded board and score big.`,`A Rescue Potion saves you from one cave-in: it undoes your last move and deals fresh pieces, and keeps your haul.`,`A Luck Tonic: tap it under the tray to drink. For the next 7 sets of pieces the dealer favours sets that clear rows and columns. A row of green dots shows how many are left.`]));
   },
   Specials(b){
@@ -1176,14 +1182,14 @@ function checkDay(){
   if(s) rollover(s);
   dayState=freshDay(today); saveDay(); updateStash(); const b=lsGet(K_BOARD); if(b && b.day!==today) lsDel(K_BOARD);
 }
-function saveBoard(){ if(!pieces) return; lsSet(K_BOARD,{day:dayState.day,idx:level-1,mode,grid,pieces,score,combo,sinceClear,collected,hand,goals:curGoals,since,bigNext,moves,over,undo,dealt}); saveProfile(); }
+function saveBoard(){ if(!pieces) return; lsSet(K_BOARD,{day:dayState.day,idx:level-1,practice,grid,pieces,score,combo,sinceClear,collected,hand,goals:curGoals,since,bigNext,moves,over,undo,dealt}); saveProfile(); }
 function clearBoardSave(){ lsDel(K_BOARD); }
 function savedBoard(){ const b=lsGet(K_BOARD); return (b && b.day===dayState.day && !b.over && b.moves>0) ? b : null; }
-const okMat=m=>MATS[m]?m:'copper';   // blocks retired since the save was written
+const okMat=m=>MATS[m]?m:(m==='cinnabar'?'ruby':'copper');   // blocks retired since the save was written
 function restoreBoard(b){
   level=b.idx+1; ({grid,pieces,score,combo,sinceClear,collected}=b);
   grid=grid.map(row=>row.map(m=>m&&okMat(m))); pieces=pieces.map(p=>p&&{...p,mats:p.mats.map(okMat)});
-  hand=b.hand||{}; curGoals=b.goals||null; { const dd=levelDef(level); if(dd.strip&&curGoals) prepStrip(dd); } since=b.since||{}; bigNext=!!b.bigNext; moves=b.moves||0; over=!!b.over; undo=b.undo||null; dealt=b.dealt||{}; shownCol={...collected}; shown=score; busy=false;
+  hand=b.hand||{}; practice=!!b.practice; curGoals=b.goals||null; { const dd=levelDef(level); if(dd.strip&&curGoals) prepStrip(dd); } since=b.since||{}; bigNext=!!b.bigNext; moves=b.moves||0; over=!!b.over; undo=b.undo||null; dealt=b.dealt||{}; shownCol={...collected}; shown=score; busy=false;
   $('over').hidden=true; buildGoals(); updateHUD(); updateStash(); renderCrafted(); drawTray();
   updateLuckUI(); boardT0=lastAct=performance.now(); A.setBoard(boardLabel(b.idx)); A.track('board_resume',{idx:b.idx,label:boardLabel(b.idx),score,moves});
   if(over) showOver();
@@ -1209,7 +1215,7 @@ function show(which){
   if(screen!==which||which==='home') A.track('screen_view',{screen:which});
   screen=which; A.setScreen(which);
   $('home').hidden = which!=='home'; $('map').hidden = which!=='map'; $('anvil').hidden=true; $('info').hidden=true;
-  if(which==='game'){ layout(); drawTray(); }
+  if(which==='game'){ layout(); drawTray(); ensureLoop(); }
 }
 function homeView(v){ ['homeMain','homeSettings'].forEach(id=>$(id).hidden = id!==v); }
 function showHome(){
@@ -1222,12 +1228,10 @@ function showHome(){
 }
 $('homeBtn').onclick=()=>showMap({});
 $('mapBtn').onclick=()=>showMap({});
-$('settingsBtn').onclick=()=>{ homeView('homeSettings'); setModeUI(); A.setScreen('settings'); };
+$('settingsBtn').onclick=()=>{ homeView('homeSettings'); A.setScreen('settings'); };
 $('settingsBack').onclick=()=>showHome();
 $('privacyRow').hidden=!A.canConfigure(); $('shareData').checked=A.isOn(); $('verLine').textContent='Version '+(self.APP_VERSION||'dev');
 $('shareData').addEventListener('change',e=>{ if(e.target.checked){ A.setOptOut(false); A.track('analytics_opt',{on:true}); } else { A.track('analytics_opt',{on:false}); A.setOptOut(true); } });
-function setModeUI(){ $('modeRange').value=mode; document.querySelectorAll('.stops span').forEach(s=>s.classList.toggle('on',+s.dataset.i===mode)); $('modeDesc').textContent=MODES[mode].desc; }
-$('modeRange').addEventListener('input',e=>{ mode=+e.target.value; A.track('setting_change',{setting:'difficulty',value:MODES[mode].name}); try{ localStorage.setItem('deepcore-mode',mode); }catch(err){} setModeUI(); });
 (function homeStrip(){ const x=$('homeStrip').getContext('2d'); x.imageSmoothingEnabled=false;
   ['grass','stone','coal@stone','iron@deep','diamond@deep'].forEach((k,i)=>x.drawImage(TEX[k],i*16,0)); })();
 
@@ -1238,14 +1242,14 @@ const lightsOf=z=>(dayState.lights&&dayState.lights[z])||0;
 const lit=z=>lightsOf(z)>=LIGHTS_NEEDED;
 const stripDone=z=>!!(dayState.strip&&dayState.strip[z]);
 // a board is open if it's the first, already cleared, or the one after a cleared board; each zone's 4th board also needs the way lit
-const unlocked=i=> i>=20 ? isDone((i-20)*4+2) : (i===0 || isDone(i) || (isDone(i-1) && (i%4!==3 || lit(Math.floor(i/4)))));
-const gateWaiting=i=> i<20 && i%4===3 && !isDone(i) && isDone(i-1) && !lit(Math.floor(i/4));
+const unlocked=i=> i>=STRIP_BASE ? isDone((i-STRIP_BASE)*4+2) : (i===0 || isDone(i) || (isDone(i-1) && (i%4!==3 || lit(Math.floor(i/4)))));
+const gateWaiting=i=> i<STRIP_BASE && i%4===3 && !isDone(i) && isDone(i-1) && !lit(Math.floor(i/4));
 let MAP=null, mapDay='';
 function mapState(){
-  let maxY=5.4; MAP.nodes.forEach((n,i)=>{ if(unlocked(i)&&n.y>maxY) maxY=n.y; }); MAP.strip.forEach((s,z)=>{ if(unlocked(20+z)&&s.y>maxY) maxY=s.y; });
+  let maxY=5.4; MAP.nodes.forEach((n,i)=>{ if(unlocked(i)&&n.y>maxY) maxY=n.y; }); MAP.strip.forEach((s,z)=>{ if(unlocked(STRIP_BASE+z)&&s.y>maxY) maxY=s.y; });
   return {dug:i=>unlocked(i), stripOpen:z=>isDone(z*4+2), stripDone, lights:dayState.lights||{}, maxY};
 }
-function curZone(){ for(let z=0;z<5;z++) if(!isDone(4*z+3)) return z; return 4; }
+function curZone(){ for(let z=0;z<ZONES.length;z++) if(!isDone(4*z+3)) return z; return ZONES.length-1; }
 function buildMap(){
   if(!MAP||mapDay!==dayState.day){ MAP=M.genMap(dayState.day); mapDay=dayState.day; }
   const W=Math.min(window.innerWidth,520), ts=W/10;
@@ -1255,15 +1259,15 @@ function buildMap(){
   ZONES.forEach((z,zi)=>{ if(zi>0&&!unlocked(4*zi)) return; const lab=document.createElement('div'); lab.className='zlabel'; lab.textContent=z.name; lab.style.top=(M.ZONE_TOP[zi]+(zi===0?.4:.3))*ts+'px'; nodes.append(lab); });
   const sb=savedBoard(); let current=-1;
   const addNode=(i,pos)=>{ const b=document.createElement('button'); b.type='button'; b.className='node'; b.style.left=pos.x*ts+'px'; b.style.top=pos.y*ts+'px';
-    if(i>=20){ const z=i-20, d=stripDone(z); b.classList.add('strip'); if(d) b.classList.add('done'); b.innerHTML=d?'<span>✓</span>':'<span>S</span>'; b.setAttribute('aria-label',`Strip mine, ${ZONES[z].name}${d?', cleared':''}`); }
+    if(i>=STRIP_BASE){ const z=i-STRIP_BASE, d=stripDone(z); b.classList.add('strip'); if(d) b.classList.add('done'); b.innerHTML=d?'<span>✓</span>':'<span>S</span>'; b.setAttribute('aria-label',`Strip mine, ${ZONES[z].name}${d?', cleared':''}`); }
     else if(gateWaiting(i)){ b.classList.add('gate'); b.append(iconOf(ITEM[lightKind(Math.floor(i/4))])); b.setAttribute('aria-label',`Board ${boardLabel(i)}, needs ${LIGHTS[lightKind(Math.floor(i/4))].plural}`); }
     else { const done=isDone(i); if(done) b.classList.add('done'); else { b.classList.add('open'); if(current<0) current=i; }
       b.innerHTML=done?'<span>✓</span>':`<span>${i%BOARDS_PER_ZONE+1}</span>`; b.setAttribute('aria-label',`Board ${boardLabel(i)}${done?', mined':''}`); }
-    if(sb&&sb.idx===i) b.classList.add('progress'); if(opts_.justDone===i||opts_.justStrip===i-20) b.classList.add('fresh');
+    if(sb&&sb.idx===i) b.classList.add('progress'); if(opts_.justDone===i||opts_.justStrip===i-STRIP_BASE) b.classList.add('fresh');
     b.onclick=()=>openCard(i); nodes.append(b); };
   let opts_=buildMap.opts||{};
   MAP.nodes.forEach((p,i)=>{ if(unlocked(i)||gateWaiting(i)) addNode(i,p); });
-  MAP.strip.forEach((p,z)=>{ if(unlocked(20+z)) addNode(20+z,p); });
+  MAP.strip.forEach((p,z)=>{ if(unlocked(STRIP_BASE+z)) addNode(STRIP_BASE+z,p); });
   const [py,pm,pd]=dayState.day.split('-').map(Number); $('mapDate').textContent=new Date(py,pm-1,pd).toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
   $('mapProg').textContent=`${dayState.done.length}/${BOARD_COUNT} boards mined`+(dayState.bonus?` · bonus ${dayState.bonus}`:'');
   $('mapBadge').hidden=!prospector; $('mapBadge').textContent=`Prospector ×${prospector}`;
@@ -1273,8 +1277,8 @@ function showMap(opts){
   if(screen==='game' && pieces && !opts.justDone && !opts.justStrip){ saveBoard(); const dd=levelDef(level), tg=dd.target; A.track('board_leave',{idx:level-1,score,target:tg,pct:tg?Math.round(100*score/tg):0,moves,over,duration_ms:Math.round(performance.now()-boardT0)}); }
   checkDay(); show('map'); $('nodeCard').hidden=true;
   buildMap.opts=opts; const {current,sb}=buildMap();
-  const focusIdx = opts.justStrip!==undefined ? 20+opts.justStrip : opts.justDone!==undefined ? Math.min(19,opts.justDone+1) : (sb?sb.idx:(current<0?19:current));
-  const fp=focusIdx>=20?MAP.strip[focusIdx-20]:MAP.nodes[focusIdx], ts=Math.min(window.innerWidth,520)/10;
+  const focusIdx = opts.justStrip!==undefined ? STRIP_BASE+opts.justStrip : opts.justDone!==undefined ? Math.min(BOARD_COUNT-1,opts.justDone+1) : (sb?sb.idx:(current<0?BOARD_COUNT-1:current));
+  const fp=focusIdx>=STRIP_BASE?MAP.strip[focusIdx-STRIP_BASE]:MAP.nodes[focusIdx], ts=Math.min(window.innerWidth,520)/10;
   requestAnimationFrame(()=>{ const sc=$('mapScroll'); sc.scrollTop=Math.max(0,fp.y*ts - sc.clientHeight/2); });
   if(opts.prospector) setTimeout(showProspector,700);
 }
@@ -1285,7 +1289,7 @@ function stripGoalsFor(z){
 }
 function goalChips(g){ const wrap=document.createElement('div'); wrap.className='goals'; Object.entries(g).forEach(([k,v])=>{ const s=document.createElement('span'); s.title=DROPS[k][0]; s.append(iconOf(ITEM[k]),document.createTextNode(` ${v}`)); wrap.append(s); }); return wrap; }
 function openCard(i){
-  const strip=i>=20, z=strip?i-20:Math.floor(i/4), def=boardDef(i), card=$('nodeCard'), done=strip?stripDone(z):isDone(i), open=unlocked(i), gate=gateWaiting(i), sb=savedBoard();
+  const strip=i>=STRIP_BASE, z=strip?i-STRIP_BASE:Math.floor(i/4), def=boardDef(i), card=$('nodeCard'), done=strip?stripDone(z):isDone(i), open=unlocked(i), gate=gateWaiting(i), sb=savedBoard();
   A.track('board_card_open',{idx:i,label:boardLabel(i),locked:!open&&!gate,gate,done}); if(!open&&!gate) A.attempt('locked_board',i);
   $('ncZone').textContent=strip?`${def.zoneName} · Side tunnel`:`${def.zoneName} · Board ${boardLabel(i)}`;
   $('ncName').textContent=def.name;
@@ -1296,7 +1300,7 @@ function openCard(i){
     const tgt=document.createElement('span'); tgt.className='tgt'; tgt.textContent='Gather:'; g.append(tgt);
     Object.entries(stripGoalsFor(z)).forEach(([k,v])=>{ const s=document.createElement('span'); s.title=DROPS[k][0]; s.append(iconOf(ITEM[k]),document.createTextNode(` ${v}`)); g.append(s); });
     if(done){ go.disabled=true; go.textContent='Cleared today'; note.textContent='This side tunnel is cleared. Its score went into your daily bonus.'; }
-    else { go.disabled=false; go.textContent=(sb&&sb.idx===i)?'Continue':'Start strip mine'; note.textContent='Not counted in your 20 boards. Gather the resources to clear it; your score becomes a daily bonus.'; if(sb&&sb.idx!==i) note.textContent=`Starting this board ends your run on ${boardLabel(sb.idx)}.`; }
+    else { go.disabled=false; go.textContent=(sb&&sb.idx===i)?'Continue':'Start strip mine'; note.textContent=`Not counted in your ${BOARD_COUNT} boards. Gather the resources to clear it; your score becomes a daily bonus.`; if(sb&&sb.idx!==i) note.textContent=`Starting this board ends your run on ${boardLabel(sb.idx)}.`; }
   } else if(gate){
     const L=LIGHTS[lightKind(z)], tgt=document.createElement('span'); tgt.className='tgt'; tgt.textContent=`Needs ${LIGHTS_NEEDED} ${L.plural} (${lightsOf(z)}/${LIGHTS_NEEDED})`; g.append(tgt);
     go.disabled=false; go.textContent='Craft '+L.plural; note.textContent=`Too dark to dig deeper. Craft ${L.plural} from coal${z===0?' and wood':' and copper'}, or mine a strip mine for more.`;
@@ -1311,7 +1315,7 @@ function openCard(i){
   go.onclick=()=>{ $('nodeCard').hidden=true;
     if(gate){ openCraft(); return; }
     const s2=savedBoard(); show('game');
-    if(s2&&s2.idx===i){ if(s2.mode!==undefined&&s2.mode!==mode){ mode=s2.mode; } restoreBoard(s2); } else { clearBoardSave(); startBoard(i); } };
+    if(s2&&s2.idx===i){ restoreBoard(s2); } else { clearBoardSave(); startBoard(i); } };
   card.hidden=false;
 }
 $('ncClose').onclick=()=>{ $('nodeCard').hidden=true; };
@@ -1383,7 +1387,10 @@ function outlinePiece(ctx,p,ox,oy,cs,color,w){
     if(!set.has(r+','+(c-1))){ ctx.moveTo(x,y); ctx.lineTo(x,y+cs); } if(!set.has(r+','+(c+1))){ ctx.moveTo(x+cs,y); ctx.lineTo(x+cs,y+cs); } });
   ctx.stroke(); ctx.restore();
 }
+let looping=false;
+function ensureLoop(){ if(!looping){ looping=true; requestAnimationFrame(render); } }
 function render(now){
+  if(screen!=='game' && !fxList.length && !fxParts.length && !particles.length){ looping=false; fx.setTransform(dpr,0,0,dpr,0,0); fx.clearRect(0,0,innerWidth,innerHeight); return; }
   now=now||0;
   const px=cell*N; bx.setTransform(dpr,0,0,dpr,0,0); bx.imageSmoothingEnabled=false; bx.clearRect(0,0,px,px);
   const pv = drag&&drag.target ? drag.target : null;
@@ -1422,10 +1429,20 @@ function render(now){
 }
 
 // ---------- boot ----------
+// Save format changes between versions. v2: granite zone added (boards renumbered) and cinnabar became ruby.
+const SCHEMA=2;
+function migrate(){
+  let v=0; try{ v=+(localStorage.getItem('deepcore-schema')||0); }catch(e){}
+  if(v>=SCHEMA) return;
+  const p=lsGet(K_PROFILE);
+  if(p&&p.bank){ if(p.bank.cinnabar){ p.bank.ruby=(p.bank.ruby||0)+p.bank.cinnabar; } delete p.bank.cinnabar; lsSet(K_PROFILE,p); }
+  lsDel(K_DAY); lsDel(K_BOARD);    // today's boards were numbered for the old map, so the day starts over (stash and specials are kept)
+  try{ localStorage.removeItem('deepcore-mode'); localStorage.setItem('deepcore-schema',String(SCHEMA)); }catch(e){}
+}
 function start(){
-  loadProfile(); checkDay(); buildStash(); renderCrafted(); updateLuckUI();
+  migrate(); loadProfile(); checkDay(); buildStash(); renderCrafted(); updateLuckUI();
   grid=emptyGrid(); pieces=null; showHome();
-  layout(); drawTray(); requestAnimationFrame(render);
+  layout(); drawTray(); ensureLoop();
   if(document.fonts&&document.fonts.load) Promise.all(['700 20px Silkscreen','600 16px "Barlow Semi Condensed"'].map(f=>document.fonts.load(f))).catch(()=>{});
 }
 // Test hooks exist only when the page is served from this machine with ?debug; they are never exposed on a published site.
@@ -1433,7 +1450,7 @@ if(['localhost','127.0.0.1','[::1]'].includes(location.hostname) && /[?&]debug\b
   place:(i,r,c)=>place(i,r,c), state:()=>({grid,pieces,score,busy,over,bank,hand,luck,luckLive,crafted,dealt,screen,level,dayState}),
   fits:(p,r,c)=>fitsAt(p,r,c), setCell:(r,c,m)=>{grid[r][c]=m;}, setPieces:(ps)=>{pieces=ps; drawTray();},
   give:(b)=>{Object.assign(bank,b); updateStash();}, def:()=>levelDef(level), start:(i)=>{show('game'); startBoard(i);},
-  setScore:(v)=>{score=v;}, previewDay:(d)=>{ dayState.day=d; buildMap(); }, lightUp:(z,n=2)=>{ dayState.lights[z]=n; saveDay(); }, markDone:(a)=>{ dayState.done=a.slice(); saveDay(); }, openMap:()=>showMap({}), buildMap:()=>buildMap(), mapInfo:()=>({maxY:mapState().maxY,map:MAP}), newDay:(d)=>{ const s0=lsGet(K_DAY); if(s0){ s0.day=d; lsSet(K_DAY,s0); } checkDay(); }, history:()=>({history,bestDay,lastDay}), setBank:(b)=>{ bank=b; updateStash(); }, craftLight:(z)=>craftLight(z), goals:()=>curGoals, stripMet:()=>stripMet(), completeStrip:()=>completeStrip(), allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:()=>drinkLuck(), deal:()=>dealSet(), complete:()=>completeBoard(), audioState:()=>ac?ac.state:'none',
+  setScore:(v)=>{score=v;}, tilt:()=>mercyTilt(), practice:()=>practice, previewDay:(d)=>{ dayState.day=d; buildMap(); }, lightUp:(z,n=2)=>{ dayState.lights[z]=n; saveDay(); }, markDone:(a)=>{ dayState.done=a.slice(); saveDay(); }, openMap:()=>showMap({}), buildMap:()=>buildMap(), mapInfo:()=>({maxY:mapState().maxY,map:MAP}), newDay:(d)=>{ const s0=lsGet(K_DAY); if(s0){ s0.day=d; lsSet(K_DAY,s0); } checkDay(); }, history:()=>({history,bestDay,lastDay}), setBank:(b)=>{ bank=b; updateStash(); }, craftLight:(z)=>craftLight(z), goals:()=>curGoals, stripMet:()=>stripMet(), completeStrip:()=>completeStrip(), allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:()=>drinkLuck(), deal:()=>dealSet(), complete:()=>completeBoard(), audioState:()=>ac?ac.state:'none',
 }};
 start();
 })();

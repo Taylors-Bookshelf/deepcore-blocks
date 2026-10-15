@@ -15,10 +15,10 @@ async function play(maxMoves) {
   }
   return { moves, end };
 }
-for (const idx of [0, 5, 9, 14, 18, 21, 24]) {
-  await t('give', { coal: 20, copper: 10, cinnabar: 20, diamond: 2, emerald: 2 });
+for (const idx of [0, 5, 9, 14, 18, 22, 24, 29]) {
+  await t('give', { coal: 20, copper: 10, ruby: 20, diamond: 2, emerald: 2 });
   await t('start', idx); await page.waitForTimeout(2500);
-  if (idx === 14) { await t('give', { cinnabar: 12, diamond: 1 }); await page.evaluate(() => { const T = window.__deepcore.test; }); }
+  if (idx === 14) { await t('give', { ruby: 12, diamond: 1 }); await page.evaluate(() => { const T = window.__deepcore.test; }); }
   const r = await play(45);
   const state = await page.evaluate(() => { const s = window.__deepcore.test.state(); return { screen: s.screen, over: s.over }; });
   check(r.moves >= 1 && errors.length === 0, `board ${idx}: ${r.moves} random moves, ended "${r.end}" (${errors.join(' | ')})`);

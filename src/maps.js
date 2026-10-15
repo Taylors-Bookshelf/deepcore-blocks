@@ -1,14 +1,15 @@
 // The daily world map: a generator (pure, runs in Node too) and a canvas renderer.
 // Every Pacific-time day gets a different surface (weather, scenery, trees) and a different set of tunnels, but always the same
-// 20 boards plus a strip-mine branch per zone. The cave is dug open board by board as the player clears them.
+// 24 boards (6 zones of 4) plus a strip-mine branch per zone. The cave is dug open board by board as the player clears them.
 (function(root){
 const D=(typeof require!=='undefined'&&typeof module!=='undefined')?require('./data.js'):root.DeepcoreData;
-const COLS=10, ROWS=49, ZONE_TOP=[0,13,22,31,40], SURFACE=6;          // rows 0-5 sky, row 6 grass line
-const zoneAt=row=> row<13?0 : row<22?1 : row<31?2 : row<40?3 : 4;
+const COLS=10, ZONE_TOP=[0,13,22,31,40,49], ROWS=58, SURFACE=6;          // rows 0-5 sky, row 6 grass line; the last zone ends in lava
+const NZ=D.ZONES.length, NB=NZ*4;
+const zoneAt=row=>{ let z=0; for(let k=1;k<ZONE_TOP.length;k++) if(row>=ZONE_TOP[k]) z=k; return z; };
 const WEATHER=['clear','clear','cloudy','overcast','rain','snow','sunset','dusk'];
 const SCENERY=['mountains','hills','lake','meadow','mountains','lake','hills'];
 const TREES=['oak','pine','birch','mixed','autumn','mixed'];
-const FEATURES=[ ['roots','pebbles','burrow'], ['rails','mushrooms','pool','bones'], ['crystals','pool','rails','fossil','mushrooms'], ['crystals','geode','pool','crystals'], ['lavafall','embers','bones','crystals'] ];
+const FEATURES=[ ['roots','pebbles','burrow'], ['rails','mushrooms','pool','bones'], ['pebbles','geode','rails','fossil'], ['crystals','pool','rails','fossil','mushrooms'], ['crystals','geode','pool','crystals'], ['lavafall','embers','bones','crystals'] ];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 // ---------------------------------------------------------------- generator
@@ -16,18 +17,17 @@ function genMap(day){
   const rnd=D.rng(D.hashStr('map:'+day)+3), pick=a=>a[Math.floor(rnd()*a.length)], rr=(a,b)=>a+rnd()*(b-a);
   const m={day, weather:pick(WEATHER), scenery:pick(SCENERY), trees:pick(TREES), leaf:rnd(), nodes:[], segs:[], strip:[], tunnelW:[], features:[], lightSlots:[], trees_list:[], clouds:[], peaks:[], lake:null};
   // ---- node positions: a random walk down the shaft, a different shape every day
-  const depth=[[0,0,0,0],[8.1+rr(-.5,.5),9.9+rr(-.3,.3),11.6+rr(-.3,.3)],
-    [15+rr(-.4,.4),16.6+rr(-.3,.3),18.2+rr(-.3,.3),20.4+rr(-.3,.3)],[24+rr(-.4,.4),25.6+rr(-.3,.3),27.2+rr(-.3,.3),29.4+rr(-.3,.3)],
-    [33+rr(-.4,.4),34.6+rr(-.3,.3),36.2+rr(-.3,.3),38.4+rr(-.3,.3)],[42+rr(-.4,.4),43.4+rr(-.2,.2),44.8+rr(-.2,.2),46.2+rr(-.2,.2)]];
-  const ys=[5.4, ...depth[1], ...depth[2], ...depth[3], ...depth[4], ...depth[5]];
+  // depth of each board: the forest dips through the dirt, then every zone runs four boards down its band
+  const ys=[5.4, 8.1+rr(-.5,.5), 9.9+rr(-.3,.3), 11.6+rr(-.3,.3)];
+  for(let z=1;z<NZ;z++){ const off=z===NZ-1?[2,3.4,4.8,6.2]:[2,3.6,5.2,7.4]; off.forEach((o,k)=>ys.push(ZONE_TOP[z]+o+rr(-.3,.3))); }
   let x=rr(1.4,8.6), dir=rnd()<.5?-1:1;
-  for(let i=0;i<20;i++){
+  for(let i=0;i<NB;i++){
     if(i>0){ let step=dir*rr(2,4.2); let nx=x+step; if(nx<1.5||nx>8.5){ dir=-dir; nx=x+dir*rr(2,4.2); } x=clamp(nx,1.5,8.5); if(rnd()<.3) dir=-dir; }
     m.nodes.push({x:+x.toFixed(2),y:+ys[i].toFixed(2)});
   }
   // ---- tunnels between nodes: straight, elbow or wiggle, with a width per zone
-  for(let z=0;z<5;z++) m.tunnelW.push(pick([.5,.7,.95]));
-  for(let i=1;i<20;i++){
+  for(let z=0;z<NZ;z++) m.tunnelW.push(pick([.5,.7,.95]));
+  for(let i=1;i<NB;i++){
     const a=m.nodes[i-1], b=m.nodes[i], z=Math.floor(i/4), style=i===1?'diag':pick(['diag','elbowV','elbowH','wiggle','diag']);
     let pts=[[a.x,a.y],[b.x,b.y]];
     if(style==='elbowV') pts=[[a.x,a.y],[a.x,b.y],[b.x,b.y]];
@@ -36,7 +36,7 @@ function genMap(day){
     m.segs.push({from:i-1,to:i,pts,w:m.tunnelW[z]});
   }
   // ---- strip-mine branch: sideways from each zone's third board, at the same depth
-  for(let z=0;z<5;z++){
+  for(let z=0;z<NZ;z++){
     const p=m.nodes[z*4+2]; let best=null;
     for(let t=0;t<30&&!best;t++){
       const side=(t%2===0?(p.x<5?1:-1):(p.x<5?-1:1)), sx=clamp(p.x+side*rr(2.4,3.6),1.1,8.9), sy=+(p.y+(z===0?.15:rr(-.1,.45))).toFixed(2);
@@ -46,12 +46,12 @@ function genMap(day){
     m.strip.push(best);
   }
   // ---- two lamp spots beside each zone's gate tunnel (board 3 -> board 4)
-  for(let z=0;z<5;z++){
+  for(let z=0;z<NZ;z++){
     const a=m.nodes[z*4+2], b=m.nodes[z*4+3]; const mx=(a.x+b.x)/2, my=(a.y+b.y)/2, off=m.tunnelW[z]+.7;
     m.lightSlots.push([{x:mx-off,y:my-.2},{x:mx+off,y:my+.4}].map(p=>({x:+clamp(p.x,.3,9.7).toFixed(2),y:+p.y.toFixed(2)})));
   }
   // ---- decorations in the rock
-  for(let z=0;z<5;z++){ const kinds=[pick(FEATURES[z]),pick(FEATURES[z]),pick(FEATURES[z])]; const top=z===0?7.5:ZONE_TOP[z]+.5, bot=(z===4?46:ZONE_TOP[z+1])-.8;
+  for(let z=0;z<NZ;z++){ const kinds=[pick(FEATURES[z]),pick(FEATURES[z]),pick(FEATURES[z])]; const top=z===0?7.5:ZONE_TOP[z]+.5, bot=(z===NZ-1?ROWS-3:ZONE_TOP[z+1])-.8;
     kinds.forEach(k=>{ for(let n=0;n<4;n++) m.features.push({type:k,zone:z,x:+rr(.3,9.5).toFixed(2),y:+rr(top,bot).toFixed(2),s:rnd()}); }); }
   // ---- surface
   m.scale=rnd();
@@ -96,7 +96,7 @@ function drawMap(cv,ts,m,st,TEX,dpr){
   if(m.weather==='snow'){ x.fillStyle='#fff'; for(let i=0;i<60;i++) x.fillRect(R()*W,R()*SURFACE*ts,q*1.2,q*1.2); }
   // ground: grass line then dirt, with a lake cut into the surface if the day has one
   for(let row=SURFACE;row<ROWS;row++) for(let col=0;col<COLS;col++){
-    const zi=zoneAt(row); let tex=zi===0?(row===SURFACE?'grass':'dirt'):zi===1?'stone':zi===2?'deep':zi===3?'obsidian':'ember';
+    const zi=zoneAt(row); let tex=zi===0?(row===SURFACE?'grass':'dirt'):D.ZONES[zi].rock;
     x.drawImage(TEX[tex],col*ts,row*ts,ts,ts);
     if(m.weather==='snow'&&row===SURFACE){ x.fillStyle='rgba(245,250,255,.82)'; x.fillRect(col*ts,row*ts,ts,ts*.34); }
   }
@@ -120,7 +120,7 @@ function drawMap(cv,ts,m,st,TEX,dpr){
   const reveal=st.maxY;
   m.features.forEach(f=>{ if(f.y>reveal+3.5||f.y<SURFACE+1.5) return; const col=Math.floor(f.x), row=Math.floor(f.y); if(carve.has(row*COLS+col)) return; drawFeature(x,f,ts,q); });
   // rails + supports along dug tunnels in the stone zones
-  m.segs.forEach(sg=>{ const z=Math.floor(sg.to/4); if(!st.dug(sg.to)||!(z===1||z===2)||!m.features.some(f=>f.zone===z&&f.type==='rails')) return; const [ax,ay]=sg.pts[0],[bx,by]=sg.pts[sg.pts.length-1];
+  m.segs.forEach(sg=>{ const z=Math.floor(sg.to/4); if(!st.dug(sg.to)||!(z>=1&&z<=3)||!m.features.some(f=>f.zone===z&&f.type==='rails')) return; const [ax,ay]=sg.pts[0],[bx,by]=sg.pts[sg.pts.length-1];
     for(let t=.15;t<.9;t+=.2){ const px=ax+(bx-ax)*t, py=ay+(by-ay)*t; F(px-.5,py-.12,1,.06,'#6a4a2a'); F(px-.5,py-.78,.08,.7,'#6a4a2a'); F(px+.42,py-.78,.08,.7,'#6a4a2a'); F(px-.5,py-.82,1,.07,'#7a5a34'); } });
   // lamps with a warm halo: lit tunnels glow, so the way you've lit is easy to see
   lamps.forEach(l=>{ const gr=x.createRadialGradient(l.x*ts,l.y*ts,0,l.x*ts,l.y*ts,ts*2.4); gr.addColorStop(0,'rgba(255,196,90,.55)'); gr.addColorStop(1,'rgba(255,150,40,0)'); x.fillStyle=gr; x.fillRect((l.x-2.4)*ts,(l.y-2.4)*ts,4.8*ts,4.8*ts);
@@ -140,9 +140,9 @@ function drawMap(cv,ts,m,st,TEX,dpr){
   const fy=(reveal+3.2)*ts, fg=x.createLinearGradient(0,fy,0,fy+4.5*ts); fg.addColorStop(0,'rgba(10,7,5,0)'); fg.addColorStop(1,'rgba(10,7,5,.97)');
   x.fillStyle=fg; x.fillRect(0,fy,W,H-fy); x.fillStyle='rgba(10,7,5,.97)'; x.fillRect(0,fy+4.5*ts,W,H);
   // the underworld's lava lake, once you have dug down to it
-  if(reveal>41.5){ const lake=X=>47.3+.28*Math.sin(X*1.3+m.scale*6)+.12*Math.sin(X*3.1);
-    const glow=x.createLinearGradient(0,45.4*ts,0,47.6*ts); glow.addColorStop(0,'rgba(255,120,30,0)'); glow.addColorStop(1,'rgba(255,120,30,.45)'); x.fillStyle=glow; x.fillRect(0,45.4*ts,W,2.2*ts);
-    drawLava(x,0,46.9,10,2.1,ts,R,lake); }
+  if(reveal>ZONE_TOP[NZ-1]+1.5){ const L0=ROWS-1.7, lake=X=>L0+.28*Math.sin(X*1.3+m.scale*6)+.12*Math.sin(X*3.1);
+    const glow=x.createLinearGradient(0,(L0-1.9)*ts,0,(L0+.3)*ts); glow.addColorStop(0,'rgba(255,120,30,0)'); glow.addColorStop(1,'rgba(255,120,30,.45)'); x.fillStyle=glow; x.fillRect(0,(L0-1.9)*ts,W,2.2*ts);
+    drawLava(x,0,ROWS-2.1,10,2.1,ts,R,lake); }
   return {carve};
 }
 function drawFeature(x,f,ts,q){
@@ -197,6 +197,6 @@ function drawLava(x,x0,y0,w,h,ts,R,edgeRow){
     x.fillStyle=pal[k]; x.fillRect(X*ts,Y*ts,Math.ceil(u),Math.ceil(u));
   }
 }
-const api={genMap,drawMap,drawTorch,drawLantern,COLS,ROWS,ZONE_TOP,zoneAt,WEATHER,SCENERY,TREES};
+const api={genMap,drawMap,drawTorch,drawLantern,COLS,ROWS,ZONE_TOP,zoneAt,WEATHER,SCENERY,TREES,NZ,NB};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.DeepcoreMaps=api;
 })(typeof self!=='undefined'?self:globalThis);

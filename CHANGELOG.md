@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.0 — Release 1: foundation
+- Six zones, 24 boards a day: new Granite Halls between Limestone Caves and Slate Caverns. Map generator, gates, strip mines and day-end tally all handle six zones.
+- Ruby replaces cinnabar (new gem art, same common-resource behaviour); recipes updated.
+- Difficulty modes removed; the game is tuned as the former "Committed" setting.
+- Practice runs: replaying a cleared board gives no ore (closes the grinding loophole).
+- No drawing loop off the board screen (battery).
+- Multi-line clears pay Double / Triple / Quad / Mega bonuses.
+- All-Clear hunting when the board is nearly empty; adaptive mercy after repeated cave-ins.
+- Economy and difficulty retuned for six zones (tools/sim.mjs, tools/day.mjs, tools/mercy.mjs).
+- Save migration (schema 2): cinnabar to ruby, today's map reset once.
+
 ## 0.5.0 — Release C: progression and the daily map
 - New map every Pacific day (src/maps.js): different weather (clear, cloudy, overcast, rain, snow, sunset, dusk), scenery (mountains, hills, a lake or none), tree types (oak, pine, birch, mixed, autumn colours), tunnel shape and width, ore and cave decorations, and where lights are placed.
 - The cave is dug open as you play: a fresh day shows only the forest; clearing a board digs the tunnel to the next one, and deeper zones stay in the dark until you reach them.

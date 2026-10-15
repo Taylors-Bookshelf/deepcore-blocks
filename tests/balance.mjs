@@ -5,12 +5,12 @@ import { runBoard, cfg, D } from '../tools/simlib.mjs';
 let fails = 0; const check = (c, m) => { if (!c) { fails++; console.error('FAIL:', m); } else console.log('ok  :', m); };
 cfg.bot = 'mid'; const RUNS = 40;
 const attempts = zi => { let wins = 0, total = 0; for (let j = 0; j < 4; j++) for (let k = 0; k < RUNS; k++) { total++; if (runBoard(zi, j, 777 + zi * 1000 + j * 100 + k).win) wins++; } return total / Math.max(1, wins); };
-const a = [0, 1, 2, 3, 4].map(attempts);
+const a = [0, 1, 2, 3, 4, 5].map(attempts);
 console.log('average tries per board by zone (typical player):', a.map(x => x.toFixed(2)).join('  '));
 check(a[0] <= 1.1, 'forest boards are easy (<=1.1 tries)');
-check(a[3] <= 2.0 && a[4] <= 2.4, 'zones 4 and 5 are winnable without 5-10 retries');
-check((a[3] + a[4]) / 2 >= 1.25 && (a[3] + a[4]) / 2 <= 2.0, `zones 4-5 average ${((a[3] + a[4]) / 2).toFixed(2)} tries (target about 1.5)`);
-check(a[0] <= a[1] + 0.05 && a[1] <= a[2] + 0.1 && a[2] <= a[3] + 0.1, 'difficulty rises zone by zone');
+check(a[4] <= 2.0 && a[5] <= 2.4, 'the two deepest zones are winnable without 5-10 retries');
+check((a[4] + a[5]) / 2 >= 1.25 && (a[4] + a[5]) / 2 <= 2.0, `the two deepest zones average ${((a[4] + a[5]) / 2).toFixed(2)} tries (target about 1.5-1.8)`);
+check(a.every((x, i) => i === 0 || x >= a[i - 1] - 0.08), 'difficulty rises zone by zone');
 // resource supply: coal and copper over zone 2's first three boards (what a lantern gate asks for)
 let coal = 0, copper = 0, n = 0; for (let k = 0; k < 40; k++) { let c = 0, cu = 0, ok = true; for (let j = 0; j < 3; j++) { let r; let t = 0; do { r = runBoard(1, j, 9000 + k * 10 + j + t * 500); t++; } while (!r.win && t < 8); c += r.got.coal || 0; cu += r.got.copper || 0; } coal += c; copper += cu; n++; }
 console.log(`zone 2, boards 1-3: average coal ${(coal / n).toFixed(1)}, copper ${(copper / n).toFixed(1)} (two lanterns cost 40 coal + 20 copper)`);

@@ -48,8 +48,8 @@ check(lucky >= normal * 1.1, `Luck Tonic sets offer bigger clears (average ${(lu
 
 // ---- recipes and economy tables ----
 const rc = Object.fromEntries(D.RECIPES.map(r => [r.m, r.cost]));
-check(rc.rescue.cinnabar === 20 && rc.rescue.emerald === 1 && Object.keys(rc.rescue).length === 2, 'Rescue Potion costs 20 cinnabar + 1 emerald');
-check(rc.luck && rc.luck.cinnabar === 12, 'Luck Tonic is craftable with 12 cinnabar');
+check(rc.rescue.ruby === 20 && rc.rescue.emerald === 1 && Object.keys(rc.rescue).length === 2, 'Rescue Potion costs 20 ruby + 1 emerald');
+check(rc.luck && rc.luck.ruby === 12, 'Luck Tonic is craftable with 12 ruby');
 check(!D.RECIPES.some(r => r.cost.lapis || r.cost.quartz) && !D.ORES.lapis && !D.ORES.quartz, 'lapis and quartz are gone');
 check(D.STASH_KEYS[0] === 'wood', 'wood is a stash resource');
 check(D.SPECIAL_RATE.Medium === .01 && D.SPECIAL_RATE.Hard === .02 && D.SPECIAL_RATE.Expert === .03, 'special rates are 1% / 2% / 3%');

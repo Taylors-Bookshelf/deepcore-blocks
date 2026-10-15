@@ -1,10 +1,10 @@
 // Simulator library: bot players that play boards through the real dealer and rules (used by sim.mjs and day.mjs).
-// Usage: node tools/sim.mjs [--runs 30] [--bot greedy|casual|planner|random] [--zones 0,1,2,3,4] [--mode 1] [--luck 0] [--seed 1] [--json]
+// Simulator library: bot players that play boards through the real dealer and rules (used by sim.mjs and day.mjs).
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 export const D = require('../src/data.js'), C = require('../src/core.js');
 export const args = Object.fromEntries(process.argv.slice(2).reduce((a, x, i, arr) => x.startsWith('--') ? [...a, [x.slice(2), arr[i + 1] && !arr[i + 1].startsWith('--') ? arr[i + 1] : true]] : a, []));
-export const cfg = { bot: args.bot || 'greedy', mode: +(args.mode ?? 1), luck: +(args.luck || 0) };
+export const cfg = { bot: args.bot || 'greedy', luck: +(args.luck || 0), fails: +(args.fails || 0) };
 const N = 8;
 // try different zone tuning without editing data.js: --zd "1:.28,.46;2:.5,.68"  --zt "1:900;2:1500"  --zg "1:.2"
 if (args.zd) args.zd.split(';').forEach(x => { const [i, v] = x.split(':'); D.ZONES[+i].d = v.split(',').map(Number); });
@@ -68,32 +68,33 @@ function botMove(lo, hi, pcs, rnd) {
   return opts[0];   // planner: same one-step search, no slips
 }
 
-export function runBoard(zi, bj, seed, strip) {
-  const def = { ...D.boardParams(zi, strip ? 1 : bj, cfg.mode) }, rnd = makeRun(seed), VAL = D.VAL;
+export function runBoard(zi, bj, seed, strip, fails = 0) {
+  const def = { ...D.boardParams(zi, strip ? 1 : bj) }, rnd = makeRun(seed), VAL = D.VAL;
   if (strip) { const boost = {}; Object.entries(strip).forEach(([k, n]) => { if (k === 'wood') return; const o = D.ORES[k]; boost[k] = Math.min(6, Math.max(1, (n / 21) / (o.p * (o.vein[0] + o.vein[1]) / 2))); }); def.oreBoost = boost; if (strip.wood) def.base = { log: 2.4, dirt: 1, grass: .4 }; def.target = Infinity; }
   const mats = prefill(def, rnd); let [lo, hi] = bitsOf(mats);
-  let score = 0, combo = 0, since = 0, moves = 0, bigNext = false, deals = 0; const dealt = {}, got = {};
+  let score = 0, combo = 0, since = 0, moves = 0, bigNext = false, deals = 0, allClears = 0, multi = 0, clearMoves = 0; const dealt = {}, got = {};
+  const tilt = Math.min(.75, Math.max(0, fails - 1) * .35);
   while (true) {
     deals++; let set;
     if (bigNext && lo === 0 && hi === 0) { set = C.BIG_IDS.map(ids => C.SHAPES[ids[Math.floor(rnd() * ids.length)]]); bigNext = false; }
-    else set = C.chooseSet(lo, hi, def.d, { rnd, luck: cfg.luck });
+    else set = C.chooseSet(lo, hi, def.d, { rnd, luck: cfg.luck, tilt });
     const out = []; set.forEach(s => out.push(C.dressPiece(s, def, { rnd, dealt, specialBlocked: out.some(p => p.mats.some(m => D.SPECIAL_MIX[m])) })));
     let pcs = out.slice();
     while (pcs.some(Boolean)) {
       const mv = botMove(lo, hi, pcs, rnd);
-      if (!mv) return { win: false, score, moves, deals, got, target: def.target };
+      if (!mv) return { win: false, score, moves, deals, got, target: def.target, allClears, multi, clearMoves };
       const p = pcs[mv.i]; pcs[mv.i] = null; moves++; score += p.cells.length;
       p.cells.forEach(([r, c], k) => { mats[(mv.pl.r0 + r) * 8 + mv.pl.c0 + c] = p.mats[k]; });
       const kill = new Set(); for (let r = 0; r < 8; r++) { let f = true; for (let c = 0; c < 8; c++) if (!mats[r * 8 + c]) f = false; if (f) for (let c = 0; c < 8; c++) kill.add(r * 8 + c); }
       for (let c = 0; c < 8; c++) { let f = true; for (let r = 0; r < 8; r++) if (!mats[r * 8 + c]) f = false; if (f) for (let r = 0; r < 8; r++) kill.add(r * 8 + c); }
       let n = 0; for (let r = 0; r < 8; r++) { let f = true; for (let c = 0; c < 8; c++) if (!mats[r * 8 + c]) f = false; if (f) n++; } for (let c = 0; c < 8; c++) { let f = true; for (let r = 0; r < 8; r++) if (!mats[r * 8 + c]) f = false; if (f) n++; }
-      if (n) { combo++; since = 0; kill.forEach(k => { const m = mats[k]; if (m) { score += VAL[m] || 0; const res = m === 'log' ? 'wood' : (m === 'grass' ? 'dirt' : m); got[res] = (got[res] || 0) + 1; mats[k] = null; } }); score += n * 10 * n * combo; }
+      if (n) { combo++; since = 0; clearMoves++; if (n > 1) multi++; kill.forEach(k => { const m = mats[k]; if (m) { score += VAL[m] || 0; const res = m === 'log' ? 'wood' : (m === 'grass' ? 'dirt' : m); got[res] = (got[res] || 0) + 1; mats[k] = null; } }); score += D.lineScore(n, combo); }
       else { since++; if (since >= 3) combo = 0; }
       [lo, hi] = bitsOf(mats);
-      if (n && lo === 0 && hi === 0) { score += Math.max(10, Math.round(def.target * .15 / 10) * 10); bigNext = true; }
-      if (strip ? Object.entries(strip).every(([k, v]) => (got[k] || 0) >= v) : score >= def.target) return { win: true, score, moves, deals, got, target: def.target };
+      if (n && lo === 0 && hi === 0) { score += Math.max(10, Math.round((strip ? D.ZONES[zi].target : def.target) * .15 / 10) * 10); allClears++; bigNext = true; }
+      if (strip ? Object.entries(strip).every(([k, v]) => (got[k] || 0) >= v) : score >= def.target) return { win: true, score, moves, deals, got, target: def.target, allClears, multi, clearMoves };
       if (pcs.every((q, i) => !q) ) break;
-      if (pcs.every(q => !q || !C.SHAPES[q.sid].pl.some(pl => !(lo & pl.lo) && !(hi & pl.hi)))) return { win: false, score, moves, deals, got, target: def.target };
+      if (pcs.every(q => !q || !C.SHAPES[q.sid].pl.some(pl => !(lo & pl.lo) && !(hi & pl.hi)))) return { win: false, score, moves, deals, got, target: def.target, allClears, multi, clearMoves };
     }
   }
 }

@@ -36,7 +36,7 @@ check(s.bank.coal === 0 && s.bank.copper === 0 && s.day.lights[1] === 1, 'a lant
 
 // ---- strip mine ----
 await tt('setBank', { coal: 5 });
-await T(() => [...document.querySelectorAll('.node.strip')].find(b => /Stone Caves/.test(b.getAttribute('aria-label'))).click()); await page.waitForTimeout(250);
+await T(() => [...document.querySelectorAll('.node.strip')].find(b => /Limestone Caves/.test(b.getAttribute('aria-label'))).click()); await page.waitForTimeout(250);
 const goalTxt = await T(() => document.getElementById('ncGoals').textContent.replace(/\s+/g, ' '));
 check(/Gather/.test(goalTxt), 'strip mine card lists what to gather (' + goalTxt.trim() + ')');
 await page.tap('#ncGo'); await page.waitForTimeout(2600);
@@ -48,7 +48,7 @@ check(await tt('stripMet') === true, 'strip mine is complete when the haul meets
 const doneBefore = (await st()).day.done.length;
 await tt('completeStrip'); await page.waitForTimeout(2400); s = await st();
 check(s.day.strip[1] === true && s.day.bonus === 240 && s.bank.coal === 20 && s.bank.copper === 10, `strip mine banks the haul and adds its score to the daily bonus (${JSON.stringify({ b: s.day.bonus, bank: s.bank })})`);
-check(s.day.done.length === doneBefore, 'the strip mine is not one of the 20 boards');
+check(s.day.done.length === doneBefore, 'the strip mine is not one of the 24 boards');
 check(/bonus 240/.test(await T(() => document.getElementById('mapProg').textContent)), 'map header shows the bonus');
 check(await T(() => !!document.querySelector('.node.strip.done')), 'cleared strip mine is marked');
 
@@ -61,9 +61,9 @@ check(h.lastDay && h.lastDay.leftover === 10 * 15 + 2 * 30 && h.lastDay.bonus ==
 check(s.day.done.length === 0 && !s.day.lights[0] && !s.day.bonus, 'the new day starts fresh (no boards, lights or bonus)');
 
 // ---- day-end tally after the last board ----
-await tt('markDone', Array.from({ length: 19 }, (_, i) => i)); await tt('setBank', { coal: 7, gold: 1 });
-await tt('start', 19); await page.waitForTimeout(2600); await tt('complete'); await page.waitForTimeout(3600);
-check(await T(() => !document.getElementById('prospector').hidden), 'Prospector badge shows after all 20');
+await tt('markDone', Array.from({ length: 23 }, (_, i) => i)); await tt('setBank', { coal: 7, gold: 1 });
+await tt('start', 23); await page.waitForTimeout(2600); await tt('complete'); await page.waitForTimeout(3600);
+check(await T(() => !document.getElementById('prospector').hidden), 'Prospector badge shows after all 24');
 await page.tap('#pOk'); await page.waitForTimeout(300);
 check(await T(() => !document.getElementById('dayEnd').hidden && /\d+ bonus points/.test(document.getElementById('dayEndTotal').textContent)), 'day-end tally shows leftover bonus points');
 await page.tap('#dayEndCraft'); await page.waitForTimeout(250);

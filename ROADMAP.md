@@ -3,16 +3,16 @@
 Status key: [ ] todo · [~] in progress · [x] done and live. Every item names the test that proves it once done.
 
 ## Release 1 · v0.6.0 · Foundation (structure, scoring engine, economy)
-- [ ] 6 zones / 24 boards: The Forest, Limestone Caves, Granite Halls, Slate Caverns, Basalt Gem Depths, The Underworld (new granite layer)
-- [ ] Ruby replaces cinnabar everywhere (Rescue 20 ruby + 1 emerald, Luck 12 ruby + 1 diamond)
-- [ ] Difficulty modes removed (Casual/Committed/Hardened); game tuned as the old "Committed"
-- [ ] #1 Replaying a cleared board no longer farms ore (practice runs)
-- [ ] #2 Idle battery: no drawing loop off the board screen
-- [ ] #6 All-clear still possible (rare) in every zone
-- [ ] #9 Multi-line bonus (Double / Triple / Quad)
-- [ ] #12 Adaptive mercy after repeated cave-ins on the same board
-- [ ] Economy, targets and difficulty retuned for 6 zones with the simulator (balance + day sims)
-- [ ] Save migration (cinnabar to ruby, today's map reset, schema version)
+- [x] 6 zones / 24 boards: The Forest, Limestone Caves, Granite Halls, Slate Caverns, Basalt Gem Depths, The Underworld (new granite layer)
+- [x] Ruby replaces cinnabar everywhere (Rescue 20 ruby + 1 emerald, Luck 12 ruby + 1 diamond)
+- [x] Difficulty modes removed (Casual/Committed/Hardened); game tuned as the old "Committed"
+- [x] #1 Replaying a cleared board no longer farms ore (practice runs)
+- [x] #2 Idle battery: no drawing loop off the board screen
+- [x] #6 All-clear still possible (rare) in every zone
+- [x] #9 Multi-line bonus (Double / Triple / Quad)
+- [x] #12 Adaptive mercy after repeated cave-ins on the same board
+- [x] Economy, targets and difficulty retuned for 6 zones with the simulator (balance + day sims)
+- [x] Save migration (cinnabar to ruby, today's map reset, schema version)
 
 ## Release 2 · v0.7.0 · The new look (design package, no rule changes)
 - [ ] Fonts bundled: Jersey 10 (numbers, titles) and Chakra Petch (UI text)

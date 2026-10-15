@@ -37,11 +37,11 @@ check(s.screen === 'map', 'clearing returns to the map');
 
 // ---- Luck Tonic ----
 await board(4);
-await T(() => window.__deepcore.test.give({ cinnabar: 24, diamond: 2 }));
+await T(() => window.__deepcore.test.give({ ruby: 24, diamond: 2 }));
 await page.tap('#anvilBtn'); await page.waitForTimeout(200);
 const names = await page.$$eval('.recipe .nm', e => e.map(x => x.textContent)); check(names.join() === 'Blast charge,Jackhammer,Rescue Potion,Luck Tonic', 'anvil lists four recipes: ' + names);
 await (await page.$$('.recipe button.go'))[3].click(); await page.waitForTimeout(150);
-s = await st(); check(s.crafted.luck === 1 && s.bank.cinnabar === 12 && s.bank.diamond === 1, 'Luck Tonic crafted for 12 cinnabar + 1 diamond');
+s = await st(); check(s.crafted.luck === 1 && s.bank.ruby === 12 && s.bank.diamond === 1, 'Luck Tonic crafted for 12 ruby + 1 diamond');
 check(await (await page.$$('.recipe button.go'))[3].isDisabled(), 'only one Luck Tonic can be held');
 await page.tap('#anvilClose');
 await page.tap('.chip.tap'); await page.waitForTimeout(1400);

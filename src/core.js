@@ -133,7 +133,7 @@ function sizeWeight(s,d){
 
 function pickIdx(ws,rnd=Math.random){ const tot=ws.reduce((a,b)=>a+b,0); if(tot<=0) return 0; let v=rnd()*tot; for(let i=0;i<ws.length;i++){ v-=ws[i]; if(v<=0) return i; } return ws.length-1; }
 // How many ways a set should be placeable (any order), by difficulty. The floor keeps late boards from hinging on one lucky placement.
-const TUNE={waysFloor:8,waysExp:.78,assistExp:1.5,mercy:1,mercyStart:.35};   // the dealer's fairness knobs (sim.mjs can override them)
+const TUNE={waysFloor:8,waysExp:.78,assistExp:1.5,mercy:1,mercyStart:.35,acPull:14,acCells:22,acTries:90};   // the dealer's fairness knobs (sim.mjs can override them)
 const targetWays=d=>Math.max(TUNE.waysFloor,Math.pow(400,1-d*TUNE.waysExp));
 // Dealer assistance: 1 on the easiest board, fading with difficulty
 const assistOf=d=>Math.pow(1-d,TUNE.assistExp);
@@ -142,9 +142,12 @@ const BIG_IDS=BIG_SET.map(o=>o.map(x=>SHAPE_STRS.indexOf(x)));
 // opts: {luck:0..1 (Luck Tonic), rnd}
 function chooseSet(lo,hi,d,opts={}){
   const rnd=opts.rnd||Math.random, luck=opts.luck||0;
+  if(opts.tilt) d=d*(1-.4*opts.tilt);   // repeated cave-ins on a board: deal as if the board were easier
   // mercy: the more crowded the board, the more the dealer leans toward sets that help (completing lines, fitting pockets)
   const fill=(pc(lo)+pc(hi))/64, mercy=TUNE.mercy*Math.max(0,Math.min(1,(fill-TUNE.mercyStart)/.3));
-  const A0=assistOf(d), A=Math.max(A0+(1-A0)*mercy,luck?.8:0);
+  // tilt (0..1): extra kindness after repeated cave-ins on the same board; it stacks on top of the fill-based mercy
+  const tilt=opts.tilt||0, merc=1-(1-mercy)*(1-tilt);
+  const A0=assistOf(d), A=Math.max(A0+(1-A0)*merc,luck?.8:0);
   const {boost,exact}=pocketInfo(lo,hi);
   const fits=SHAPES.map(s=>s.pl.some(p=>!(lo&p.lo)&&!(hi&p.hi)));
   const ws=SHAPES.map((s,i)=>fits[i]?sizeWeight(s,d)*FAMW[i]*Math.pow(boost[i],A):0);
@@ -154,7 +157,7 @@ function chooseSet(lo,hi,d,opts={}){
     for(const p of s.pl){ if((lo&p.lo)||(hi&p.hi)) continue; const l=applyMove(lo,hi,p.lo,p.hi)[2]; if(l>bl) bl=l; }
     cw[i]=(bl?bl*bl*2:0)+(exact.has(i)?4:0); if(cw[i]) cw[i]*=(.5+sizeWeight(s,d))*FAMW[i]*3; });
   const hasC=cw.some(x=>x>0);
-  const target=targetWays(d)*(luck?3:1)*(1+mercy*3); let best=null;
+  const target=targetWays(d)*(luck?3:1)*(1+merc*3); let best=null;
   // draw three pieces; a second piece from the same family is much less likely
   const sample=()=>{ const out=[], fams=new Set();
     for(let k=0;k<3;k++){
@@ -162,6 +165,8 @@ function chooseSet(lo,hi,d,opts={}){
       const w=base.map((x,i)=>fams.has(SHAPES[i].fam)?x*.3:x);
       const sh=SHAPES[pickIdx(w,rnd)]; out.push(sh); fams.add(sh.fam); }
     return out; };
+  // a nearly empty board is the chance for an All Clear: look harder for a set that can wipe it, and prefer one when found
+  const cells=pc(lo)+pc(hi), acHunt=cells<=TUNE.acCells, acPull=acHunt?TUNE.acPull:TUNE.acPull*.15;
   const tries=(needHealthy,K)=>{
     for(let k=0;k<K;k++){
       const set=sample();
@@ -170,11 +175,11 @@ function chooseSet(lo,hi,d,opts={}){
       const cnt=res.exhausted?Math.max(res.count,250):res.count;
       const tight=-Math.abs(Math.log(cnt)-Math.log(target));
       const help=res.maxLines*(luck?2.2:1.4) + (res.allClear?(luck?16:10):0) + set.filter(s=>exact.has(s.id)).length*2.5 + (luck&&res.maxLines>0?14:0);
-      const sc=(1-A)*tight + A*help + rnd()*(.3+.9*(1-A));
+      const sc=(1-A)*tight + A*help + (res.allClear?acPull:0) + rnd()*(.3+.9*(1-A));
       if(!best||sc>best.sc) best={set,sc};
     }
   };
-  tries(true, luck?60:(A>.3?36:30));
+  tries(true, luck?60:(acHunt?TUNE.acTries:(A>.3?36:30)));
   if(d>.45 && (!best || best.sc<-1)){ SHAPES.forEach((s,i)=>{ if(s.n>=4) ws[i]*=1.8; }); tries(true,30); }
   if(!best) tries(false,26);
   if(!best){

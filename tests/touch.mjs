@@ -63,7 +63,7 @@ check(/Torch/.test(crafting) && /Lantern/.test(crafting) && /strip mine/i.test(c
 await page.tap('#infoClose');
 
 // difficulty naming
-await page.evaluate(() => window.__deepcore.test.start(19)); await page.waitForTimeout(2500);
+await page.evaluate(() => window.__deepcore.test.start(23)); await page.waitForTimeout(2500);
 check(await page.evaluate(() => document.getElementById('tier').textContent) === 'Expert', 'top difficulty is named Expert');
 check(!(await page.content()).includes('Brutal'), 'no "Brutal" left in the page');
 

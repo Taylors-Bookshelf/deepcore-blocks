@@ -29,13 +29,13 @@ A mining-themed 8×8 block puzzle (drag 3-piece sets onto the board, clear rows/
 ## Design rules agreed with the designer (keep these unless told otherwise)
 
 **Boards and progression**
-- Home screen: World Map and Settings. The map shows 20 boards per day (4 per zone: The Forest, Stone Caves, Deep Stone, Gem Depths, The Underworld), unlocked in order, regenerated each Pacific-time day (fixed to America/Los_Angeles for everyone) with a different look every day (`src/maps.js`, seeded by the date). The cave is dug open board by board; only the forest shows at first. Finishing all 20 in a day earns the **Prospector** achievement.
+- Home screen: World Map and Settings. The map shows 24 boards per day (4 per zone: The Forest, Limestone Caves, Granite Halls, Slate Caverns, Basalt Gem Depths, The Underworld), unlocked in order, regenerated each Pacific-time day (fixed to America/Los_Angeles for everyone) with a different look every day (`src/maps.js`, seeded by the date). The cave is dug open board by board; only the forest shows at first. Finishing all 24 in a day earns the **Prospector** achievement.
 - **Gates:** the 4th board of each zone needs 2 torches (Forest: 10 coal + 5 wood each) or 2 lanterns (deeper zones: 20 coal + 10 copper each), crafted from the map's Craft panel.
 - **Strip mine:** a side tunnel after each zone's 3rd board (once per zone per day, not one of the 20). Resource goals (what the gate lacks, at least half a light's cost) instead of a score; its score is added to the daily `bonus`. Ore rates in `data.js` were tuned (tools/day.mjs) so it is needed ~60% of the time.
 - **Haul:** ore/gems/wood mined on a board sit in `hand` (shown as +n) and bank on a clear; a cave-in without a Rescue Potion loses them. **Stash** resets each Pacific day; leftovers become bonus points on the previous day's record (`history`, `bestDay`); crafted specials persist.
 - Forest board 1 is on the surface; forest boards 2–4 sit at increasing dirt depths. Torches only on rock walls (stone, deep stone, obsidian zones). Lava lake at the bottom.
 - A board is cleared by **reaching a score target** (progress bar), not by collecting specific resources. Targets per zone are in `ZONES[].target`, +20% per board within a zone, times the difficulty setting's `goals` multiplier.
-- Difficulty setting (Settings slider): Casual / Committed / Hardened, in `MODES`.
+- There is no difficulty setting (removed in v0.6.0); `ZONES[].d` sets the dealer difficulty per board. Replaying a cleared board is a no-ore practice run. Repeated cave-ins on one board ease the dealer (`mercyTilt`).
 
 **Blocks**
 - Base blocks blend gradually between zones (`ZONES[].mixes`, one mix per board). A block never appears before its own zone (no stone in the forest, no deep stone in Stone Caves, …).
