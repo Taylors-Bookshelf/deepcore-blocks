@@ -13,17 +13,7 @@ if (args.zg) args.zg.split(';').forEach(x => { const [i, v] = x.split(':'); D.ZO
 if (args.old) Object.assign(C.TUNE, { waysFloor: 1, waysExp: 1, assistExp: 1.8 });   // the dealer as shipped in v0.3.0
 for (const k of ['waysFloor', 'waysExp', 'assistExp', 'mercy', 'mercyStart']) if (args[k] !== undefined) C.TUNE[k] = +args[k];
 
-const get = (lo, hi, r, c) => C.getBit(lo, hi, r, c);
-function evalBoard(lo, hi) {
-  let tight = 0, trans = 0, filled = 0, near = 0; const rowN = Array(8).fill(0), colN = Array(8).fill(0);
-  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
-    const v = get(lo, hi, r, c); if (v) { filled++; rowN[r]++; colN[c]++; } else { let n = 0;
-      if (r === 0 || get(lo, hi, r - 1, c)) n++; if (r === 7 || get(lo, hi, r + 1, c)) n++; if (c === 0 || get(lo, hi, r, c - 1)) n++; if (c === 7 || get(lo, hi, r, c + 1)) n++; if (n >= 3) tight++; }
-    if (c < 7 && v !== get(lo, hi, r, c + 1)) trans++; if (r < 7 && v !== get(lo, hi, r + 1, c)) trans++; }
-  for (let i = 0; i < 8; i++) { if (rowN[i] >= 6 && rowN[i] < 8) near++; if (colN[i] >= 6 && colN[i] < 8) near++; }
-  return -C.countHoles(lo, hi) * 14 - tight * 1.4 - trans * .35 - filled * .15 + near * .8;
-}
-
+const evalBoard = C.evalBoard;
 function makeRun(seed) {
   const rnd = D.rng(seed * 7919 + 13);
   return rnd;

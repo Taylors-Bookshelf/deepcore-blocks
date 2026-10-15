@@ -39,3 +39,15 @@ Judgment calls I made without asking, so you can review and ask me to change or 
 - **Destroy animation** follows the spec's timeline (crack and shake 450ms, shatter about 850ms, bounce-in 550ms). On the map there is no dock on screen, so the swap is instant there. The dock ignores taps while the animation runs.
 - **Pick-up animation:** the piece glides from its tray slot to your finger while growing to board size over 140ms. **Return animation:** a piece dropped somewhere invalid flies back to its slot and shrinks (190ms).
 - **Tap to skip:** tapping anywhere while a Blast Charge, special or All Clear celebration is playing skips the waiting and ends the overlay. All points and ore are still awarded. A small "Tap to skip" label shows during those sequences.
+
+## Release 4 (gameplay depth)
+- **Push your luck, as built:** reaching the target clears the board for good (it counts toward the 24, unlocks the next board, and your ore so far is banked on the spot). A sheet then offers **BANK IT** or **KEEP GOING**. Playing on, a cave-in costs you only the ore gathered since the clear (and the extra stars) and you keep the clear with 1 star. At 3 stars the board banks itself. Starting a different board while playing on counts as abandoning it (same loss).
+- **Stars:** 1 star at the target, 2 at 130%, 3 at 170%. Each star after the first adds a bonus of 10% of the target to that board's score (so to Today). The existing "board mined" bonus stays and is awarded at the clear.
+- **A cave-in while playing on is not counted as a failed attempt**, so it does not trigger the dealer's mercy.
+- **Replays (practice runs)** can still improve your stars and best score, never lower them, and never give ore.
+- **Today** no longer double counts while you play on: the clear is already in it, extra points show in the bar.
+- **Combo meter** appears at x2 or higher, top-right of the board, with three pips for the moves left before the combo resets.
+- **Near-miss cave-in screen:** shows a bar for how far you got, "So close!" at 85% or more and the points short, plus one tip chosen from what actually happened (sealed gaps, long pieces with a crowded board, a dry spell without clears, a nearly full board, or a general tip). After the second cave-in on a board it tells you the dealer will ease up.
+- **Hint:** a bulb button over the tray costing **3 coal every time** (no free hints). It glows the tray piece and outlines the best placement for 4.5 seconds, using the same move evaluator as the test bots (clears lines, avoids sealed gaps, keeps the rest of the set playable).
+- **Daily twists** (one per day, picked from the date): Gold Rush (3x gold), Ruby Rain (2x ruby), Gem Fever (emerald/diamond 1.8x and +1 per board cap), Treasure Day (3x special blocks), Coal Seams (1.5x coal), Bright Lamps (torches and lanterns 25% cheaper, rounded up). Shown on the home screen and map header. They shift resources only, never how hard clearing is. I did not re-run the whole-day economy simulation per twist; Coal Seams and Bright Lamps make that day's strip mine less necessary, which seems fine.
+- **Strip mines** have no stars or playing-on.

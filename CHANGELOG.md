@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.0 — Release 4: gameplay depth
+- Stars and push-your-luck: clear banks your ore; BANK IT or KEEP GOING for 2 and 3 stars (bonus points), with the extra ore at risk.
+- Combo meter; near-miss cave-in screen with tips and mercy note; hint button (3 coal); six daily twists.
+
 ## 0.8.0 — Release 3: specials and interaction
 - Make-room sheet: with a full dock, crafting asks which special to destroy (cancel spends nothing); crack, shatter and bounce-in animation in the dock.
 - Pick-up and return animations for tray pieces; tap to skip long special/All-Clear celebrations.

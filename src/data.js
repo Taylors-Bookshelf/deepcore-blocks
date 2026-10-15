@@ -49,21 +49,39 @@ const RECIPES=[
 // Torches (forest) and lanterns (every deeper zone): two must be placed to open the fourth board of a zone.
 const LIGHTS={ torch:{name:'Torch', plural:'torches', cost:{coal:10, wood:5}}, lantern:{name:'Lantern', plural:'lanterns', cost:{coal:20, copper:10}} };
 const LIGHTS_NEEDED=2, lightKind=z=>z===0?'torch':'lantern';
+// One twist per Pacific day, chosen from the date. They shift resources, never the rules of clearing a board.
+const MODIFIERS=[
+  {id:'gold_rush',    name:'Gold Rush',    desc:'Gold ore turns up 3 times as often today.',                                   ore:{gold:3}},
+  {id:'ruby_rain',    name:'Ruby Rain',    desc:'Rubies are twice as common today.',                                            ore:{ruby:2}},
+  {id:'gem_fever',    name:'Gem Fever',    desc:'Emeralds and diamonds are much more common today.',                            gemMul:1.8, gemCapAdd:1},
+  {id:'treasure_day', name:'Treasure Day', desc:'Prism Stones, Fossils and Buried Treasure turn up 3 times as often.',          specialMul:3},
+  {id:'coal_seams',   name:'Coal Seams',   desc:'Coal is 50% more common today.',                                               ore:{coal:1.5}},
+  {id:'bright_lamps', name:'Bright Lamps', desc:'Torches and lanterns cost 25% less today.',                                    lightMul:.75},
+];
+const modifierFor=day=>MODIFIERS[hashStr('mod:'+day)%MODIFIERS.length];
+// what a torch or lantern costs on a given day
+const lightCost=(kind,mod)=>{ const m=(mod&&mod.lightMul)||1; return Object.fromEntries(Object.entries(LIGHTS[kind].cost).map(([k,v])=>[k,Math.ceil(v*m)])); };
+// Stars: 1 for the target, 2 at 130%, 3 at 170%. Each star after the first is worth 10% of the target in bonus points.
+const STAR_AT=[1,1.3,1.7];
+const starsFor=(score,target)=>STAR_AT.reduce((n,x)=>score>=target*x?n+1:n,0);
+const starBonus=(stars,target)=>Math.max(0,stars-1)*Math.round(target*.1/10)*10;
 const STASH_KEYS=['wood','coal','iron','copper','gold','ruby','emerald','diamond'];
 const GEM_KEYS=['ruby','emerald','diamond'];
 
 
 const BASE_MATS=['grass','dirt','sand','log','stone','granite','deep','ember','obsidian'];   // bulk filler blocks (everything else on the board is ore, a gem or a special)
 // Everything that defines a board from the zone table, shared by the game and the simulator
-function boardParams(zi,j){
+function boardParams(zi,j,mod){
   const z=ZONES[zi], f=j/(BOARDS_PER_ZONE-1);
-  return { zone:zi, zoneName:z.name, rock:z.rock, base:z.mixes[j], ores:z.ores.filter(k=>((z.oreFrom&&z.oreFrom[k])||0)<=j), oreBoost:z.boost||{}, gems:z.gems||{},
+  const oreBoost={...(z.boost||{})}; if(mod&&mod.ore) Object.entries(mod.ore).forEach(([k,v])=>{ oreBoost[k]=(oreBoost[k]||1)*v; });
+  const gems={}; Object.entries(z.gems||{}).forEach(([k,g])=>{ gems[k]=mod&&mod.gemMul?{p:g.p*mod.gemMul,cap:g.cap+(mod.gemCapAdd||0)}:g; });
+  return { zone:zi, zoneName:z.name, rock:z.rock, base:z.mixes[j], ores:z.ores.filter(k=>((z.oreFrom&&z.oreFrom[k])||0)<=j), oreBoost, gems, specialMul:(mod&&mod.specialMul)||1,
     target:Math.round(z.target*(1+(z.growth===undefined?.2:z.growth)*j)/10)*10,
     d:Math.min(.97,z.d[0]+(z.d[1]-z.d[0])*f), pre:Math.round(z.pre[0]+(z.pre[1]-z.pre[0])*f) };
 }
 // Points for clearing n lines at once with a combo of c. Doubles and better pay extra (called Double / Triple / Quad / Mega).
 const lineScore=(n,c)=> n*10*n*c + (n>=2 ? 25*n*(n-1) : 0);
 const lineName=n=> n>=5?'Mega!' : n===4?'Quad!' : n===3?'Triple!' : n===2?'Double!' : '';
-const api={lineScore,lineName,STRIP_BASE,GEM_KEYS,LIGHTS,LIGHTS_NEEDED,lightKind,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARDS_PER_ZONE,BOARD_COUNT,RECIPES,STASH_KEYS};
+const api={MODIFIERS,modifierFor,lightCost,STAR_AT,starsFor,starBonus,lineScore,lineName,STRIP_BASE,GEM_KEYS,LIGHTS,LIGHTS_NEEDED,lightKind,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARDS_PER_ZONE,BOARD_COUNT,RECIPES,STASH_KEYS};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.DeepcoreData=api;
 })(typeof self!=='undefined'?self:globalThis);

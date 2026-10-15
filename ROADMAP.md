@@ -31,12 +31,12 @@ Status key: [ ] todo · [~] in progress · [x] done and live. Every item names t
 - [x] #19 Pickup scale animation · #20 invalid-drop return animation · #25 tap to skip long animations
 
 ## Release 4 · v0.9.0 · Gameplay depth
-- [ ] #7 Push your luck: bank at the target or keep playing for stars
-- [ ] #8 Stars per board feed the daily score
-- [ ] #10 Combo meter
-- [ ] #11 Near-miss cave-in screen (points short, tip, quick retry)
-- [ ] #13 Daily modifiers
-- [ ] #14 Hint button
+- [x] #7 Push your luck: bank at the target or keep playing for stars
+- [x] #8 Stars per board feed the daily score
+- [x] #10 Combo meter
+- [x] #11 Near-miss cave-in screen (points short, tip, quick retry)
+- [x] #13 Daily modifiers
+- [x] #14 Hint button
 
 ## Release 5 · v0.10.0 · Retention and onboarding
 - [ ] #5 Guided first board

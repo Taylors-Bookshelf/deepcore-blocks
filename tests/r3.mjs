@@ -47,10 +47,11 @@ await tt('start', 4); await page.waitForTimeout(2600);
 const geo = () => T(() => { const b = document.getElementById('board').getBoundingClientRect(); const s = [...document.querySelectorAll('.slot')].map(e => { const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }); return { cell: (b.width + 2) / 8, slots: s, b: [b.left, b.top, b.width] }; });
 const scaleOf = () => T(() => { const m = /scale\(([\d.]+)\)/.exec(document.getElementById('ghost').style.transform); return m ? +m[1] : null; });
 const g = await geo();
+await T(() => { window.__scales = []; new MutationObserver(() => { const m = /scale\(([\d.]+)\)/.exec(document.getElementById('ghost').style.transform); if (m) window.__scales.push(+m[1]); }).observe(document.getElementById('ghost'), { attributes: true }); });
 await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: g.slots[0][0], y: g.slots[0][1], id: 1 }] });
 await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: g.slots[0][0], y: g.slots[0][1] - 10, id: 1 }] });
-await page.waitForTimeout(10); const k0 = await scaleOf(); await page.waitForTimeout(300); const k1 = await scaleOf();
-check(k0 !== null && k0 < 0.9 && k1 > 0.99, `picked-up piece grows from tray size to board size (scale ${k0 && k0.toFixed(2)} then ${k1})`);
+await page.waitForTimeout(400); const sc = await T(() => window.__scales);
+check(sc.length > 2 && Math.min(...sc) < 0.9 && sc[sc.length - 1] > 0.99, `picked-up piece grows from tray size to board size (scale ${sc.length && Math.min(...sc).toFixed(2)} up to ${sc[sc.length - 1]})`);
 // drop on an occupied spot -> flies back
 await T(() => { const t = window.__deepcore.test; for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) t.setCell(r, c, 'stone'); });
 await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: g.b[0] + g.cell * 3, y: g.b[1] + g.cell * 5, id: 1 }] });

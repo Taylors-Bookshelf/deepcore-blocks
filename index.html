@@ -34,12 +34,15 @@
       <canvas id="board"></canvas>
       <div id="combo"></div>
       <div id="skipHint" hidden>Tap to skip</div>
+      <div id="comboMeter" hidden><b id="cmN">x2</b><span class="pips"><i></i><i></i><i></i></span></div>
       <div id="banner"><span class="lvl" id="bLvl"></span><h2 id="bName"></h2><p id="bGoals"></p></div>
       <div id="over" hidden>
         <h2>Cave-in!</h2>
         <p id="overWhy">No room left to place the next block.</p>
         <div class="big" id="finalScore">0</div>
+        <div id="overBar"><div></div></div>
         <p id="finalNote"></p>
+        <p id="overTip"></p>
         <div class="row">
           <button id="rescueBtn" class="go" type="button" hidden>Craft a Rescue Potion</button>
           <button id="retry" class="go" type="button">Retry board</button>
@@ -55,6 +58,7 @@
     <button id="anvilBtn" type="button" aria-label="Open the anvil to craft specials"><canvas id="anvilIcon" width="16" height="16"></canvas><span>CRAFT</span></button>
   </div>
   <div id="trayWrap">
+    <button id="hintBtn" type="button" aria-label="Hint: show a good move for 3 coal"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg></button>
     <div id="luckBadge" hidden><span class="pips"></span><span id="luckTxt"></span></div>
     <div id="tray">
       <div class="slot" data-i="0"><canvas></canvas></div>
@@ -127,6 +131,7 @@
     <button id="settingsBtn" type="button">Settings</button>
     <p class="note" id="homeNote"></p>
     <p class="note" id="homeNote2"></p>
+    <p class="note" id="homeMod"></p>
   </div>
   <div id="homeSettings" class="settings" hidden>
     <h2>Settings</h2>

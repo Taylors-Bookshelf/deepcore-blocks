@@ -216,13 +216,34 @@ function dressPiece(s,def,o={}){
     if((dealt[g]||0)>=cap || rnd()>=p) continue;
     const c=veinCells(s,mats,1,rnd); if(c.length){ mats[c[0]]=g; dealt[g]=(dealt[g]||0)+1; }
   }
-  const rate=D.SPECIAL_RATE[D.tierOf(def.d)];
+  const rate=D.SPECIAL_RATE[D.tierOf(def.d)]*(def.specialMul||1);
   if(rate && !o.specialBlocked && rnd()<rate){
     mats[Math.floor(rnd()*s.n)]=pickWeighted(Object.entries(D.SPECIAL_MIX).map(([k,w])=>({k,w})),rnd).k;
   }
   return {cells:s.cells,h:s.h,w:s.w,mats,sid:s.id};
 }
-const api={TUNE,pickWeighted,pickBase,veinCells,dressPiece,N:8,NB,SHAPE_STRS,SHAPES,SHAPE_BY_KEY,CHECK3,FAMSIZE,FAMW,pc,ROWM,COLM,bitOf,getBit,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,
+// ---------- move evaluation (used by the Hint button and by tools/sim.mjs) ----------
+function evalBoard(lo,hi){
+  let tight=0,trans=0,filled=0,near=0; const rowN=Array(8).fill(0), colN=Array(8).fill(0);
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    const v=getBit(lo,hi,r,c); if(v){ filled++; rowN[r]++; colN[c]++; } else { let n=0;
+      if(r===0||getBit(lo,hi,r-1,c)) n++; if(r===7||getBit(lo,hi,r+1,c)) n++; if(c===0||getBit(lo,hi,r,c-1)) n++; if(c===7||getBit(lo,hi,r,c+1)) n++; if(n>=3) tight++; }
+    if(c<7&&v!==getBit(lo,hi,r,c+1)) trans++; if(r<7&&v!==getBit(lo,hi,r+1,c)) trans++; }
+  for(let i=0;i<8;i++){ if(rowN[i]>=6&&rowN[i]<8) near++; if(colN[i]>=6&&colN[i]<8) near++; }
+  return -countHoles(lo,hi)*14 - tight*1.4 - trans*.35 - filled*.15 + near*.8;
+}
+// every legal (piece, placement) ranked best first; moves that leave the rest of the set unplaceable sink to the bottom
+function rankMoves(lo,hi,shapes){
+  const opts=[];
+  shapes.forEach((sh,i)=>{ if(!sh) return; const rest=shapes.filter((q,j)=>q&&j!==i);
+    for(const pl of sh.pl){ if((lo&pl.lo)||(hi&pl.hi)) continue; const nb=applyMove(lo,hi,pl.lo,pl.hi); opts.push({i,pl,nb,rest,v:0}); } });
+  for(const o of opts){
+    o.v=evalBoard(o.nb[0],o.nb[1])+o.nb[2]*9+(o.nb[0]===0&&o.nb[1]===0?30:0);
+    if(o.rest.length&&solveCount(o.nb[0],o.nb[1],o.rest,1,2500,false,false).count===0) o.v-=400;
+  }
+  return opts.sort((a,b)=>b.v-a.v);
+}
+const api={evalBoard,rankMoves,TUNE,pickWeighted,pickBase,veinCells,dressPiece,N:8,NB,SHAPE_STRS,SHAPES,SHAPE_BY_KEY,CHECK3,FAMSIZE,FAMW,pc,ROWM,COLM,bitOf,getBit,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,
   sizeWeight,pickIdx,targetWays,assistOf,BIG_SET,BIG_IDS,chooseSet};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.DeepcoreCore=api;
 })(typeof self!=='undefined'?self:globalThis);
