@@ -84,3 +84,10 @@ Judgment calls I made without asking, so you can review and ask me to change or 
 - **Hint** is now a lamp-coloured bulb with a question mark in the top bar (greyed when you lack coal); header buttons are 40 wide to make room.
 - **Status bar:** I could not reproduce the top-of-screen shadow without your phone. My best guess is the translucent status bar style; I switched the installed app to a solid black one. If it persists, send a screenshot.
 - **Music:** C major pentatonic, about 77 bpm, soft marimba-like plucks with a quiet pad, bass notes and an echo; never repeats. Still off by default.
+
+## Playtest round 2 (v1.2.0)
+- **Music volume** is fixed at about a third of the old level (no separate music slider; the one volume slider still scales everything). The bell sound was a bright overtone an octave above each melody note; it is removed, the melody sits lower, and notes start softer.
+- **Wood stars** apply to any board with no ore or gems at all, which today is only Forest 1-1. Thresholds 30 / 42 wood: between what the simulator's typical player has at the clear (about 30) and what a quick in-browser bot had (about 20). Bonus "ore" from combos also pays wood on that board.
+- **Combo display:** the corner badge is removed. A clear shows "+points ×combo" where the lines cleared; the separate "Combo ×n" banner is gone too (it said the same thing). Double/Triple/Quad names still show.
+- **Wording:** BANK IT → FINISH, KEEP GOING → KEEP MINING, the bar's BANK → FINISH, "your ore is banked" → "your ore is safe in your stash". (Internally the code still calls it banking.)
+- **Tray bug:** when the placement that reached the target cleared lines, the game stopped before redrawing the tray, so that piece stayed visible but was already used. The tray now refreshes first, and if KEEP MINING leaves no playable piece, the cave-in happens straight away.

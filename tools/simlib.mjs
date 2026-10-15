@@ -77,16 +77,16 @@ export function runBoard(zi, bj, seed, strip, fails = 0, cont = null) {
       p.cells.forEach(([r, c], k) => { mats[(mv.pl.r0 + r) * 8 + mv.pl.c0 + c] = p.mats[k]; });
       const kill = new Set(); for (let r = 0; r < 8; r++) { let f = true; for (let c = 0; c < 8; c++) if (!mats[r * 8 + c]) f = false; if (f) for (let c = 0; c < 8; c++) kill.add(r * 8 + c); }
       for (let c = 0; c < 8; c++) { let f = true; for (let r = 0; r < 8; r++) if (!mats[r * 8 + c]) f = false; if (f) for (let r = 0; r < 8; r++) kill.add(r * 8 + c); }
-      const playGot = {}; kill.forEach(k => { const m = mats[k]; if (m && D.YIELD_W[m]) playGot[m] = (playGot[m] || 0) + 1; });
+      const playGot = {}; kill.forEach(k => { const m = mats[k]; if (m && D.YIELD_W[m]) playGot[m] = (playGot[m] || 0) + 1; else if (m === 'log') playGot.wood = (playGot.wood || 0) + 1; });
       let n = 0; for (let r = 0; r < 8; r++) { let f = true; for (let c = 0; c < 8; c++) if (!mats[r * 8 + c]) f = false; if (f) n++; } for (let c = 0; c < 8; c++) { let f = true; for (let r = 0; r < 8; r++) if (!mats[r * 8 + c]) f = false; if (f) n++; }
       if (n) { combo++; since = 0; clearMoves++; if (n > 1) multi++; kill.forEach(k => { const m = mats[k]; if (m) { score += VAL[m] || 0; const res = m === 'log' ? 'wood' : (m === 'grass' ? 'dirt' : m); got[res] = (got[res] || 0) + 1; mats[k] = null; } }); score += D.lineScore(n, combo); }
       else { since++; if (since >= 3) combo = 0; }
       [lo, hi] = bitsOf(mats);
       if (n && lo === 0 && hi === 0) { score += Math.max(10, Math.round((strip ? D.ZONES[zi].target : def.target) * .15 / 10) * 10); allClears++; bigNext = true; }
-      if (n) { const acNow = lo === 0 && hi === 0; Object.entries(D.bonusOre(playGot, D.bonusPct(n, combo, acNow))).forEach(([k, v]) => { got[k] = (got[k] || 0) + v; }); }
+      if (n) { const acNow = lo === 0 && hi === 0; Object.entries(D.bonusOre(playGot, D.bonusPct(n, combo, acNow), def.starWood)).forEach(([k, v]) => { got[k] = (got[k] || 0) + v; }); }
       if (cont && !strip) {
-        if (!atClear && score >= def.target) atClear = { y: D.yieldOf(got), moves, score };
-        if (atClear) { const y = D.yieldOf(got); trace.push([moves, y]); if (y >= cont.cap || moves > 700) return { win: true, score, moves, deals, got, target: def.target, allClears, multi, clearMoves, atClear, trace, died: false }; }
+        if (!atClear && score >= def.target) atClear = { y: D.yieldOf(got, def.starWood), moves, score };
+        if (atClear) { const y = D.yieldOf(got, def.starWood); trace.push([moves, y]); if (y >= cont.cap || moves > 700) return { win: true, score, moves, deals, got, target: def.target, allClears, multi, clearMoves, atClear, trace, died: false }; }
       } else
       if (strip ? Object.entries(strip).every(([k, v]) => (got[k] || 0) >= v) : score >= def.target) return { win: true, score, moves, deals, got, target: def.target, allClears, multi, clearMoves };
       if (pcs.every((q, i) => !q) ) break;

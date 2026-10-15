@@ -39,7 +39,7 @@ check(s.screen === 'map', 'clearing returns to the map');
 await board(4);
 await T(() => window.__deepcore.test.give({ ruby: 24, diamond: 2 }));
 await page.tap('#anvilBtn'); await page.waitForTimeout(200);
-const names = await page.$$eval('.recipe .nm', e => e.map(x => x.textContent)); check(names.join() === 'Blast charge,Sledgehammer,Rescue Potion,Luck Tonic', 'anvil lists four recipes: ' + names);
+const names = await page.$$eval('.recipe .nm', e => e.map(x => x.textContent)); check(names.join() === 'Blast Charge,Sledgehammer,Rescue Potion,Luck Tonic', 'anvil lists four recipes: ' + names);
 await (await page.$$('.recipe button.go'))[3].click(); await page.waitForTimeout(150);
 s = await st(); check(s.crafted.luck === 1 && s.bank.ruby === 12 && s.bank.diamond === 1, 'Luck Tonic crafted for 12 ruby + 1 diamond');
 check(await T(() => document.querySelectorAll('#dockSlots .tool:not(.empty)').length) === 1, 'the crafted Luck Tonic sits in a dock slot');

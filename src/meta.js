@@ -84,21 +84,21 @@ function createMusic(ctx,dest){
   const note=i=>scale[((i%5)+5)%5]+12*Math.floor(i/5);
   function start(){
     if(on) return; on=true;
-    const out=ctx.createGain(); out.gain.value=0; out.connect(dest); out.gain.linearRampToValueAtTime(.9,ctx.currentTime+2.5);
+    const out=ctx.createGain(); out.gain.value=0; out.connect(dest); out.gain.linearRampToValueAtTime(.32,ctx.currentTime+2.5);   // well under the sound effects
     const dry=ctx.createGain(); dry.gain.value=.8; dry.connect(out);
     const echo=ctx.createDelay(1.5); echo.delayTime.value=BEAT*.75; const fb=ctx.createGain(); fb.gain.value=.3;
-    const elp=ctx.createBiquadFilter(); elp.type='lowpass'; elp.frequency.value=2400; echo.connect(elp); elp.connect(fb); fb.connect(echo); elp.connect(out);
+    const elp=ctx.createBiquadFilter(); elp.type='lowpass'; elp.frequency.value=1400; echo.connect(elp); elp.connect(fb); fb.connect(echo); elp.connect(out);
     const send=ctx.createGain(); send.gain.value=.5; send.connect(echo);
     const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1500; lp.Q.value=.3; lp.connect(dry); lp.connect(send);
     nodes=[out,dry,echo,fb,elp,send,lp];
     const voice=(freq,t,len,type,peak,bright)=>{ const o=ctx.createOscillator(), g=ctx.createGain(), f=ctx.createBiquadFilter();
-      o.type=type; o.frequency.value=freq; f.type='lowpass'; f.frequency.value=bright; g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(peak,t+.01);
+      o.type=type; o.frequency.value=freq; f.type='lowpass'; f.frequency.value=bright; g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(peak,t+.025);
       g.gain.exponentialRampToValueAtTime(.0001,t+len); o.connect(f); f.connect(g); g.connect(dry); g.connect(send); o.start(t); o.stop(t+len+.05); };
-    const pluck=(semi,t,peak)=>{ voice(hz(semi),t,1.6,'triangle',peak,2600); voice(hz(semi)*2,t,.5,'sine',peak*.35,3000); };   // a soft marimba / kalimba-like tone
+    const pluck=(semi,t,peak)=>{ voice(hz(semi),t,1.5,'triangle',peak,1200); voice(hz(semi),t,1.8,'sine',peak*.6,900); };   // a soft, round marimba-like tone (no bright overtone)
     const pad=(c,t,len)=>{ c.tones.slice(0,3).forEach((s,k)=>{ const o=ctx.createOscillator(), g=ctx.createGain(); o.type='sine'; o.frequency.value=hz(s-12); o.detune.value=(k-1)*5;
       g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.07,t+1.4); g.gain.setValueAtTime(.07,t+len-1.6); g.gain.linearRampToValueAtTime(0,t+len+.4);
       o.connect(g); g.connect(lp); o.start(t); o.stop(t+len+.5); }); };
-    let bar=0, step=0, pos=14, next=ctx.currentTime+.4;
+    let bar=0, step=0, pos=6, next=ctx.currentTime+.4;
     const plan=()=>{
       if(!on) return;
       while(next<ctx.currentTime+2.5){
@@ -109,9 +109,9 @@ function createMusic(ctx,dest){
         const quiet=(Math.floor(bar/2)%4===3&&step%8>=4);                                 // let the music breathe at the end of each loop
         if(!quiet){
           [0,.5].forEach(off=>{ if(Math.random()<(off?.28:.62)){
-            const goal=7+Math.round(Math.random()*5);                                     // wander gently around the middle of the range
-            pos+=Math.max(-2,Math.min(2,Math.round((goal-pos)*.4+(Math.random()*3-1.5)))); pos=Math.max(4,Math.min(14,pos));
-            pluck(note(pos),next+off*BEAT,.1+Math.random()*.04); } });
+            const goal=4+Math.round(Math.random()*4);                                     // wander gently around the middle of the range
+            pos+=Math.max(-2,Math.min(2,Math.round((goal-pos)*.4+(Math.random()*3-1.5)))); pos=Math.max(2,Math.min(9,pos));
+            pluck(note(pos),next+off*BEAT,.07+Math.random()*.03); } });
         }
         step++; if(step%4===0) bar++; next+=BEAT;
       }

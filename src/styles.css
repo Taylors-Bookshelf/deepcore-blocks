@@ -263,12 +263,6 @@ button.tool{cursor:grab;touch-action:none}
 @media (prefers-reduced-motion: reduce){.sheet,.shake,.cracks,.land,.shard,.dust{animation-duration:.01s}}
 
 /* ---------- release 4: stars and banking, combo meter, hint, cave-in details ---------- */
-#comboMeter{position:absolute;right:10px;top:10px;z-index:3;display:flex;align-items:center;gap:6px;padding:2px 8px;border-radius:12px;background:rgba(12,13,16,.72);box-shadow:inset 0 0 0 1px var(--lamp);pointer-events:none}
-#comboMeter b{font-family:var(--font-display);font-size:22px;color:var(--lamp);font-weight:400;line-height:1}
-#comboMeter .pips{display:flex;gap:3px}
-#comboMeter .pips i{width:8px;height:8px;border-radius:50%;background:#2f3136;box-shadow:inset 0 0 0 1px var(--panel-line)}
-#comboMeter .pips i.on{background:var(--lamp);box-shadow:0 0 6px var(--lamp)}
-#comboMeter.pulse{animation:cmPulse .3s}
 @keyframes cmPulse{40%{transform:scale(1.15)}}
 #hintBtn{color:var(--lamp)}
 #hintBtn:disabled{color:#8a8d94;opacity:1}

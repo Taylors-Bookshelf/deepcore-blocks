@@ -47,7 +47,7 @@ await T(() => { const t = window.__deepcore.test; t.start(5); t.give({ coal: 99,
 await page.waitForTimeout(2400);
 await page.click('#anvilBtn'); await page.waitForTimeout(150);
 const names = await page.$$eval('.recipe .nm', e => e.map(x => x.textContent));
-if (names.join() !== 'Blast charge,Sledgehammer,Rescue Potion,Luck Tonic') fail('unexpected recipes: ' + names);
+if (names.join() !== 'Blast Charge,Sledgehammer,Rescue Potion,Luck Tonic') fail('unexpected recipes: ' + names);
 for (let k = 0; k < 3; k++) { await (await page.$$('.recipe button.go'))[0].click(); await page.waitForTimeout(80); }
 const full = await page.$$eval('.recipe button.go', e => e.map(b => !b.disabled && /Make room/.test(b.textContent)));
 if (!full.every(Boolean)) fail('with three specials in the dock every affordable craft button should say Make room');

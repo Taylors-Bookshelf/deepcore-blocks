@@ -82,15 +82,15 @@ check((await st()).day.stars[6] === 3, 'a worse replay never lowers the stars yo
 // 5b. bonus ore: a two-line clear pays +25% of the ore mined in that play
 { const sq = C.SHAPES.findIndex(sh => sh.w === 2 && sh.h === 2 && sh.cells.length === 4);
   await board(4); await tt('setCollected', {});
-  await T((sq) => { const t = window.__deepcore.test; for (const r of [6, 7]) for (let c = 0; c < 8; c++) t.setCell(r, c, c < 6 ? 'coal' : null);
+  await T((sq) => { const t = window.__deepcore.test; for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) t.setCell(r, c, null); t.setCell(0, 0, 'stone'); for (const r of [6, 7]) for (let c = 0; c < 8; c++) t.setCell(r, c, c < 6 ? 'coal' : null);
     t.setPieces([{ cells: [[0, 0], [0, 1], [1, 0], [1, 1]], h: 2, w: 2, mats: ['stone', 'stone', 'stone', 'stone'], sid: sq }, null, null]); t.place(0, 6, 6); }, sq);
   await page.waitForTimeout(2500); const col = await T(() => window.__deepcore.test.collected());
   check(col.coal === 15, `a double clear that mined 12 coal gives +3 bonus coal (collected ${col.coal})`); }
-// 6. combo meter
+// 6. combos
 await board(4);
 for (let k = 0; k < 2; k++) { await clearRow(); await page.waitForTimeout(2300); }
 s = await st(); check(s.combo >= 2, `two clears in a row make a combo (${s.combo})`);
-check(await T(() => !document.getElementById('comboMeter').hidden && /×\d/.test(document.getElementById('cmN').textContent) && document.querySelectorAll('#comboMeter .pips i.on').length === 3), 'the combo meter shows the multiplier and three lit pips');
+check(await T(() => !document.getElementById('comboMeter')), 'there is no permanent combo badge on the board');
 // 7. near-miss cave-in screen
 await board(5); await tt('setScore', Math.round(tg5 * .93)); await tt('gameOver'); await page.waitForTimeout(1500);
 const over = await T(() => [document.getElementById('overWhy').textContent, document.getElementById('overTip').textContent, document.getElementById('overBar').firstElementChild.style.width]);

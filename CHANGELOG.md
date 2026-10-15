@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0 — playtest round 2
+- Music: the bright bell-like overtone is gone (rounder, lower plucks) and the music plays at about a third of its old level, well under the sound effects.
+- The first Forest board has no ore, so its stars come from wood (30 for two stars, 42 for three).
+- No more combo badge on the board: the multiplier now shows with the points when lines clear ("+136 ×4").
+- "Bank" wording replaced: FINISH and KEEP MINING.
+- Fixed: the piece that reached a board's target stayed drawn in the tray after KEEP MINING and could not be picked up.
+- Field guide brought up to date (stars, hint, dock, 24 boards); "Blast Charge" spelled consistently.
+
 ## 1.1.0 — playtest round 1
 - Stars now come from ore: the clear is 1 star, and 2 and 3 stars need an "ore value" (coal/copper 1, iron/ruby 2, gold 3, emerald 5, diamond 6) mined on that board. If you already have the ore for 3 stars when the board clears, it banks itself with no question. A small chip by the score bar shows your ore value; after the clear the bar tracks it.
 - Combo bonus ore: multi-line clears, long combos and All Clears also pay extra ore from that play (+25% for 2 lines up to +100% for 5, +10%/+25% for combos of 3/5+, +100% for All Clear, capped at +150%; gems capped at +1 per play).

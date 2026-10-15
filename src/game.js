@@ -46,7 +46,7 @@ const MATS = {
   diamond: {kind:'gem', cut:'brilliant', ore:'#7fe8ff', hi:'#ffffff', facets:{X:'#0e3446',L:'#ffffff',H:'#c2f4ff',M:'#5cc8ee',D:'#2a86b8'}, drop:'diamond'},
   emerald: {kind:'gem', cut:'step', ore:'#22c25a', hi:'#b6ffc9', facets:{X:'#05301a',L:'#c8ffd6',H:'#4fe07f',M:'#17a64a',D:'#0a6a2c'}, drop:'emerald'},
   // special blocks — ultra-rare, Medium and up; trigger when their line clears
-  blast:   {kind:'special', gen:'blast',    drop:null, name:'Blast charge',    pts:250},
+  blast:   {kind:'special', gen:'blast',    drop:null, name:'Blast Charge',    pts:250},
   prism:   {kind:'special', gen:'prism',    drop:null, name:'Prism stone',       pts:400},
   fossil:  {kind:'special', gen:'fossil',   drop:null, name:'Fossil',          pts:1000},
   treasure:{kind:'special', gen:'treasure', drop:null, name:'Buried treasure', pts:0},
@@ -419,7 +419,7 @@ function buildGoals(){
   if(levelDef(level).strip){ $('goalsBar').innerHTML='<div class="stripGoals" aria-label="Strip mine goals"></div>'; updateStripGoals(); return; }
   if(reached){
     const sa=starAt(), marks=['0',(sa[0]/sa[1]*100).toFixed(1),'100'].map((x,k)=>`<span class="mkline" style="left:${x}%"></span><span class="mk" id="mk${k}" style="left:${x}%;${k===2?'transform:translateX(-100%)':k===0?'transform:none;left:3px':''}">${'★'.repeat(k+1)}</span>`).join('');
-    $('goalsBar').innerHTML=`<div class="pbar over" role="progressbar" aria-label="Ore value, playing for stars" style="flex:1"><div class="pfill" id="pfill"></div>${marks}<div class="ptxt"><span id="pscore">0</span><span id="pgoal"></span></div></div><button id="bankBtn" class="go" type="button" aria-label="Bank the board and finish">BANK</button>`;
+    $('goalsBar').innerHTML=`<div class="pbar over" role="progressbar" aria-label="Ore value, playing for stars" style="flex:1"><div class="pfill" id="pfill"></div>${marks}<div class="ptxt"><span id="pscore">0</span><span id="pgoal"></span></div></div><button id="bankBtn" class="go" type="button" aria-label="Finish the board and keep your stars">FINISH</button>`;
     $('bankBtn').onclick=()=>{ if(busy||over||uiOpen()) return; bankBoard(); };
     updateBar(); return;
   }
@@ -434,26 +434,22 @@ function updateStripGoals(){
 }
 function updateGoals(){}
 const starAt=()=>levelDef(level).starAt;
-const yieldNow=()=>yieldOf(collected);
+const yUnit=()=>levelDef(level).starWood?'wood':'ore value';
+const yieldNow=()=>yieldOf(collected,levelDef(level).starWood);
 const starsNow=()=>starsFromYield(yieldNow(),starAt());
 function updateBar(){
   const el=$('pfill'); if(!el) return; const tg=levelDef(level).target, [y2,y3]=starAt(), y=yieldNow();
   if(reached){ const next=y<y2?y2:y<y3?y3:null;
-    el.style.width=(Math.min(1,y/y3)*100)+'%'; $('pscore').textContent=y.toLocaleString(); $('pgoal').textContent=next?'/ '+next.toLocaleString()+' ore value':'MAX';
+    el.style.width=(Math.min(1,y/y3)*100)+'%'; $('pscore').textContent=y.toLocaleString(); $('pgoal').textContent=next?'/ '+next.toLocaleString()+' '+yUnit():'MAX';
     [0,y2,y3].forEach((x,k)=>{ const m=$('mk'+k); if(m) m.classList.toggle('on',k===0||y>=x); }); return; }
   const f=Math.min(1,shown/tg);
   el.style.width=(f*100)+'%'; $('pscore').textContent=shown.toLocaleString(); $('pgoal').textContent='/ '+tg.toLocaleString(); el.parentElement.classList.toggle('full',f>=1);
   el.parentElement.setAttribute('aria-valuenow',shown); el.parentElement.setAttribute('aria-valuemax',tg);
   const chip=$('starChip'); if(chip){ const need=y<y2?y2:y<y3?y3:0; $('scStars').textContent=y<y2?'★★':y<y3?'★★★':'★★★'; $('scTxt').textContent=need?`${y}/${need}`:'MAX'; chip.classList.toggle('max',!need);
-    chip.title=`Ore value ${y}. Mine ${y2} for two stars and ${y3} for three.`; }
+    chip.title=levelDef(level).starWood?`Wood ${y}. Collect ${y2} for two stars and ${y3} for three.`:`Ore value ${y}. Mine ${y2} for two stars and ${y3} for three.`; }
 }
 let shown=0;
-let lastCombo=0;
-function updateComboMeter(){
-  const m=$('comboMeter'); if(!m) return; const show=combo>=2&&!over&&screen==='game'; m.hidden=!show; if(!show){ lastCombo=combo; return; }
-  $('cmN').textContent='×'+combo; const lit=Math.max(0,3-sinceClear); m.querySelectorAll('.pips i').forEach((e,i)=>e.classList.toggle('on',i<lit));
-  if(combo>lastCombo){ m.classList.remove('pulse'); void m.offsetWidth; m.classList.add('pulse'); } lastCombo=combo;
-}
+function updateComboMeter(){}   // the multiplier is shown with the points when lines clear, not as a permanent badge
 function updateHUD(){ $('best').textContent=(Object.values(dayState.scores).reduce((a,b)=>a+b,0)+(dayState.bonus||0)).toLocaleString(); $('zoneName').textContent=levelDef(level).zoneName; $('bestPlus').textContent=screen==='game'&&shown>0&&!reached?'+'+shown.toLocaleString():''; $('level').textContent=boardLabel(level-1); const t=tierOf(difficulty()); $('tier').textContent=t; $('tier').dataset.t=t; }
 function tickScore(){ if(shown<score){ shown+=Math.max(1,Math.ceil((score-shown)/8)); if(shown>score) shown=score; } else if(shown>score) shown=score; updateBar(); const bp=$('bestPlus'), t=screen==='game'&&shown>0&&!reached?'+'+shown.toLocaleString():''; if(bp.textContent!==t) bp.textContent=t; }
 
@@ -874,11 +870,11 @@ function floatText(x,y,text,col){
 }
 let undo=null;
 // A multi-line clear, a long combo or an All Clear pays out extra ore as well as points: a share of the ore mined in that play.
-function oreBonus(lineOre,pct){
-  const b=bonusOre(lineOre,pct), keys=Object.keys(b); if(!keys.length) return;
+function oreBonus(lineOre,pct,wood){
+  const b=bonusOre(lineOre,pct,wood), keys=Object.keys(b); if(!keys.length) return;
   keys.forEach(k=>{ collected[k]=(collected[k]||0)+b[k]; if(!practice) hand[k]=(hand[k]||0)+b[k]; });
   const B=boardC.getBoundingClientRect(); const bx=B.left+B.width/2, by=B.top+B.height*.42;
-  floatText(bx,by,'Bonus ore: '+keys.map(k=>`+${b[k]} ${DROPS[k][0].toLowerCase()}`).join('  '),'#8bf0a0');
+  floatText(bx,by,'Bonus: '+keys.map(k=>`+${b[k]} ${DROPS[k][0].toLowerCase()}`).join('  '),'#8bf0a0');
   let q=0; keys.forEach(k=>{ for(let j=0;j<Math.min(b[k],4);j++,q++) flyItem(ITEM[k],k,bx+(Math.random()-.5)*60,by,q*45,(FX[k]&&FX[k][1])||'#fff',()=>{ updateStash([k]); blip(880+Math.random()*300,.05,'sine',.035); },true); });
   updateStash(keys); updateBar();
 }
@@ -905,12 +901,12 @@ async function place(i,r0,c0){
       if(m==='blast'){ blasts.push([r,c]); return; }
       if(MATS[m].kind==='special'){ hit.push(specialHit(m,r,c,ctx)); return; }
       mineCell(r,c,ctx); });
-    const lineOre={}; Object.keys(YIELD_W).forEach(k=>{ const d=(collected[k]||0)-(oreBefore[k]||0); if(d>0) lineOre[k]=d; });
+    const woodStars=levelDef(level).starWood, lineOre={}; [...Object.keys(YIELD_W),...(woodStars?['wood']:[])].forEach(k=>{ const d=(collected[k]||0)-(oreBefore[k]||0); if(d>0) lineOre[k]=d; });
     score+=lineScore(n,combo);
     flushCtx(ctx);
     { const B=boardC.getBoundingClientRect(); const cr=rows.length?rows.reduce((a,b)=>a+b,0)/rows.length:3.5, cc=cols.length?cols.reduce((a,b)=>a+b,0)/cols.length:3.5;
-      floatText(B.left+(cc+.5)*cell,B.top+(cr+.5)*cell,`+${score-clearStart}`,'#fff3c4'); }
-    const msgs=ctx.msgs.slice(); if(n>1||combo>1) msgs.push(n>1 ? `${lineName(n)}${combo>1?'  ×'+combo:''}` : `Combo ×${combo}`);
+      floatText(B.left+(cc+.5)*cell,B.top+(cr+.5)*cell,`+${score-clearStart}${combo>1?'  ×'+combo:''}`,'#fff3c4'); }
+    const msgs=ctx.msgs.slice(); if(n>1) msgs.push(lineName(n));   // the combo multiplier rides with the points, see floatText above
     if(!hit.length && !blasts.length) msgs.slice(0,3).forEach(showCombo);
     [392,494,587,784].slice(0,Math.min(4,1+n)).forEach((f,j)=>blip(f*(1+Math.min(combo,6)*.06),.12,'triangle',.06,j*.06));
     shake(false);
@@ -918,7 +914,7 @@ async function place(i,r0,c0){
       life.seen.blast=true; let count=0; for(const [r,c] of blasts) if(grid[r][c]==='blast') count+=await detonate(r,c,hit);
       const pts=MATS.blast.pts*count; score+=pts; A.track('special_triggered',{m:'blast',count});
       await skippable(REDUCE?100:350);
-      showSkip(); await skippable(playSplash(count>1?`Blast charge ×${count}`:'Blast charge',`+${pts}`,'blast'));
+      showSkip(); await skippable(playSplash(count>1?`Blast Charge ×${count}`:'Blast Charge',`+${pts}`,'blast'));
     }
     for(const sp of hit){
       A.track('special_triggered',{m:sp.m,pts:sp.pts,res:sp.res||null,n:sp.n||0});
@@ -929,14 +925,16 @@ async function place(i,r0,c0){
       const ac=allClearBonus(); score+=ac; bigNext=true; A.track('all_clear',{bonus:ac,score_after:score,target:levelDef(level).target});
       showSkip(); playAllClear(ac); await skippable(REDUCE?600:1300);
     }
-    oreBonus(lineOre,bonusPct(n,combo,grid.every(row=>row.every(v=>!v))));
+    oreBonus(lineOre,bonusPct(n,combo,grid.every(row=>row.every(v=>!v))),woodStars);
   } else { sinceClear++; if(sinceClear>=3) combo=0; }
   busy=false; $('skipHint').hidden=true; skipFlag=false;
+  // refresh the tray before anything else: a clear that reaches the target used to return early and leave the placed piece drawn in its slot
+  if(pieces.every(q=>!q)) dealSet();
+  drawTray();
   { const dd=levelDef(level);
     if(dd.strip){ if(stripMet()){ completeStrip(); return; } }
     else if(!reached){ if(score>=dd.target){ reachTarget(); return; } }
     else if(starsNow()>=3){ bankBoard(); return; } }   // three stars: banked automatically
-  if(pieces.every(q=>!q)) dealSet();
   updateHUD(); drawTray(); updateComboMeter(); clearHint(); updateHintBtn(); tutorAfterPlace(n);
   if(pieces.every(q=>!q||!canPlaceAnywhere(q))) gameOver();
   saveBoard(); saveProfile();
@@ -972,10 +970,10 @@ function showClearPrompt(){
   sh.append(el('div','shHandle'));
   const [y2,y3]=starAt(), y=yieldNow();
   sh.append(el('div','shLabel','BOARD CLEARED'),el('div','shTitle',`${score.toLocaleString()} points`));
-  sh.append(el('div','shBody',`Your ore is banked. Stars come from ore value: mine ${y2} for two stars and ${y3} for three (you have ${y}). Each extra star adds bonus points. If you cave in you keep the clear, but lose the ore you gather from here.`));
-  const row=el('div','shStars'); [0,y2,y3].forEach((x,k)=>{ const got=k===0||y>=x; const b=el('div','shStar'+(got?' got':'')); b.append(el('b',undefined,'★'.repeat(k+1)),el('span',undefined,k===0?'Cleared':`${Math.min(y,x)}/${x} ore value`)); row.append(b); }); sh.append(row);
-  const btns=el('div','shBtns'), keep=el('button','alt','KEEP GOING'), bankb=el('button','go','BANK IT'); keep.id='kpGo'; bankb.id='kpBank'; keep.type=bankb.type='button'; bankb.style.flex='1.4'; btns.append(keep,bankb); sh.append(btns);
-  keep.onclick=()=>{ closeSheet(); decided=true; busy=false; buildGoals(); updateBar(); saveBoard(); A.track('keep_going',{score,target:dd.target}); };
+  sh.append(el('div','shBody',(levelDef(level).starWood?`Your haul is safe in your stash. On this board stars come from wood: collect ${y2} for two stars and ${y3} for three (you have ${y}).`:`Your ore is safe in your stash. Stars come from ore value: mine ${y2} for two stars and ${y3} for three (you have ${y}).`)+` Each extra star adds bonus points. If you cave in you keep the clear, but lose the ore you gather from here.`));
+  const row=el('div','shStars'); [0,y2,y3].forEach((x,k)=>{ const got=k===0||y>=x; const b=el('div','shStar'+(got?' got':'')); b.append(el('b',undefined,'★'.repeat(k+1)),el('span',undefined,k===0?'Cleared':`${Math.min(y,x)}/${x} ${yUnit()}`)); row.append(b); }); sh.append(row);
+  const btns=el('div','shBtns'), keep=el('button','alt','KEEP MINING'), bankb=el('button','go','FINISH'); keep.id='kpGo'; bankb.id='kpBank'; keep.type=bankb.type='button'; bankb.style.flex='1.4'; btns.append(keep,bankb); sh.append(btns);
+  keep.onclick=()=>{ closeSheet(); decided=true; busy=false; buildGoals(); updateBar(); drawTray(); updateHintBtn(); saveBoard(); if(pieces&&pieces.every(q=>!q||!canPlaceAnywhere(q))) gameOver(); A.track('keep_going',{score,target:dd.target}); };
   bankb.onclick=()=>{ closeSheet(); bankBoard(); };
   $('sheetScrim').hidden=false;
 }
@@ -1068,7 +1066,7 @@ function showOver(){
   const dd=levelDef(level), tg=dd.target||0; $('finalScore').textContent=score.toLocaleString();
   if(reached){
     $('overWhy').textContent='You keep your clear. The ore you gathered after it is lost.'; $('overBar').firstElementChild.style.width='100%';
-    $('finalNote').textContent=''; $('overTip').textContent='Next time, bank it when the board gets tight.'; $('retry').textContent='Practice again'; $('rescueBtn').hidden=true;
+    $('finalNote').textContent=''; $('overTip').textContent='Next time, tap FINISH when the board gets tight.'; $('retry').textContent='Practice again'; $('rescueBtn').hidden=true;
   } else {
     const pct=tg?Math.min(100,Math.round(100*score/tg)):0, short=Math.max(0,tg-score), fails=(dayState.fails||{})[level-1]||0;
     $('overWhy').textContent=dd.strip?`No room for the next block.`:pct>=85?`So close! ${short.toLocaleString()} points short of ${tg.toLocaleString()}.`:`${pct}% of the way: ${short.toLocaleString()} points short of ${tg.toLocaleString()}.`;
@@ -1308,10 +1306,10 @@ const INFO_TABS={
     b.append(infoEl('h3','CAVE-IN'),infoEl('p',`If none of your three pieces can fit anywhere, the cave collapses and the board ends. Ore you hauled on that attempt is lost, so keep your options open.`));
     b.append(infoEl('h3','HAULING ORE'),infoList([`Ore, gems and wood you mine on a board show up under the stash as a green +number. That's your haul for this attempt.`,`Clear the board and the haul is added to your stash. Cave in without a Rescue Potion and it is lost, so a risky board costs you.`,`You can only craft with what's already in the stash, not with the current haul.`,`Replaying a board you've already cleared is a practice run: you can beat your best score, but you collect no ore.`]));
     b.append(infoEl('h3','SCORING'),infoList([`Every block you place scores a point, and every block you mine scores its value (see Resources).`,`Clearing several lines at once, or clearing on back-to-back turns, multiplies the bonus.`,`"Perfect!" (+50) means yours was the only placement that kept the whole tray playable. "Great fit!" (+25) means one of two or three.`,`Clearing 2, 3 or 4 lines at once pays a Double, Triple or Quad bonus on top.`,`All Clear (an empty board) pays a bonus worth 15% of the board's target, then deals a big easy set.`,`If you cave in twice on the same board, the dealer starts to go easier on you.`]));
-    b.append(infoEl('h3','STARS'),infoList([`Reaching the target clears the board and banks your ore. Then you can BANK IT, or keep playing for stars: 2 stars at 130% of the target, 3 at 170%.`,`Each star after the first adds bonus points to your day. At 3 stars the board banks itself.`,`Risk: if you cave in while playing on, you keep the clear but lose the ore gathered since.`,`The green dots by the board count the moves left before a combo resets.`]));
-    b.append(infoEl('h3','HINT AND DAILY TWIST'),infoList([`The bulb button above the tray spends 3 coal to show a good move.`,`Every day has one twist, such as Gold Rush or Bright Lamps. It's shown on the map and the home screen.`]));
+    b.append(infoEl('h3','STARS'),infoList([`Reaching the target clears the board: that's 1 star, and your ore is safe in your stash.`,`2 and 3 stars come from ore value: how much ore and gems you mined on that board (coal and copper 1, iron and ruby 2, gold 3, emerald 5, diamond 6). On the first Forest board, with no ore yet, wood counts instead. The chip next to the score bar shows how close you are.`,`Already have the ore for 3 stars when the board clears? It finishes on its own. Otherwise choose FINISH, or KEEP MINING for more stars. Each star after the first adds bonus points to your day.`,`Risk: if you cave in while you keep mining, you keep the clear but lose the ore gathered since.`,`Multi-line clears, long combos and All Clears also pay bonus ore: a share of the ore mined in that move.`]));
+    b.append(infoEl('h3','HINT AND DAILY TWIST'),infoList([`The bulb with a question mark in the top bar spends 3 coal to show a good move.`,`Every day has one twist, such as Gold Rush or Bright Lamps. It's shown on the map and the home screen.`]));
     b.append(infoEl('h3','HOW TO GET BETTER'),infoList([`Look at all three pieces before you place any. Plan the order.`,`Keep one row and one column mostly open so long bars still fit.`,`Avoid sealing off single empty cells or tiny pockets; they can only be filled by a matching piece, if one ever comes.`,`Build rows and columns up to one piece away from full, then finish several at once for a combo.`,`Gold glow under your piece means the drop will clear a line.`,`Save Blast Charges and Jackhammers for tight spots, not to pad your score.`]));
-    b.append(infoEl('h3','TOP BAR'),infoList([`TODAY is the total of your best scores on boards you've cleared since the last reset. BOARD is the one you're on, with its difficulty.`,`The map resets at midnight Pacific time. Every day brings a fresh set of 20 boards.`]));
+    b.append(infoEl('h3','TOP BAR'),infoList([`Today is the total of your best scores on boards you've cleared since the last reset. The badge on the left is the board you're on, with its zone and difficulty.`,`The map resets at midnight Pacific time. Every day brings a fresh set of ${BOARD_COUNT} boards.`]));
   },
   Resources(b){
     b.append(infoEl('p',`Everything you mine counts toward your score. Ore and gems also go into your stash, which pays for crafting.`));
@@ -1321,17 +1319,17 @@ const INFO_TABS={
     BASE_INFO.forEach(([d,name,m])=>b.append(resRow(iconOf(TEX[m]),name,'Common',VAL[m],d==='wood'?usesOf('wood'):'Points only','Found in: '+zonesFor(d==='wood'?'wood':d))));
   },
   Crafting(b){
-    b.append(infoEl('h3','WHAT IS CRAFTING?'),infoEl('p',`The anvil (top of the screen, it glows when you can afford something) turns the ore in your stash into special blocks. You can hold one of each kind at a time.`));
-    b.append(infoEl('h3','HOW'),infoList([`Tap CRAFT, then tap Craft on anything you can afford. Your specials dock holds three at a time (any mix).`,`Drag a crafted Blast Charge or Sledgehammer from the strip under your tray onto one of the three pieces. It replaces the block under your finger. Tap a Luck Tonic to drink it.`,`The special fires when the line it's in clears.`]));
+    b.append(infoEl('h3','WHAT IS CRAFTING?'),infoEl('p',`The CRAFT button (right of your specials dock, under the board) turns the ore in your stash into special blocks. The dock holds three specials, in any mix.`));
+    b.append(infoEl('h3','HOW'),infoList([`Tap CRAFT, then tap Craft on anything you can afford. Your specials dock holds three at a time (any mix).`,`Drag a crafted Blast Charge or Sledgehammer from the dock onto one of the three pieces. It replaces the block under your finger. Tap a Luck Tonic to drink it.`,`The special fires when the line it's in clears.`]));
     b.append(infoEl('h3','WHAT YOU CAN CRAFT'));
     craftList().forEach(c=>{ const row=infoEl('div',undefined,'irow'); row.append(iconOf(c.item?ITEM[c.item]:(SPR[c.mat]||TEX[c.mat]))); const d=infoEl('div'); d.append(infoEl('div',c.name,'nm'),infoEl('div',c.desc,'meta'),
       infoEl('div','Costs: '+Object.entries(c.cost).map(([k,v])=>`${v} ${DROPS[k][0]}`).join(', '),'meta')); row.append(d); b.append(row); });
-    b.append(infoEl('h3','LIGHTING THE WAY'),infoList([`Going down is dark. To open the 4th board of any zone you must place 2 torches (in the Forest) or 2 lanterns (deeper). Use the Craft button on the map: a Torch is 10 coal + 5 wood, a Lantern is 20 coal + 10 copper.`,`Short on coal, copper or wood? After clearing the 3rd board of a zone, a side tunnel called the strip mine opens. Instead of a score it asks for exactly the resources you're missing. It isn't one of your 20 boards, and its score is added to your daily bonus. Once per zone each day.`]));
+    b.append(infoEl('h3','LIGHTING THE WAY'),infoList([`Going down is dark. To open the 4th board of any zone you must place 2 torches (in the Forest) or 2 lanterns (deeper). Use the Craft button on the map: a Torch is 10 coal + 5 wood, a Lantern is 20 coal + 10 copper.`,`Short on coal, copper or wood? After clearing the 3rd board of a zone, a side tunnel called the strip mine opens. Instead of a score it asks for exactly the resources you're missing. It isn't one of your ${BOARD_COUNT} boards, and its score is added to your daily bonus. Once per zone each day.`]));
     b.append(infoEl('h3','THE DAILY RESET'),infoList([`Everything resets at midnight Pacific: the map, your stash, your lights. Specials you've crafted are kept.`,`Leftover stash turns into bonus points. After clearing all ${BOARD_COUNT} boards you can spend leftovers on specials first.`]));
-    b.append(infoEl('h3','WHY IT HELPS'),infoList([`Blast Charge and Sledgehammer rescue a crowded board and score big.`,`A Rescue Potion saves you from one cave-in: it undoes your last move and deals fresh pieces, and keeps your haul.`,`A Luck Tonic: tap it under the tray to drink. For the next 7 sets of pieces the dealer favours sets that clear rows and columns. A row of green dots shows how many are left.`]));
+    b.append(infoEl('h3','WHY IT HELPS'),infoList([`Blast Charge and Sledgehammer rescue a crowded board and score big.`,`A Rescue Potion saves you from one cave-in: it undoes your last move and deals fresh pieces, and keeps your haul.`,`A Luck Tonic: tap it in the dock to drink. For the next 7 sets of pieces the dealer favours sets that clear rows and columns. A row of green dots shows how many are left.`]));
   },
   Specials(b){
-    b.append(infoEl('p',`These appear on their own inside pieces, now and then, from the Medium difficulty up. You can't craft them. When the line they sit in clears, they trigger.`));
+    b.append(infoEl('p',`These appear on their own inside pieces, now and then, more often the deeper you go (never on the easiest boards). You can't craft them. When the line they sit in clears, they trigger.`));
     [['prism','Prism Stone',`Gives 3 of an ore or gem found in the current zone, plus ${MATS.prism.pts} points.`],['fossil','Fossil',`A flat ${MATS.fossil.pts} points.`],['treasure','Buried Treasure',`A haul of ore or gems, with a better chance of gems the deeper you are, plus 200 points.`]].forEach(([m,name,desc])=>{
       const row=infoEl('div',undefined,'irow'); row.append(iconOf(TEX[m])); const d=infoEl('div'); d.append(infoEl('div',name,'nm'),infoEl('div',desc,'meta')); d.firstChild.append(infoEl('span','Special','rar Special')); row.append(d); b.append(row); });
     b.append(infoEl('p',`Specials glow so you can spot them. Try to clear their line quickly.`));
