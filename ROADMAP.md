@@ -25,10 +25,10 @@ Status key: [ ] todo · [~] in progress · [x] done and live. Every item names t
 - [x] Spec-conformance test (pixel sizes) added
 
 ## Release 3 · v0.8.0 · Specials and interaction
-- [ ] Dock holds up to 3 specials in any mix; Blast, Sledgehammer, Rescue, Luck each take a slot
-- [ ] "Make room" sheet: destroy one special to craft another; cancel spends nothing; crack, shatter and bounce animations
-- [ ] Random specials (Prism, Fossil, Treasure) stay on the board, craft-only rule for the rest
-- [ ] #19 Pickup scale animation · #20 invalid-drop return animation · #25 tap to skip long animations
+- [x] Dock holds up to 3 specials in any mix; Blast, Sledgehammer, Rescue, Luck each take a slot
+- [x] "Make room" sheet: destroy one special to craft another; cancel spends nothing; crack, shatter and bounce animations
+- [x] Random specials (Prism, Fossil, Treasure) stay on the board, craft-only rule for the rest
+- [x] #19 Pickup scale animation · #20 invalid-drop return animation · #25 tap to skip long animations
 
 ## Release 4 · v0.9.0 · Gameplay depth
 - [ ] #7 Push your luck: bank at the target or keep playing for stars

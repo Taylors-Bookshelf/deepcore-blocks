@@ -15,8 +15,8 @@ const craft = async (i) => { await (await page.$$('.recipe button.go'))[i].click
 await craft(0); await craft(0); await craft(2);
 let s = await st(); check(s.specials.join() === 'blast,blast,rescue', `crafting fills the dock in order and allows duplicates (${s.specials})`);
 const labels = await page.$$eval('.recipe button.go', e => e.map(b => b.textContent + (b.disabled ? '!' : '')));
-check(labels.every(l => /Slots full!/.test(l)), `with three specials held every craft button says "Slots full" (${labels})`);
-s = await st(); check(s.specials.length === 3 && await page.$$eval('.recipe button.go', e => e.every(b => b.disabled)), 'a fourth special cannot be crafted');
+check(labels.every(l => l === 'Make room'), `with three specials held every affordable craft button says "Make room" (${labels})`);
+s = await st(); check(s.specials.length === 3, 'the dock never holds more than three');
 await page.tap('#anvilClose');
 check(await page.evaluate(() => document.querySelectorAll('#dockSlots .tool:not(.empty)').length) === 3 && !(await page.evaluate(() => document.getElementById('anvilBtn').classList.contains('afford'))), 'three dock tiles are shown and the CRAFT glow turns off when full');
 check(await page.evaluate(() => !!document.querySelector('#dockSlots .tool[data-m="blast"] .spark')), 'the Blast Charge has its fuse spark');

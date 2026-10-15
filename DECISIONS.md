@@ -32,3 +32,10 @@ Judgment calls I made without asking, so you can review and ask me to change or 
 - **Fonts:** Silkscreen and Barlow were removed; Jersey 10 and Chakra Petch are bundled. Canvas text (combo, floating text) uses Jersey 10.
 - **Map restyle:** new rock sprites and palette; the mine-support timbers and fossil/geode decorations were redrawn because they looked wrong on the lighter rock; open nodes use the lamp yellow.
 - **Empty-cell contrast (#18):** empty cells are the package's #35383d on a #232428 well, with a visible 2pt seam; I judged the contrast fine.
+
+## Release 3 (specials and interaction)
+- **No "found a special" sheet and no toss animation.** Following your answer that Prism, Fossil and Treasure stay craft-free random drops on the board, only the craft-with-full-dock flow exists. The toss animation from the package is unused.
+- **Make room** appears whenever you tap Craft on something you can afford while the dock is full (from the anvil on the board and from the map's Craft panel). If you cannot afford it the button stays "Craft" and disabled with "Need more". The destroyed special is **not refunded**. The new special lands in the slot you destroyed.
+- **Destroy animation** follows the spec's timeline (crack and shake 450ms, shatter about 850ms, bounce-in 550ms). On the map there is no dock on screen, so the swap is instant there. The dock ignores taps while the animation runs.
+- **Pick-up animation:** the piece glides from its tray slot to your finger while growing to board size over 140ms. **Return animation:** a piece dropped somewhere invalid flies back to its slot and shrinks (190ms).
+- **Tap to skip:** tapping anywhere while a Blast Charge, special or All Clear celebration is playing skips the waiting and ends the overlay. All points and ore are still awarded. A small "Tap to skip" label shows during those sequences.

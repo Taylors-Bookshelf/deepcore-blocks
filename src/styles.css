@@ -214,3 +214,50 @@ button.tool{cursor:grab;touch-action:none}
 .ppanel p{margin:0}
 #pMedal{width:96px;height:96px;image-rendering:pixelated;animation:fresh 1s ease-out}
 @media (prefers-reduced-motion: reduce){.node.open,.node.gate,.node.fresh,#pMedal,.bob,.swing,.spark,#anvilBtn.afford{animation:none}.bigshake,.shake{animation:none}.slot.special canvas{animation:none;filter:drop-shadow(0 0 6px rgba(255,214,110,.9))}#combo.show{animation-duration:.01s}.slot canvas,#banner{transition:none}}
+
+/* ---------- make-room sheet and destroy animation (design/effects.css) ---------- */
+#sheetScrim{position:fixed;inset:0;z-index:40;background:var(--scrim);display:flex;flex-direction:column;justify-content:flex-end}
+#sheet{display:flex;flex-direction:column;gap:18px;padding:12px 20px max(env(safe-area-inset-bottom,0px),34px);border-radius:16px 16px 0 0;background:var(--panel);box-shadow:inset 0 1px 0 var(--handle);width:100%;max-width:560px;margin:0 auto}
+.sheet{animation:sheetUp .28s cubic-bezier(.2,.9,.3,1)}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
+.shHandle{align-self:center;width:36px;height:4px;border-radius:2px;background:var(--handle)}
+.shHead{display:flex;gap:14px;align-items:center}
+.shHead .tool{width:64px;height:64px;box-shadow:inset 0 0 0 1px rgba(255,207,92,.5)}
+.shHead .tool canvas.px{width:46px;height:46px}
+.shLabel{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--lamp)}
+.shTitle{font-family:var(--font-display);font-size:28px;line-height:1}
+.shBody{font-size:14px;line-height:1.45;color:var(--muted)}
+.shPicks{display:flex;justify-content:center;gap:14px}
+.pickWrap{display:flex;flex-direction:column;align-items:center;gap:6px;width:84px}
+.pick{position:relative;width:72px;height:72px;padding:0;border-radius:6px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--panel-line);display:flex;align-items:center;justify-content:center;cursor:pointer;min-height:0}
+.pick.on{background:var(--danger-bg);box-shadow:inset 0 0 0 2px var(--danger-ring)}
+.pick canvas.px{width:48px;height:48px;image-rendering:pixelated}
+.pickName{font-size:11px;color:var(--muted);text-align:center}
+.pickWrap .pickName.sel{font-weight:700;letter-spacing:1.5px;color:var(--danger-text)}
+.crk{position:absolute;inset:0;pointer-events:none;width:100%;height:100%}
+.shBtns{display:flex;gap:10px}
+.shBtns button{height:48px;border-radius:8px;font-size:15px;font-weight:700;letter-spacing:1px}
+#shCancel{flex:1;background:var(--inset);box-shadow:inset 0 0 0 1px var(--divider),inset 0 -3px 0 var(--seam)}
+#shGo{flex:1.5;background:var(--danger);color:#fff;box-shadow:inset 0 -3px 0 var(--danger-shadow)}
+#shGo:disabled{opacity:.4}
+.tool.anim{overflow:visible;z-index:6}
+.shake{animation:shake .45s linear}
+.cracks{animation:crackIn .2s steps(2) forwards}
+@keyframes crackIn{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
+.shardbox{position:relative;width:40px;height:40px}
+.shard{position:absolute;width:20px;height:20px;background-size:40px 40px;image-rendering:pixelated;animation-duration:.8s;animation-timing-function:cubic-bezier(.45,-.35,.9,.6);animation-fill-mode:forwards}
+.sh1{left:0;top:0;background-position:0 0;animation-name:f1}
+.sh2{left:20px;top:0;background-position:-20px 0;animation-name:f2;animation-delay:.04s}
+.sh3{left:0;top:20px;background-position:0 -20px;animation-name:f3;animation-delay:.08s}
+.sh4{left:20px;top:20px;background-position:-20px -20px;animation-name:f4;animation-delay:.02s}
+@keyframes f1{30%{transform:translate(-14px,-22px) rotate(-40deg)}100%{transform:translate(-40px,420px) rotate(-260deg);opacity:.9}}
+@keyframes f2{30%{transform:translate(14px,-26px) rotate(50deg)}100%{transform:translate(46px,430px) rotate(300deg);opacity:.9}}
+@keyframes f3{30%{transform:translate(-10px,-10px) rotate(-30deg)}100%{transform:translate(-22px,400px) rotate(-200deg);opacity:.9}}
+@keyframes f4{30%{transform:translate(12px,-12px) rotate(35deg)}100%{transform:translate(28px,410px) rotate(220deg);opacity:.9}}
+.dust{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;background:#c9ccd2;animation:dust .5s ease-out forwards}
+.d1{--dx:-26px;--dy:-18px}.d2{--dx:24px;--dy:-22px}.d3{--dx:-20px;--dy:16px}.d4{--dx:22px;--dy:14px}
+@keyframes dust{to{transform:translate(var(--dx),var(--dy));opacity:0}}
+.land{animation:land .5s cubic-bezier(.3,1.6,.5,1)}
+@keyframes land{from{transform:translateY(-70px) scale(.8);opacity:0}to{transform:none;opacity:1}}
+#skipHint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:3;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);background:rgba(12,13,16,.6);border-radius:12px;padding:3px 10px;pointer-events:none}
+@media (prefers-reduced-motion: reduce){.sheet,.shake,.cracks,.land,.shard,.dust{animation-duration:.01s}}

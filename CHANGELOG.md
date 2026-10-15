@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0 — Release 3: specials and interaction
+- Make-room sheet: with a full dock, crafting asks which special to destroy (cancel spends nothing); crack, shatter and bounce-in animation in the dock.
+- Pick-up and return animations for tray pieces; tap to skip long special/All-Clear celebrations.
+
 ## 0.7.0 — Release 2: the new look
 - Design package applied: Jersey 10 + Chakra Petch fonts, new block/ore/gem/special sprites with the specified glows, flat 42pt board with 2pt seams, new header, progress bar, resource strip, specials dock with CRAFT button, 114pt tray, no footer or hint line.
 - Specials dock: three slots, any mix; Jackhammer renamed Sledgehammer; Rescue and Luck drawn transparent.

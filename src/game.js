@@ -355,6 +355,7 @@ function updateLuckUI(){
   $('tray').classList.toggle('lucky',luckLive);
 }
 function drinkLuck(){
+  if(dockAnim) return;
   const li=specials.indexOf('luck'); if(busy||over||uiOpen()||li<0||luck>0) return;
   dockRemove(li); luck=7; renderDock(); updateLuckUI(); updateAnvilGlow(); saveProfile(); saveBoard();
   A.track('luck_drunk',{idx:level-1,score,moves});
@@ -565,7 +566,7 @@ function playSpecial(sp){
   const D=REDUCE?800:1800, t0=performance.now(), look=SPECIAL_LOOK[sp.m];
   let burstDone=false, extraDone=false;
   fxList.push({draw(ctx,now){
-    const t=(now-t0)/D; if(t>=1) return false;
+    const t=(now-t0)/D; if(t>=1||skipFlag) return false;
     const B=boardC.getBoundingClientRect(), cx=B.left+B.width/2, cy=B.top+B.height/2;
     const [sx,sy]=[B.left+(sp.c+.5)*cell, B.top+(sp.r+.5)*cell];
     const dim = t<.1? t/.1 : t>.84 ? (1-t)/.16 : 1;
@@ -614,7 +615,7 @@ function playSplash(title,sub,key){
   const D=REDUCE?450:900, t0=performance.now(), look=SPECIAL_LOOK[key];
   let sparked=false;
   fxList.push({draw(ctx,now){
-    const t=(now-t0)/D; if(t>=1) return false;
+    const t=(now-t0)/D; if(t>=1||skipFlag) return false;
     const B=boardC.getBoundingClientRect(), cx=B.left+B.width/2, cy=B.top+B.height/2;
     const a=Math.min(1,t/.15)*(t>.75?(1-t)/.25:1);
     ctx.fillStyle=`rgba(6,4,10,${.4*a})`; ctx.fillRect(B.left-8,B.top-8,B.width+16,B.height+16);
@@ -637,7 +638,7 @@ function playAllClear(pts){
   const D=REDUCE?600:1300, t0=performance.now();
   let sparked=false;
   fxList.push({draw(ctx,now){
-    const t=(now-t0)/D; if(t>=1) return false;
+    const t=(now-t0)/D; if(t>=1||skipFlag) return false;
     const B=boardC.getBoundingClientRect(), cx=B.left+B.width/2;
     const front=t*22-4;
     for(let r=0;r<N;r++)for(let c=0;c<N;c++){
@@ -717,6 +718,12 @@ function showBanner(ms=2200){
 
 // ---------- game flow ----------
 const sleep=ms=>new Promise(res=>setTimeout(res,ms));
+// the long celebrations (blast, specials, all-clear) can be skipped with a tap: waiting stops and their overlays end at once
+let skipFlag=false, skipWaiters=[];
+function skippable(ms){ return new Promise(res=>{ let to; const done=()=>{ clearTimeout(to); skipWaiters=skipWaiters.filter(w=>w!==done); res(); }; to=setTimeout(done,skipFlag?0:ms); skipWaiters.push(done); }); }
+function requestSkip(){ if(!busy||screen!=='game'||skipFlag||!$('sheetScrim').hidden||!$('anvil').hidden||!$('info').hidden) return; if(!$('skipHint').hidden){ skipFlag=true; $('skipHint').hidden=true; A.track('animation_skipped'); skipWaiters.slice().forEach(w=>w()); } }
+document.addEventListener('pointerdown',requestSkip,true);
+const showSkip=()=>{ if(!skipFlag) $('skipHint').hidden=false; };
 // a strip mine pays out the resources it asks for: ore the goals need is made much more common, and the forest one is mostly logs
 function prepStrip(def){
   const boost={}; Object.entries(curGoals).forEach(([k,n])=>{ if(k==='wood') return; const o=ORES[k]; boost[k]=Math.min(6,Math.max(1,(n/21)/(o.p*(o.vein[0]+o.vein[1])/2))); });
@@ -787,7 +794,7 @@ function specialHit(m,r,c,ctx){
 let fuse=null;
 async function detonate(r,c,hit){
   fuse={r,c,t0:performance.now()}; blip(1400,.05,'square',.04); blip(1600,.05,'square',.04,.12); blip(1900,.05,'square',.05,.24);
-  await sleep(REDUCE?120:420);
+  await skippable(REDUCE?120:420);
   fuse=null;
   const [sx,sy]=cellScreen(r,c), look=SPECIAL_LOOK.blast;
   ring(sx,sy,'#fff6b8',cell*1.6,300); ring(sx,sy,'#ffd23f',cell*2.6,480); ring(sx,sy,'#ff6a1f',cell*3.6,650);
@@ -805,7 +812,7 @@ async function detonate(r,c,hit){
   }
   flushCtx(ctx);
   let count=1;
-  for(const [a,b] of chain){ await sleep(160); count+=await detonate(a,b,hit); }
+  for(const [a,b] of chain){ await skippable(160); count+=await detonate(a,b,hit); }
   return count;
 }
 // All-clear: a nice bonus, but only 15% of the board's score target, so it can't win a board that was far from done
@@ -836,6 +843,7 @@ function floatText(x,y,text,col){
 }
 let undo=null;
 async function place(i,r0,c0){
+  skipFlag=false; $('skipHint').hidden=true;
   const p=pieces[i];
   const rating=rateMove(i,r0,c0);
   undo=JSON.parse(JSON.stringify({grid,pieces,score,combo,sinceClear,collected,hand,since,bigNext,moves,dealt}));
@@ -867,20 +875,20 @@ async function place(i,r0,c0){
     if(blasts.length){
       let count=0; for(const [r,c] of blasts) if(grid[r][c]==='blast') count+=await detonate(r,c,hit);
       const pts=MATS.blast.pts*count; score+=pts; A.track('special_triggered',{m:'blast',count});
-      await sleep(REDUCE?100:350);
-      await sleep(playSplash(count>1?`Blast charge ×${count}`:'Blast charge',`+${pts}`,'blast'));
+      await skippable(REDUCE?100:350);
+      showSkip(); await skippable(playSplash(count>1?`Blast charge ×${count}`:'Blast charge',`+${pts}`,'blast'));
     }
     for(const sp of hit){
       A.track('special_triggered',{m:sp.m,pts:sp.pts,res:sp.res||null,n:sp.n||0});
-      await sleep(playSpecial(sp));
-      if(sp.m==='sledgehammer'){ doShake(); await sleep(REDUCE?400:900); }
+      showSkip(); await skippable(playSpecial(sp));
+      if(sp.m==='sledgehammer'){ doShake(); await skippable(REDUCE?400:900); }
     }
     if(grid.every(row=>row.every(v=>!v))){
       const ac=allClearBonus(); score+=ac; bigNext=true; A.track('all_clear',{bonus:ac,score_after:score,target:levelDef(level).target});
-      playAllClear(ac); await sleep(REDUCE?600:1300);
+      showSkip(); playAllClear(ac); await skippable(REDUCE?600:1300);
     }
   } else { sinceClear++; if(sinceClear>=3) combo=0; }
-  busy=false;
+  busy=false; $('skipHint').hidden=true; skipFlag=false;
   { const dd=levelDef(level); if(dd.strip ? stripMet() : score>=dd.target){ dd.strip?completeStrip():completeBoard(); return; } }
   if(pieces.every(q=>!q)) dealSet();
   updateHUD(); drawTray();
@@ -1020,10 +1028,12 @@ function updateStash(bumped=[]){
 }
 function onField(m){ let n=0; if(grid) for(const row of grid) for(const v of row) if(v===m) n++; (pieces||[]).forEach(p=>{ if(p) p.mats.forEach(v=>{ if(v===m) n++; }); }); return n; }
 // ---- the dock: three flat slots, one special each, no counts ----
+let dockAnim=null;   // {idx, old, phase:'crack'|'shatter'|'land'} while a destroyed special is being replaced
 function renderDock(){
   const box=$('dockSlots'); box.innerHTML='';
   for(let i=0;i<DOCK_SLOTS;i++){
     const m=specials[i];
+    if(dockAnim&&dockAnim.idx===i){ box.append(animTile(i,m)); continue; }
     if(!m){ const e=document.createElement('div'); e.className='tool empty'; e.setAttribute('aria-label','Empty special slot'); box.append(e); continue; }
     const t=document.createElement('button'); t.type='button'; t.className='tool'; t.dataset.m=m; t.dataset.slot=i;
     t.setAttribute('aria-label',MATS[m].name+(m==='rescue'?' (used automatically on a cave-in)':m==='luck'?' (tap to drink)':' (drag onto a piece)'));
@@ -1032,6 +1042,58 @@ function renderDock(){
     if(m==='luck') t.addEventListener('click',drinkLuck); else if(m!=='rescue') t.addEventListener('pointerdown',e=>startSpecialDrag(e,m,i));
     box.append(t);
   }
+}
+// ---- all three slots full: pick a special to destroy so the new one fits ----
+const SHARD_CRACK='<svg class="crk" viewBox="0 0 16 16" shape-rendering="crispEdges"><path d="M8 2 L7 5 L9 7 L6 10 L8 12 L7 14 M9 7 L12 6 L13 8 M6 10 L3 11" fill="none" stroke="#ff8a7a" stroke-width=".7"></path></svg>';
+const CRACK_DARK='<svg class="crk cracks" viewBox="0 0 16 16" shape-rendering="crispEdges"><path d="M8 2 L7 5 L9 7 L6 10 L8 12 L7 14 M9 7 L12 6 L13 8 M6 10 L3 11" fill="none" stroke="#111" stroke-width="1.6"></path><path d="M8 2 L7 5 L9 7 L6 10 L8 12 L7 14 M9 7 L12 6 L13 8 M6 10 L3 11" fill="none" stroke="#fff" stroke-width=".6"></path></svg>';
+const spriteCv=(m,cls)=>{ const cv=document.createElement('canvas'); cv.className='px'+(cls?' '+cls:''); cv.width=cv.height=T; cv.getContext('2d').drawImage(SPR[m]||TEX[m],0,0); return cv; };
+function closeSheet(){ $('sheetScrim').hidden=true; $('sheet').innerHTML=''; }
+function openMakeRoom(rc){
+  if(!dockFull()||!canAfford(rc)||dockAnim) return;
+  const sh=$('sheet'); sh.innerHTML=''; let sel=-1;
+  const el=(tag,cls,txt)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!==undefined) e.textContent=txt; return e; };
+  A.track('make_room_open',{m:rc.m,held:specials.join('|')});
+  sh.append(el('div','shHandle'));
+  const head=el('div','shHead'), tool=el('div','tool'), hd=el('div'); tool.append(spriteCv(rc.m));
+  hd.append(el('div','shLabel',`ALL ${DOCK_SLOTS} SLOTS FULL`),el('div','shTitle',`Make room for a ${MATS[rc.m].name}`)); head.append(tool,hd); sh.append(head);
+  sh.append(el('div','shBody','Pick a special to destroy. Your ore is only spent if you go ahead.'));
+  const picks=el('div','shPicks'); sh.append(picks);
+  const btns=el('div','shBtns'), cancel=el('button',undefined,'CANCEL'), go=el('button',undefined,'DESTROY & CRAFT'); cancel.id='shCancel'; go.id='shGo'; cancel.type=go.type='button'; go.disabled=true; btns.append(cancel,go); sh.append(btns);
+  const draw=()=>{ picks.innerHTML=''; specials.forEach((m,i)=>{ const w=el('div','pickWrap'), b=el('button','pick'+(i===sel?' on':'')); b.type='button'; b.dataset.i=i; b.setAttribute('aria-label','Destroy '+MATS[m].name); b.setAttribute('aria-pressed',i===sel);
+      b.append(spriteCv(m)); if(i===sel) b.insertAdjacentHTML('beforeend',SHARD_CRACK);
+      b.onclick=()=>{ sel=i; go.disabled=false; draw(); };
+      w.append(b,el('div','pickName'+(i===sel?' sel':''),i===sel?'DESTROY':MATS[m].name)); picks.append(w); }); };
+  draw();
+  cancel.onclick=()=>{ A.track('make_room_cancel',{m:rc.m}); closeSheet(); };
+  go.onclick=()=>{ if(sel>=0) destroyAndCraft(rc,sel); };
+  $('sheetScrim').hidden=false;
+}
+$('sheetScrim').addEventListener('pointerdown',e=>{ if(e.target.id==='sheetScrim') closeSheet(); });
+function destroyAndCraft(rc,idx){
+  closeSheet();
+  if(!dockFull()||!canAfford(rc)) return;
+  Object.entries(rc.cost).forEach(([k,v])=>bank[k]-=v);
+  const old=specials[idx]; specials[idx]=rc.m;
+  A.track('special_destroyed',{destroyed:old,crafted:rc.m});
+  updateStash(Object.keys(rc.cost)); saveProfile(); updateAnvilGlow();
+  if(screen==='game'){ $('anvil').hidden=true; playDestroy(idx,old); } else { renderDock(); refreshCraft(); }
+}
+// the replaced special cracks and shakes, shatters into four shards that fall off the screen, then the new one drops in with a bounce
+function animTile(i,m){
+  const t=document.createElement('div'); t.className='tool anim'; const ph=dockAnim.phase;
+  if(ph==='crack'){ t.append(spriteCv(dockAnim.old,'shake')); t.insertAdjacentHTML('beforeend',CRACK_DARK); }
+  else if(ph==='shatter'){ const box=document.createElement('div'); box.className='shardbox'; const url=(SPR[dockAnim.old]||TEX[dockAnim.old]).toDataURL();
+    [1,2,3,4].forEach(n=>{ const sd=document.createElement('div'); sd.className='shard sh'+n; sd.style.backgroundImage=`url(${url})`; box.append(sd); });
+    [1,2,3,4].forEach(n=>{ const d=document.createElement('span'); d.className='dust d'+n; box.append(d); }); t.append(box); }
+  else { t.append(spriteCv(m,'land')); }
+  return t;
+}
+function playDestroy(idx,old){
+  dockAnim={idx,old,phase:'crack'}; renderDock(); blip(180,.12,'square',.07); blip(150,.1,'square',.06,.1);
+  const step=(ms,fn)=>setTimeout(fn,REDUCE?Math.min(ms,200):ms);
+  step(450,()=>{ dockAnim.phase='shatter'; renderDock(); [300,220,160,110].forEach((f,j)=>blip(f,.14,'sawtooth',.05,j*.06)); });
+  step(1300,()=>{ dockAnim.phase='land'; renderDock(); [523,784,1047].forEach((f,j)=>blip(f,.12,'triangle',.06,j*.07)); });
+  step(1850,()=>{ dockAnim=null; renderDock(); });
 }
 const canAfford=r=>Object.entries(r.cost).every(([k,v])=>(bank[k]||0)>=v);
 function recipeRows(box){
@@ -1046,10 +1108,10 @@ function recipeRows(box){
       sp.append(cv, document.createTextNode(`${Math.min(have,v)}/${v}`)); sp.title=DROPS[k][0]; cost.append(sp); });
     mid.append(cost);
     const right=document.createElement('div');
-    const full=dockFull();
-    const b=document.createElement('button'); b.type='button'; b.textContent=full?'Slots full':'Craft'; b.className='go'; b.disabled=full||!canAfford(rc);
-    b.onclick=()=>smelt(rc);
-    const own=document.createElement('div'); own.className='owned'; own.textContent= full ? 'Dock is full' : (canAfford(rc)?'Ready to craft':'Need more');
+    const full=dockFull(), can=canAfford(rc);
+    const b=document.createElement('button'); b.type='button'; b.textContent=full&&can?'Make room':'Craft'; b.className='go'; b.disabled=!can;
+    b.onclick=()=>{ if(dockFull()) openMakeRoom(rc); else smelt(rc); };
+    const own=document.createElement('div'); own.className='owned'; own.textContent= !can ? 'Need more' : full ? 'Dock is full' : 'Ready to craft';
     right.append(b,own); row.append(big,mid,right); box.append(row);
   });
 }
@@ -1167,12 +1229,12 @@ $('info').addEventListener('pointerdown',e=>{ if(e.target.id==='info') $('info')
 $('anvilBtn').onclick=()=>{ if(busy||over) return; renderAnvil(); $('anvil').hidden=false; };
 $('anvilClose').onclick=()=>{ $('anvil').hidden=true; };
 $('anvil').addEventListener('pointerdown',e=>{ if(e.target.id==='anvil') $('anvil').hidden=true; });
-const uiOpen=()=>screen!=='game' || !$('anvil').hidden || !$('info').hidden;
+const uiOpen=()=>screen!=='game' || !$('anvil').hidden || !$('info').hidden || !$('sheetScrim').hidden;
 
 // drag a crafted special onto a tray piece; it replaces the block nearest your finger
 let spDrag=null;
 function startSpecialDrag(e,m,idx){
-  if(over||busy||uiOpen()||specials[idx]!==m) return;
+  if(over||busy||uiOpen()||dockAnim||specials[idx]!==m) return;
   e.preventDefault(); unlockAudio();
   spDrag={m,idx,touch:e.pointerType!=='mouse'};
   const s=Math.round(cell*.9); ghost.width=s*dpr; ghost.height=s*dpr; ghost.style.width=s+'px'; ghost.style.height=s+'px';
@@ -1379,26 +1441,37 @@ let drag=null;
 slots.forEach(s=>s.addEventListener('pointerdown',e=>{
   const i=+s.dataset.i; if(over||busy||uiOpen()||!pieces||!pieces[i]) return;
   e.preventDefault(); unlockAudio();
+  clearTimeout(returnTimer); ghost.style.transition='';
   const p=pieces[i]; drag={i,p,touch:e.pointerType!=='mouse',target:null,t0:performance.now(),x0:e.clientX,y0:e.clientY,moved:0,raw:null};
+  { const cr=s.firstElementChild.getBoundingClientRect(); drag.cx=cr.left+cr.width/2; drag.cy=cr.top+cr.height/2; drag.k0=(trayCell+2)/cell; }
   const gw=p.w*cell-SEAM, gh=p.h*cell-SEAM; ghost.width=Math.round(gw*dpr); ghost.height=Math.round(gh*dpr); ghost.style.width=gw+'px'; ghost.style.height=gh+'px';
   gx.setTransform(dpr,0,0,dpr,0,0); gx.clearRect(0,0,gw,gh); drawPiece(gx,p,cell,0,0,1,bs);
   ghost.hidden=false; s.firstElementChild.style.opacity='0'; moveDrag(e);
 }));
+// pick-up animation: the piece grows from its tray size to board size while gliding from its slot to your finger (140ms)
+let returnTimer=0;
+function placeGhost(now){
+  if(!drag||drag.tx===undefined) return;
+  const k=easeOut(Math.min(1,Math.max(0,(now-drag.t0)/140)));
+  const sx=drag.cx-drag.gw/2, sy=drag.cy-drag.gh/2;
+  ghost.style.transform=`translate(${sx+(drag.tx-sx)*k}px,${sy+(drag.ty-sy)*k}px) scale(${drag.k0+(1-drag.k0)*k})`;
+}
 function moveDrag(e){
   if(!drag) return;
   // on touch the whole piece rides above the fingertip (bottom edge ~1 cell clear), centred on it, so both hands see all of it
   const p=drag.p;
   const gw=p.w*cell-SEAM, gh=p.h*cell-SEAM, gxp=e.clientX-gw/2, gyp=drag.touch ? e.clientY-cell*1.15-gh : e.clientY-gh/2;
-  ghost.style.transform=`translate(${gxp}px,${gyp}px)`;
+  drag.tx=gxp; drag.ty=gyp; drag.gw=gw; drag.gh=gh; placeGhost(performance.now());
   const b=boardC.getBoundingClientRect();
   const c0=Math.round((gxp-b.left)/cell), r0=Math.round((gyp-b.top)/cell);
   drag.target = fitsAt(p,r0,c0) ? {r0,c0} : null; ghost.style.opacity=drag.target?'.3':'1'; drag.raw={r0,c0}; drag.moved=Math.max(drag.moved,Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0));
 }
 window.addEventListener('pointermove',moveDrag);
 function endDrag(cancelled){
-  if(!drag) return; const d=drag; drag=null; ghost.hidden=true; ghost.style.opacity='1'; slots[d.i].firstElementChild.style.opacity='';
+  if(!drag) return; const d=drag; drag=null;
+  if(d.target&&cancelled!==true){ ghost.hidden=true; ghost.style.opacity='1'; slots[d.i].firstElementChild.style.opacity=''; place(d.i,d.target.r0,d.target.c0); return; }
+  flyBack(d);
   if(cancelled===true){ A.track('drag_cancel',{sid:d.p.sid,touch:d.touch,drag_ms:Math.round(performance.now()-d.t0)}); return; }
-  if(d.target){ place(d.i,d.target.r0,d.target.c0); return; }
   // released without a valid spot: a tap, a miss that was one cell away, or a drop outside the board
   const {r0,c0}=d.raw||{r0:0,c0:0}; let near=false;
   for(let dr=-1;dr<=1&&!near;dr++)for(let dc=-1;dc<=1&&!near;dc++) if(fitsAt(d.p,r0+dr,c0+dc)) near=true;
@@ -1406,6 +1479,13 @@ function endDrag(cancelled){
   const kind=d.moved<10?'piece_tap':'drop_invalid';
   A.track(kind,{sid:d.p.sid,slot:d.i,touch:d.touch,reason:kind==='piece_tap'?'tap':off?'off_board':'blocked',near_valid:near,fits_somewhere:canPlaceAnywhere(d.p),r:r0,c:c0,drag_ms:Math.round(performance.now()-d.t0)});
   A.attempt('drop',d.p.sid+'@'+Math.round(r0/2)+','+Math.round(c0/2),{reason:off?'off_board':'blocked',near_valid:near});
+}
+// a piece that was not placed glides back into its slot and shrinks to tray size
+function flyBack(d){
+  const cv=slots[d.i].firstElementChild, ms=REDUCE?1:190;
+  ghost.style.opacity='1'; ghost.style.transition=`transform ${ms}ms cubic-bezier(.3,.7,.3,1)`;
+  ghost.style.transform=`translate(${d.cx-d.gw/2}px,${d.cy-d.gh/2}px) scale(${d.k0})`;
+  returnTimer=setTimeout(()=>{ ghost.hidden=true; ghost.style.transition=''; ghost.style.opacity='1'; cv.style.opacity=''; },ms+20);
 }
 window.addEventListener('pointerup',()=>endDrag()); window.addEventListener('pointercancel',()=>endDrag(true));
 
@@ -1471,6 +1551,7 @@ function render(now){
   flashes.forEach(f=>{ bx.fillStyle=`rgba(255,240,200,${f.life*.7})`; bx.fillRect(f.c*cell,f.r*cell,bs,bs); });
   particles=particles.filter(q=>(q.life-=.022)>0);
   particles.forEach(q=>{ q.x+=q.vx; q.y+=q.vy; q.vy+=.35; bx.globalAlpha=Math.min(1,q.life*1.5); bx.fillStyle=q.col; bx.fillRect(q.x-q.s/2,q.y-q.s/2,q.s,q.s); });
+  if(drag) placeGhost(now);
   bx.globalAlpha=1; tickScore(); renderFx(now); requestAnimationFrame(render);
 }
 
