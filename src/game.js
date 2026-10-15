@@ -61,11 +61,6 @@ const FX = {
 };
 Object.entries(MATS).forEach(([k,m])=>{ if(!FX[k]) FX[k]=[m.ore,m.hi]; });
 
-const NUGGETS = [
-  [[0,0],[1,0],[0,1],[1,1]], [[1,0],[0,1],[1,1],[2,1],[1,2]], [[0,0],[1,0],[2,0],[1,1]],
-  [[0,0],[1,0],[1,1],[2,1]], [[0,0],[0,1],[1,1]], [[1,0],[0,1],[1,1],[2,1]],
-];
-const ANCHORS = [[2,2],[9,1],[5,6],[11,7],[1,10],[7,11],[12,12]];
 
 // Fixed inclusion layout per ore: 3 pieces, seeded only by the ore's name so every rock shows the same pattern
 const INCL={};
@@ -300,11 +295,6 @@ function overlayGlow(ctx,m,x,y,size,now,dpr){
   if(g){ const ph=.5-.5*Math.cos(((now||0)%g.period)/g.period*Math.PI*2); ctx.shadowColor=g.c; ctx.shadowBlur=(g.lo+(g.hi-g.lo)*ph)*k*dpr; ctx.drawImage(ov,x,y,size,size); }
   ctx.restore();
 }
-const SLOT = (()=>{ const c=document.createElement('canvas'); c.width=c.height=T; const x=c.getContext('2d'); const r=rng(42);
-  const pal=['#352c24','#31281f','#392f26','#2d251d'];
-  for(let j=0;j<T;j++)for(let i=0;i<T;i++){ x.fillStyle=pal[Math.floor(r()*4)]; x.fillRect(i,j,1,1); }
-  x.fillStyle='#4a3e33'; x.fillRect(0,0,T,1); x.fillRect(0,0,1,T);
-  x.fillStyle='#17110c'; x.fillRect(0,T-1,T,1); x.fillRect(T-1,0,1,T); return c; })();
 
 // ---------- tiers ----------
 const texOf=m=> (MATS[m].kind==='ore'||MATS[m].kind==='gem') ? TEX[m+'@'+levelDef(level).rock] : TEX[m];
@@ -1136,7 +1126,6 @@ function updateStash(bumped=[]){
     if(bumped.includes(k)){ el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } });
   updateAnvilGlow(); updateStripGoals(); updateHintBtn();
 }
-function onField(m){ let n=0; if(grid) for(const row of grid) for(const v of row) if(v===m) n++; (pieces||[]).forEach(p=>{ if(p) p.mats.forEach(v=>{ if(v===m) n++; }); }); return n; }
 // ---- the dock: three flat slots, one special each, no counts ----
 let dockAnim=null;   // {idx, old, phase:'crack'|'shatter'|'land'} while a destroyed special is being replaced
 function renderDock(){
@@ -1406,7 +1395,12 @@ function checkDay(){
 }
 function saveBoard(){ if(!pieces) return; lsSet(K_BOARD,{day:dayState.day,idx:level-1,practice,reached,reachScore,clearBonus,decided,grid,pieces,score,combo,sinceClear,collected,hand,goals:curGoals,since,bigNext,moves,over,undo,dealt}); saveProfile(); }
 function clearBoardSave(){ lsDel(K_BOARD); }
-function savedBoard(){ const b=lsGet(K_BOARD); return (b && b.day===dayState.day && !b.over && b.moves>0) ? b : null; }
+// a saved board is only trusted if it has the right shape; anything else (an old format, a damaged save) is discarded
+function validBoard(b){
+  try{ return b && Array.isArray(b.grid) && b.grid.length===N && b.grid.every(r=>Array.isArray(r)&&r.length===N) && Array.isArray(b.pieces) && b.pieces.length===3
+    && b.pieces.every(p=>!p||(Array.isArray(p.cells)&&Array.isArray(p.mats)&&p.cells.length===p.mats.length&&Number.isInteger(p.sid)&&SHAPES[p.sid])) && Number.isInteger(b.idx) && b.idx>=0 && b.idx<STRIP_BASE+ZONES.length && typeof b.score==='number'; }catch(e){ return false; }
+}
+function savedBoard(){ const b=lsGet(K_BOARD); if(b&&!validBoard(b)){ lsDel(K_BOARD); return null; } return (b && b.day===dayState.day && !b.over && b.moves>0) ? b : null; }
 const okMat=m=>MATS[m]?m:(m==='cinnabar'?'ruby':m==='jackhammer'?'sledgehammer':'copper');   // blocks retired since the save was written
 function restoreBoard(b){
   level=b.idx+1; ({grid,pieces,score,combo,sinceClear,collected}=b);
@@ -1457,7 +1451,13 @@ function fillHome(){
   $('hcYest').hidden=!lastDay; if(lastDay) $('hcYestV').textContent=`${lastDay.boards}/${BOARD_COUNT} · ${lastDay.total.toLocaleString()} pts`+(bestDay&&bestDay.total>lastDay.total?` · best ${bestDay.total.toLocaleString()}`:'');
   $('shareBtn').hidden=dayState.done.length===0;
 }
-setInterval(()=>{ if(screen==='home'&&!$('homeMain').hidden) $('hcReset').textContent=Meta.resetText(); if(screen==='map') updateMapDate(); },30000);
+// the Pacific day can end while the app sits open on the home or map screen: refresh into the new day
+function refreshIfNewDay(){
+  if(screen==='game'||dayState.day===todayKey()) return;
+  if(screen==='map') showMap({}); else { checkDay(); fillHome(); }
+}
+setInterval(()=>{ refreshIfNewDay(); if(screen==='home'&&!$('homeMain').hidden) $('hcReset').textContent=Meta.resetText(); if(screen==='map') updateMapDate(); },30000);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') refreshIfNewDay(); });
 $('homeBtn').onclick=()=>showMap({});
 $('mapBtn').onclick=()=>showMap({});
 $('contBtn').onclick=()=>{ const sb=savedBoard(); if(!sb){ showMap({}); return; } show('game'); restoreBoard(sb); A.track('continue_board',{idx:sb.idx}); };
@@ -1831,6 +1831,7 @@ function migrate(){
   try{ localStorage.removeItem('deepcore-mode'); localStorage.setItem('deepcore-schema',String(SCHEMA)); }catch(e){}
 }
 function start(){
+  window.__dcReady=true;
   migrate(); loadSettings(); loadLife(); applyDisplaySettings(); setSoundUI(); loadProfile(); checkDay(); buildStash(); renderDock(); updateLuckUI();
   grid=emptyGrid(); pieces=null; showHome();
   layout(); drawTray(); ensureLoop();
@@ -1841,7 +1842,7 @@ if(['localhost','127.0.0.1','[::1]'].includes(location.hostname) && /[?&]debug\b
   place:(i,r,c)=>place(i,r,c), state:()=>({reached,reachScore,clearBonus,decided,hintInfo,combo,sinceClear,grid,pieces,score,busy,over,bank,hand,luck,luckLive,specials,crafted:Object.fromEntries(RECIPES.map(r=>[r.m,dockCount(r.m)])),dealt,screen,level,dayState}),
   fits:(p,r,c)=>fitsAt(p,r,c), setCell:(r,c,m)=>{grid[r][c]=m;}, setPieces:(ps)=>{pieces=ps; drawTray();},
   give:(b)=>{Object.assign(bank,b); updateStash();}, def:()=>levelDef(level), start:(i)=>{show('game'); startBoard(i);},
-  setScore:(v)=>{score=v;}, musicOn:()=>!!(music&&music.isOn()), life:()=>life, settings:()=>settings, tut:()=>tut, fillHome:()=>fillHome(), showHome:()=>showHome(), resetText:()=>Meta.resetText(), share:()=>doShare(), reach:()=>reachTarget(), hint:()=>useHint(), mod:()=>modifierFor(dayState.day), lcost:(z)=>lcost(z), addSpecial:(m)=>{ specials.push(m); renderDock(); updateAnvilGlow(); }, tilt:()=>mercyTilt(), practice:()=>practice, previewDay:(d)=>{ dayState.day=d; buildMap(); }, lightUp:(z,n=2)=>{ dayState.lights[z]=n; saveDay(); }, markDone:(a)=>{ dayState.done=a.slice(); saveDay(); }, openMap:()=>showMap({}), buildMap:()=>buildMap(), mapInfo:()=>({maxY:mapState().maxY,map:MAP}), newDay:(d)=>{ const s0=lsGet(K_DAY); if(s0){ s0.day=d; lsSet(K_DAY,s0); } checkDay(); }, history:()=>({history,bestDay,lastDay}), setBank:(b)=>{ bank=b; updateStash(); }, craftLight:(z)=>craftLight(z), goals:()=>curGoals, stripMet:()=>stripMet(), completeStrip:()=>completeStrip(), allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:()=>drinkLuck(), deal:()=>dealSet(), complete:()=>completeBoard(), audioState:()=>ac?ac.state:'none',
+  setScore:(v)=>{score=v;}, tickDay:()=>refreshIfNewDay(), fx:()=>({fxList:fxList.length,fxParts:fxParts.length,particles:particles.length}), setDayRaw:(d)=>{ dayState.day=d; saveDay(); }, musicOn:()=>!!(music&&music.isOn()), life:()=>life, settings:()=>settings, tut:()=>tut, fillHome:()=>fillHome(), showHome:()=>showHome(), resetText:()=>Meta.resetText(), share:()=>doShare(), reach:()=>reachTarget(), hint:()=>useHint(), mod:()=>modifierFor(dayState.day), lcost:(z)=>lcost(z), addSpecial:(m)=>{ specials.push(m); renderDock(); updateAnvilGlow(); }, tilt:()=>mercyTilt(), practice:()=>practice, previewDay:(d)=>{ dayState.day=d; buildMap(); }, lightUp:(z,n=2)=>{ dayState.lights[z]=n; saveDay(); }, markDone:(a)=>{ dayState.done=a.slice(); saveDay(); }, openMap:()=>showMap({}), buildMap:()=>buildMap(), mapInfo:()=>({maxY:mapState().maxY,map:MAP}), newDay:(d)=>{ const s0=lsGet(K_DAY); if(s0){ s0.day=d; lsSet(K_DAY,s0); } checkDay(); }, history:()=>({history,bestDay,lastDay}), setBank:(b)=>{ bank=b; updateStash(); }, craftLight:(z)=>craftLight(z), goals:()=>curGoals, stripMet:()=>stripMet(), completeStrip:()=>completeStrip(), allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:()=>drinkLuck(), deal:()=>dealSet(), complete:()=>completeBoard(), audioState:()=>ac?ac.state:'none',
 }};
 start();
 })();

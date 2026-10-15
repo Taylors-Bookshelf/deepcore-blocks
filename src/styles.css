@@ -15,7 +15,7 @@
 }
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
-html,body{margin:0;height:100%;width:100%;overflow:hidden}
+html,body{margin:0;height:100%;width:100%;overflow:hidden;overscroll-behavior:none}
 body{background:var(--ground);color:var(--text);font-family:var(--font-ui);font-weight:500;font-size:15px;touch-action:none;user-select:none;-webkit-user-select:none}
 img{max-width:100%}
 button{font-family:var(--font-ui);font-size:15px;font-weight:600;color:var(--text);background:var(--panel);border:0;border-radius:10px;padding:10px 14px;min-height:44px;cursor:pointer;box-shadow:var(--btn-shadow)}
@@ -34,7 +34,7 @@ button.go:hover{background:#ffd878}
 h1,h2,h3{font-family:var(--font-display);font-weight:400;margin:0}
 
 /* ---------- play screen ---------- */
-#app{height:100%;display:flex;flex-direction:column;justify-content:space-between;gap:10px;align-items:stretch;max-width:560px;margin:0 auto;padding:max(env(safe-area-inset-top,0px),14px) 16px max(env(safe-area-inset-bottom,0px),14px)}
+#app{height:100%;height:100dvh;display:flex;flex-direction:column;justify-content:space-between;gap:10px;align-items:stretch;max-width:560px;margin:0 auto;padding:max(env(safe-area-inset-top,0px),14px) 16px max(env(safe-area-inset-bottom,0px),14px)}
 #hdr{flex:none;height:44px;display:flex;align-items:center;gap:10px}
 #lvlBadge{width:44px;height:44px;flex:none;border-radius:10px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--panel-line);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:26px;line-height:1}
 .hmid{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
@@ -345,3 +345,5 @@ html.large #infoBody,html.large #craftBody .note,html.large .recipe .ds,html.lar
 html.large .recipe .nm,html.large .irow .nm{font-size:19px}
 #home.sub h1,#home.sub #homeStrip{display:none}
 #home.sub .settings{max-height:94vh}
+#bootError{position:fixed;inset:0;z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--ground);color:var(--text);text-align:center;padding:24px}
+#bootError p{margin:0;font-size:18px}

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0 — Release 6: hardening
+- Full regression, accessibility and performance pass: text contrast checked (4.5:1 minimum), every button named and at least 36px, dialogs labelled, 60fps on a crowded board, large-text and reduce-motion layouts stable.
+- Safer saves: damaged or wrong-shaped saved data and a saved board that no longer fits are dropped instead of crashing; storage-blocked browsers still play; the game notices when the Pacific day rolls over while open.
+- Works offline (36 cached files verified); a friendly message replaces a blank screen if the game fails to start or JavaScript is off.
+- Screen fits dynamic phone toolbars (100dvh) and no longer rubber-bands; new app icons; dead code removed; docs rewritten.
+
 ## 0.10.0 — Release 5: retention and onboarding
 - Guided first board; new home screen (Continue, today's card, streak, countdown to the daily reset, yesterday and best day); Profile with lifetime rank, stats and a 33-entry discovery log.
 - Share card, feedback form, add-to-Home-Screen hint, save-code backup/restore, settings for volume, ambient music (off by default), reduce motion, larger text, reset.

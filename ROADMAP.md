@@ -48,6 +48,6 @@ Status key: [ ] todo · [~] in progress · [x] done and live. Every item names t
 - [x] #23 Ambient music + volume slider
 
 ## Release 6 · v1.0.0 · Hardening
-- [ ] Full regression, accessibility and performance pass; final balance run; dead code removal; docs rewritten
+- [x] Full regression, accessibility and performance pass; final balance run; dead code removal; docs rewritten
 
 Dropped on request: #26 (renaming difficulty modes), because modes are removed entirely.

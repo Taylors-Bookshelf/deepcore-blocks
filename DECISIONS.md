@@ -65,3 +65,13 @@ Judgment calls I made without asking, so you can review and ask me to change or 
 - **Settings:** sound effects switch (same as the header speaker), ambient music, one volume slider, reduce motion (also honours the phone's own setting), larger text (panels only, the game screen has a fixed layout), backup/restore, replay tutorial, reset, feedback, analytics switch.
 - **Ambient music is OFF by default.** It is generated (a slow minor-key drone with distant drips), about 3 kilobytes of code, no audio files. I left it off because the game asks iPhones for "playback" audio so effects work with the ring switch on, which also means music would play with the switch on; you can change the default if you disagree.
 - **Test runs no longer send analytics.** I found my earlier test runs were sending events to your PostHog project from headless browsers, so a few test sessions may be in your data (they come from "HeadlessChrome"). They are blocked from now on.
+
+## Release 6 (hardening)
+- **Damaged saves are discarded, not repaired.** A save that fails validation (wrong shape, impossible numbers, a board layout that does not match its shape) is dropped and you start that part fresh; the rest of your progress is kept.
+- **Midnight while the game is open:** when the Pacific day changes, the game switches to the new day the next time you return to the home screen or map rather than interrupting a board in progress.
+- **New app icons** (the old ones predated the new look). Easy to swap: the three files in `icons/`.
+- **Boot failure message:** if the game cannot start, a plain message with a Reload button shows instead of a blank page.
+- **Accessibility:** I raised any text that fell below 4.5:1 contrast, labelled buttons and dialogs, and enforced a 36px minimum tap size. I did not add screen-reader narration of the board itself (it is a drag game on a canvas); that would be a separate project.
+- **Phone screen:** layout uses the dynamic viewport height and disables pull-to-refresh bounce so a swipe near the top does not move the board.
+- **Dead code removed** (old difficulty-mode remnants, unused helpers).
+- **Not done:** no haptics, no leaderboards, no real-device test (see the final report).

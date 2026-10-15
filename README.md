@@ -2,7 +2,7 @@
 
 **[Play it here](https://taylors-bookshelf.github.io/deepcore-blocks/)** (best on a phone: open the link, then Add to Home Screen).
 
-A mining block puzzle. Drag sets of three pieces onto an 8×8 board, clear rows and columns, and dig through a new 20-board world map every day: from the forest surface down through stone caves, deep stone and the gem depths to the Underworld. Smelt the ore you find into special blocks at the anvil.
+A mining block puzzle. Drag sets of three pieces onto an 8×8 board, clear rows and columns, and dig through a new 24-board world map every day: from the forest surface down through limestone caves, granite halls, slate caverns and the basalt gem depths to the Underworld. Craft the ore you find into torches, lanterns and special blocks.
 
 It's a static web app: no build step, no server code, no runtime dependencies.
 
@@ -16,7 +16,7 @@ Or open `index.html` directly in a browser (everything works except offline inst
 
 ## Test
 
-`npm test` runs the rules, map, smoke, touch, flow, gate and soak tests; `npm run test:balance` runs the (slow) balance simulation.
+`npm test` runs the rules, release (r1 to r6), map, smoke, spec, touch, flow, dock, gate and soak tests; `npm run test:balance` runs the (slow) balance simulation.
 
 ```bash
 npm install
@@ -65,4 +65,5 @@ TestFlight needs an Apple Developer Program membership, and Play internal testin
 - Progress is saved in the browser (`localStorage`), per device.
 - The world map resets at midnight Pacific time for everyone.
 - Analytics are off until you paste a PostHog project key into `src/config.js`.
-- All art is original procedural pixel art drawn in code. Keep the name, art and any store listing original too.
+- Art is original pixel art (16×16 PNG sprites in `assets/`, from the design package in `design/`); a few items are still drawn in code. Keep the name, art and any store listing original too.
+- `DECISIONS.md` lists every call made without asking; `CHANGELOG.md` lists each release.
