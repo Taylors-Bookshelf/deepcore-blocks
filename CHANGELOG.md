@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0 — playtest round 1
+- Stars now come from ore: the clear is 1 star, and 2 and 3 stars need an "ore value" (coal/copper 1, iron/ruby 2, gold 3, emerald 5, diamond 6) mined on that board. If you already have the ore for 3 stars when the board clears, it banks itself with no question. A small chip by the score bar shows your ore value; after the clear the bar tracks it.
+- Combo bonus ore: multi-line clears, long combos and All Clears also pay extra ore from that play (+25% for 2 lines up to +100% for 5, +10%/+25% for combos of 3/5+, +100% for All Clear, capped at +150%; gems capped at +1 per play).
+- Ore drop rates lowered about 20% to pay for the bonus ore (strip mines still needed about 55% of the time).
+- Ambient music rewritten: light plucked melody over a soft pad in a major key.
+- Hint moved to the top bar as a bulb with a question mark.
+- Installed-app status bar changed to a solid bar so nothing sits under the top of the phone.
+
 ## 1.0.0 — Release 6: hardening
 - Full regression, accessibility and performance pass: text contrast checked (4.5:1 minimum), every button named and at least 36px, dialogs labelled, 60fps on a crowded board, large-text and reduce-motion layouts stable.
 - Safer saves: damaged or wrong-shaped saved data and a saved board that no longer fits are dropped instead of crashing; storage-blocked browsers still play; the game notices when the Pacific day rolls over while open.

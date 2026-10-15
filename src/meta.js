@@ -72,29 +72,55 @@ const LOG=[
 ];
 const discovered=(life,e)=>e.kind==='mined'?(life.mined[e.id]||0)>0 : e.kind==='seen'?!!life.seen[e.id] : e.kind==='zones'?!!life.zones[e.id] : !!life.twists[e.id];
 
-// ---------- ambient music: a soft cave drone with slow chords and the odd distant drip ----------
+// ---------- ambient music: a light, unhurried acoustic-style tune (plucked notes over a soft pad, major pentatonic) ----------
+// Generated live, no audio files: a slow four-chord loop (C G Am F) that never plays the same melody twice.
 function createMusic(ctx,dest){
   let nodes=[], timers=[], on=false;
-  const root=55, chords=[[0,7,12,16],[-2,5,10,14],[-5,2,7,12],[-3,4,9,12]];       // A minor-ish pads that drift
-  const hz=(semi)=>root*Math.pow(2,semi/12);
+  const BEAT=.78;                                              // about 77 beats per minute: relaxed, walking pace
+  const root=261.63;                                           // C4
+  const hz=semi=>root*Math.pow(2,semi/12);
+  const chords=[{r:0,tones:[0,4,7,12]},{r:-5,tones:[-5,-1,2,7]},{r:-3,tones:[-3,0,4,9]},{r:-7,tones:[-7,-3,0,5]}];   // C, G, Am, F
+  const scale=[0,2,4,7,9];                                     // major pentatonic: every note sounds right over every chord
+  const note=i=>scale[((i%5)+5)%5]+12*Math.floor(i/5);
   function start(){
     if(on) return; on=true;
-    const out=ctx.createGain(); out.gain.value=0; out.connect(dest); out.gain.linearRampToValueAtTime(1,ctx.currentTime+3);
-    const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900; lp.Q.value=.5; lp.connect(out);
-    const delay=ctx.createDelay(1.5); delay.delayTime.value=.55; const fb=ctx.createGain(); fb.gain.value=.38; delay.connect(fb); fb.connect(delay); delay.connect(out);
-    const pad=ctx.createGain(); pad.gain.value=.5; pad.connect(lp); pad.connect(delay);
-    const oscs=[0,1,2,3].map(k=>{ const o=ctx.createOscillator(), g=ctx.createGain(); o.type=k%2?'triangle':'sine'; o.frequency.value=hz(chords[0][k]); o.detune.value=(k-1.5)*6; g.gain.value=.12; o.connect(g); g.connect(pad); o.start(); return o; });
-    const lfo=ctx.createOscillator(), lg=ctx.createGain(); lfo.frequency.value=.07; lg.gain.value=320; lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
-    nodes=[out,lp,delay,fb,pad,...oscs,lfo,lg];
-    let ci=0; const nextChord=()=>{ ci=(ci+1)%chords.length; const t=ctx.currentTime; oscs.forEach((o,k)=>{ o.frequency.cancelScheduledValues(t); o.frequency.setTargetAtTime(hz(chords[ci][k]),t,2.2); }); timers.push(setTimeout(nextChord,9000+Math.random()*3000)); };
-    timers.push(setTimeout(nextChord,8000));
-    const drip=()=>{ if(!on) return; const t=ctx.currentTime, o=ctx.createOscillator(), g=ctx.createGain(); o.type='sine'; o.frequency.value=hz(chords[ci%4][Math.floor(Math.random()*4)]+24);
-      g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.05,t+.01); g.gain.exponentialRampToValueAtTime(.0001,t+1.6); o.connect(g); g.connect(delay); g.connect(out); o.start(t); o.stop(t+1.7);
-      timers.push(setTimeout(drip,3500+Math.random()*6500)); };
-    timers.push(setTimeout(drip,3000));
+    const out=ctx.createGain(); out.gain.value=0; out.connect(dest); out.gain.linearRampToValueAtTime(.9,ctx.currentTime+2.5);
+    const dry=ctx.createGain(); dry.gain.value=.8; dry.connect(out);
+    const echo=ctx.createDelay(1.5); echo.delayTime.value=BEAT*.75; const fb=ctx.createGain(); fb.gain.value=.3;
+    const elp=ctx.createBiquadFilter(); elp.type='lowpass'; elp.frequency.value=2400; echo.connect(elp); elp.connect(fb); fb.connect(echo); elp.connect(out);
+    const send=ctx.createGain(); send.gain.value=.5; send.connect(echo);
+    const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1500; lp.Q.value=.3; lp.connect(dry); lp.connect(send);
+    nodes=[out,dry,echo,fb,elp,send,lp];
+    const voice=(freq,t,len,type,peak,bright)=>{ const o=ctx.createOscillator(), g=ctx.createGain(), f=ctx.createBiquadFilter();
+      o.type=type; o.frequency.value=freq; f.type='lowpass'; f.frequency.value=bright; g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(peak,t+.01);
+      g.gain.exponentialRampToValueAtTime(.0001,t+len); o.connect(f); f.connect(g); g.connect(dry); g.connect(send); o.start(t); o.stop(t+len+.05); };
+    const pluck=(semi,t,peak)=>{ voice(hz(semi),t,1.6,'triangle',peak,2600); voice(hz(semi)*2,t,.5,'sine',peak*.35,3000); };   // a soft marimba / kalimba-like tone
+    const pad=(c,t,len)=>{ c.tones.slice(0,3).forEach((s,k)=>{ const o=ctx.createOscillator(), g=ctx.createGain(); o.type='sine'; o.frequency.value=hz(s-12); o.detune.value=(k-1)*5;
+      g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.07,t+1.4); g.gain.setValueAtTime(.07,t+len-1.6); g.gain.linearRampToValueAtTime(0,t+len+.4);
+      o.connect(g); g.connect(lp); o.start(t); o.stop(t+len+.5); }); };
+    let bar=0, step=0, pos=14, next=ctx.currentTime+.4;
+    const plan=()=>{
+      if(!on) return;
+      while(next<ctx.currentTime+2.5){
+        const c=chords[Math.floor(bar/2)%4], beatInBar=step%4;
+        if(step%8===0) pad(c,next,BEAT*8);
+        if(beatInBar===0) pluck(c.r-12,next,.16);                                         // low root on the first beat
+        if(beatInBar===2) pluck(c.r-5,next,.11);                                          // and its fifth halfway
+        const quiet=(Math.floor(bar/2)%4===3&&step%8>=4);                                 // let the music breathe at the end of each loop
+        if(!quiet){
+          [0,.5].forEach(off=>{ if(Math.random()<(off?.28:.62)){
+            const goal=7+Math.round(Math.random()*5);                                     // wander gently around the middle of the range
+            pos+=Math.max(-2,Math.min(2,Math.round((goal-pos)*.4+(Math.random()*3-1.5)))); pos=Math.max(4,Math.min(14,pos));
+            pluck(note(pos),next+off*BEAT,.1+Math.random()*.04); } });
+        }
+        step++; if(step%4===0) bar++; next+=BEAT;
+      }
+      timers.push(setTimeout(plan,900));
+    };
+    plan();
   }
   function stop(){ if(!on) return; on=false; timers.forEach(clearTimeout); timers=[]; const [out]=nodes; try{ out.gain.cancelScheduledValues(ctx.currentTime); out.gain.setTargetAtTime(0,ctx.currentTime,.4); }catch(e){}
-    const old=nodes; nodes=[]; setTimeout(()=>old.forEach(n=>{ try{ if(n.stop) n.stop(); n.disconnect(); }catch(e){} }),1800); }
+    const old=nodes; nodes=[]; setTimeout(()=>old.forEach(n=>{ try{ n.disconnect(); }catch(e){} }),2500); }
   return {start,stop,isOn:()=>on};
 }
 

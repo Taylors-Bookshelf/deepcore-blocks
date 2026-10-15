@@ -1,7 +1,7 @@
 (function(){
 const N = 8, T = 16;
 const A = window.DCA || { track(){}, attempt(){}, setScreen(){}, setBoard(){}, isOn:()=>false, canConfigure:()=>false, setOptOut(){} };
-const {rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARDS_PER_ZONE,BOARD_COUNT,STRIP_BASE,RECIPES,STASH_KEYS,GEM_KEYS,LIGHTS,LIGHTS_NEEDED,lightKind,lineScore,lineName,STAR_AT,starsFor,starBonus,modifierFor,lightCost}=DeepcoreData;
+const {rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARDS_PER_ZONE,BOARD_COUNT,STRIP_BASE,RECIPES,STASH_KEYS,GEM_KEYS,LIGHTS,LIGHTS_NEEDED,lightKind,lineScore,lineName,YIELD_W,yieldOf,starsFromYield,starBonus,bonusPct,bonusOre,modifierFor,lightCost}=DeepcoreData;
 const M=DeepcoreMaps, Meta=DeepcoreMeta;
 const {SHAPES,SHAPE_STRS,SHAPE_BY_KEY,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,getBit,bitOf,chooseSet,BIG_IDS,pickWeighted,rankMoves}=DeepcoreCore;
 const FONT_D = '"Jersey 10", "Courier New", monospace';
@@ -418,12 +418,12 @@ if(window.ResizeObserver) new ResizeObserver(()=>{ if(!$('app').clientHeight) re
 function buildGoals(){
   if(levelDef(level).strip){ $('goalsBar').innerHTML='<div class="stripGoals" aria-label="Strip mine goals"></div>'; updateStripGoals(); return; }
   if(reached){
-    const marks=STAR_AT.map((x,k)=>`<span class="mkline" style="left:${(x/STAR_AT[2]*100).toFixed(1)}%"></span><span class="mk" id="mk${k}" style="left:${(x/STAR_AT[2]*100-(k===2?4:0)).toFixed(1)}%">${'★'.repeat(k+1)}</span>`).join('');
-    $('goalsBar').innerHTML=`<div class="pbar over" role="progressbar" aria-label="Board score, playing for stars" style="flex:1"><div class="pfill" id="pfill"></div>${marks}<div class="ptxt"><span id="pscore">0</span><span id="pgoal"></span></div></div><button id="bankBtn" class="go" type="button" aria-label="Bank the board and finish">BANK</button>`;
+    const sa=starAt(), marks=['0',(sa[0]/sa[1]*100).toFixed(1),'100'].map((x,k)=>`<span class="mkline" style="left:${x}%"></span><span class="mk" id="mk${k}" style="left:${x}%;${k===2?'transform:translateX(-100%)':k===0?'transform:none;left:3px':''}">${'★'.repeat(k+1)}</span>`).join('');
+    $('goalsBar').innerHTML=`<div class="pbar over" role="progressbar" aria-label="Ore value, playing for stars" style="flex:1"><div class="pfill" id="pfill"></div>${marks}<div class="ptxt"><span id="pscore">0</span><span id="pgoal"></span></div></div><button id="bankBtn" class="go" type="button" aria-label="Bank the board and finish">BANK</button>`;
     $('bankBtn').onclick=()=>{ if(busy||over||uiOpen()) return; bankBoard(); };
     updateBar(); return;
   }
-  $('goalsBar').innerHTML='<div class="pbar" role="progressbar" aria-label="Board score"><div class="pfill" id="pfill"></div><div class="ptxt"><span id="pscore">0</span><span id="pgoal"></span></div></div>';
+  $('goalsBar').innerHTML='<div class="pbar" role="progressbar" aria-label="Board score"><div class="pfill" id="pfill"></div><div class="ptxt"><span id="pscore">0</span><span id="pgoal"></span></div></div><div id="starChip" aria-label="Ore value toward the next star"><b id="scStars">★★</b><span id="scTxt">0/0</span></div>';
   updateBar();
 }
 const stripMet=()=>!!curGoals&&Object.entries(curGoals).every(([k,v])=>(hand[k]||0)>=v);
@@ -433,14 +433,19 @@ function updateStripGoals(){
     const n=document.createElement('span'); n.textContent=`${have}/${v}`; g.append(iconOf(ITEM[k]),n); box.append(g); });
 }
 function updateGoals(){}
+const starAt=()=>levelDef(level).starAt;
+const yieldNow=()=>yieldOf(collected);
+const starsNow=()=>starsFromYield(yieldNow(),starAt());
 function updateBar(){
-  const el=$('pfill'); if(!el) return; const tg=levelDef(level).target;
-  if(reached){ const st=starsFor(shown,tg), next=STAR_AT[st]!==undefined?Math.round(tg*STAR_AT[st]):null;
-    el.style.width=(Math.min(1,shown/(tg*STAR_AT[2]))*100)+'%'; $('pscore').textContent=shown.toLocaleString(); $('pgoal').textContent=next?'/ '+next.toLocaleString():'MAX';
-    STAR_AT.forEach((x,k)=>{ const m=$('mk'+k); if(m) m.classList.toggle('on',shown>=tg*x); }); return; }
+  const el=$('pfill'); if(!el) return; const tg=levelDef(level).target, [y2,y3]=starAt(), y=yieldNow();
+  if(reached){ const next=y<y2?y2:y<y3?y3:null;
+    el.style.width=(Math.min(1,y/y3)*100)+'%'; $('pscore').textContent=y.toLocaleString(); $('pgoal').textContent=next?'/ '+next.toLocaleString()+' ore value':'MAX';
+    [0,y2,y3].forEach((x,k)=>{ const m=$('mk'+k); if(m) m.classList.toggle('on',k===0||y>=x); }); return; }
   const f=Math.min(1,shown/tg);
   el.style.width=(f*100)+'%'; $('pscore').textContent=shown.toLocaleString(); $('pgoal').textContent='/ '+tg.toLocaleString(); el.parentElement.classList.toggle('full',f>=1);
   el.parentElement.setAttribute('aria-valuenow',shown); el.parentElement.setAttribute('aria-valuemax',tg);
+  const chip=$('starChip'); if(chip){ const need=y<y2?y2:y<y3?y3:0; $('scStars').textContent=y<y2?'★★':y<y3?'★★★':'★★★'; $('scTxt').textContent=need?`${y}/${need}`:'MAX'; chip.classList.toggle('max',!need);
+    chip.title=`Ore value ${y}. Mine ${y2} for two stars and ${y3} for three.`; }
 }
 let shown=0;
 let lastCombo=0;
@@ -804,13 +809,13 @@ function specialHit(m,r,c,ctx){
   if(m==='prism'){ sp.pts=M.pts;
     const def=levelDef(level), opts=[...def.ores.map(k=>({k,w:ORES[k].p})), ...Object.entries(def.gems||{}).map(([k,g])=>({k,w:g.p*3}))];
     const pick=opts.length?pickWeighted(opts).k:'coal';
-    if(!practice) hand[pick]=(hand[pick]||0)+3; sp.res=practice?null:pick; sp.n=3; sp.sub=`+3 ${DROPS[pick][0]} · +${M.pts}`; }
+    credit(ctx,pick,3); if(!practice) hand[pick]=(hand[pick]||0)+3; sp.res=practice?null:pick; sp.n=3; sp.sub=`+3 ${DROPS[pick][0]} · +${M.pts}`; }
   if(m==='treasure'){ const z=levelDef(level).zone, deep=z>=3;
     const table=[['iron',5,9,deep?.22:.35],['gold',4,7,deep?.24:.30],['emerald',2,4,deep?.29:.20],['diamond',1,3,deep?.25:.15]];
     const pick=pickWeighted(table.map(([k,lo,hi,w])=>({k,lo,hi,w})));
     let u=Math.random(); if(deep && (pick.k==='emerald'||pick.k==='diamond')) u=Math.pow(u,.55);
     const n=pick.lo+Math.min(pick.hi-pick.lo,Math.floor(u*(pick.hi-pick.lo+1)));
-    if(!practice) hand[pick.k]=(hand[pick.k]||0)+n; sp.res=practice?null:pick.k; sp.n=n; sp.pts=200; sp.sub=`${n} ${DROPS[pick.k][0]} · +200`; }
+    credit(ctx,pick.k,n); if(!practice) hand[pick.k]=(hand[pick.k]||0)+n; sp.res=practice?null:pick.k; sp.n=n; sp.pts=200; sp.sub=`${n} ${DROPS[pick.k][0]} · +200`; }
   if(m==='fossil'){ sp.pts=M.pts; sp.sub=`+${M.pts}`; }
   if(m==='sledgehammer'){ sp.pts=M.pts; sp.sub=`Board shaken up · +${M.pts}`; }
   score+=sp.pts; burst(r,c,m,18); grid[r][c]=null;
@@ -868,6 +873,15 @@ function floatText(x,y,text,col){
     const yy=y-cell*.9*easeOut(t); ctx.strokeText(text,x,yy); ctx.fillStyle=col; ctx.fillText(text,x,yy); ctx.restore(); return true; }});
 }
 let undo=null;
+// A multi-line clear, a long combo or an All Clear pays out extra ore as well as points: a share of the ore mined in that play.
+function oreBonus(lineOre,pct){
+  const b=bonusOre(lineOre,pct), keys=Object.keys(b); if(!keys.length) return;
+  keys.forEach(k=>{ collected[k]=(collected[k]||0)+b[k]; if(!practice) hand[k]=(hand[k]||0)+b[k]; });
+  const B=boardC.getBoundingClientRect(); const bx=B.left+B.width/2, by=B.top+B.height*.42;
+  floatText(bx,by,'Bonus ore: '+keys.map(k=>`+${b[k]} ${DROPS[k][0].toLowerCase()}`).join('  '),'#8bf0a0');
+  let q=0; keys.forEach(k=>{ for(let j=0;j<Math.min(b[k],4);j++,q++) flyItem(ITEM[k],k,bx+(Math.random()-.5)*60,by,q*45,(FX[k]&&FX[k][1])||'#fff',()=>{ updateStash([k]); blip(880+Math.random()*300,.05,'sine',.035); },true); });
+  updateStash(keys); updateBar();
+}
 async function place(i,r0,c0){
   skipFlag=false; $('skipHint').hidden=true;
   const p=pieces[i];
@@ -886,11 +900,12 @@ async function place(i,r0,c0){
     busy=true;
     combo++; sinceClear=0;
     const kill=new Set(); rows.forEach(r=>{for(let c=0;c<N;c++)kill.add(r*N+c)}); cols.forEach(c=>{for(let r=0;r<N;r++)kill.add(r*N+c)});
-    const ctx=mineCtx(), blasts=[], hit=[]; const clearStart=score;
+    const ctx=mineCtx(), blasts=[], hit=[]; const clearStart=score, oreBefore={...collected};
     kill.forEach(k=>{ const r=Math.floor(k/N), c=k%N, m=grid[r][c]; if(!m) return;
       if(m==='blast'){ blasts.push([r,c]); return; }
       if(MATS[m].kind==='special'){ hit.push(specialHit(m,r,c,ctx)); return; }
       mineCell(r,c,ctx); });
+    const lineOre={}; Object.keys(YIELD_W).forEach(k=>{ const d=(collected[k]||0)-(oreBefore[k]||0); if(d>0) lineOre[k]=d; });
     score+=lineScore(n,combo);
     flushCtx(ctx);
     { const B=boardC.getBoundingClientRect(); const cr=rows.length?rows.reduce((a,b)=>a+b,0)/rows.length:3.5, cc=cols.length?cols.reduce((a,b)=>a+b,0)/cols.length:3.5;
@@ -914,12 +929,13 @@ async function place(i,r0,c0){
       const ac=allClearBonus(); score+=ac; bigNext=true; A.track('all_clear',{bonus:ac,score_after:score,target:levelDef(level).target});
       showSkip(); playAllClear(ac); await skippable(REDUCE?600:1300);
     }
+    oreBonus(lineOre,bonusPct(n,combo,grid.every(row=>row.every(v=>!v))));
   } else { sinceClear++; if(sinceClear>=3) combo=0; }
   busy=false; $('skipHint').hidden=true; skipFlag=false;
   { const dd=levelDef(level);
     if(dd.strip){ if(stripMet()){ completeStrip(); return; } }
     else if(!reached){ if(score>=dd.target){ reachTarget(); return; } }
-    else if(starsFor(score,dd.target)>=3){ bankBoard(); return; } }   // three stars: banked automatically
+    else if(starsNow()>=3){ bankBoard(); return; } }   // three stars: banked automatically
   if(pieces.every(q=>!q)) dealSet();
   updateHUD(); drawTray(); updateComboMeter(); clearHint(); updateHintBtn(); tutorAfterPlace(n);
   if(pieces.every(q=>!q||!canPlaceAnywhere(q))) gameOver();
@@ -947,15 +963,17 @@ function reachTarget(){
   bankHand(); recordClear(); saveDay(); saveProfile(); saveBoard();
   A.track('board_cleared',{idx:level-1,label:boardLabel(level-1),score,target:dd.target,moves,duration_ms:Math.round(performance.now()-boardT0),attempt:(dayState.attempts||{})[level-1]||1,practice});
   showCombo('Board cleared!'); [523,659,784,1047].forEach((f,j)=>blip(f,.18,'triangle',.07,.1+j*.1));
+  if(starsNow()>=3){ setTimeout(bankBoard,900); return; }   // already at the top rating: no need to ask
   setTimeout(showClearPrompt,800);
 }
 function showClearPrompt(){
   const dd=levelDef(level), sh=$('sheet'); sh.innerHTML=''; sheetMode='clear';
   const el=(tag,cls,txt)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!==undefined) e.textContent=txt; return e; };
   sh.append(el('div','shHandle'));
+  const [y2,y3]=starAt(), y=yieldNow();
   sh.append(el('div','shLabel','BOARD CLEARED'),el('div','shTitle',`${score.toLocaleString()} points`));
-  sh.append(el('div','shBody',`Your ore is banked. Keep playing for up to three stars: each extra star adds bonus points. If you cave in, you keep the clear but lose the ore you gather from here.`));
-  const row=el('div','shStars'); STAR_AT.forEach((x,k)=>{ const got=score>=dd.target*x; const b=el('div','shStar'+(got?' got':'')); b.append(el('b',undefined,'★'.repeat(k+1)),el('span',undefined,k===0?'Cleared':`${Math.round(dd.target*x).toLocaleString()} pts`)); row.append(b); }); sh.append(row);
+  sh.append(el('div','shBody',`Your ore is banked. Stars come from ore value: mine ${y2} for two stars and ${y3} for three (you have ${y}). Each extra star adds bonus points. If you cave in you keep the clear, but lose the ore you gather from here.`));
+  const row=el('div','shStars'); [0,y2,y3].forEach((x,k)=>{ const got=k===0||y>=x; const b=el('div','shStar'+(got?' got':'')); b.append(el('b',undefined,'★'.repeat(k+1)),el('span',undefined,k===0?'Cleared':`${Math.min(y,x)}/${x} ore value`)); row.append(b); }); sh.append(row);
   const btns=el('div','shBtns'), keep=el('button','alt','KEEP GOING'), bankb=el('button','go','BANK IT'); keep.id='kpGo'; bankb.id='kpBank'; keep.type=bankb.type='button'; bankb.style.flex='1.4'; btns.append(keep,bankb); sh.append(btns);
   keep.onclick=()=>{ closeSheet(); decided=true; busy=false; buildGoals(); updateBar(); saveBoard(); A.track('keep_going',{score,target:dd.target}); };
   bankb.onclick=()=>{ closeSheet(); bankBoard(); };
@@ -963,7 +981,7 @@ function showClearPrompt(){
 }
 function bankBoard(){
   busy=true; const idx=level-1, dd=levelDef(level); ensureReached(); recordClear();
-  const stars=Math.max(1,starsFor(score,dd.target)), sb=starBonus(stars,dd.target);
+  const stars=Math.max(1,starsNow()), sb=starBonus(stars,dd.target);
   const haul=bankHand(), pts=score+clearBonus+sb;
   { const prev=dayState.stars[idx]||0; if(stars>prev) life.stars+=stars-prev; }
   dayState.scores[idx]=Math.max(dayState.scores[idx]||0,pts); dayState.stars[idx]=Math.max(dayState.stars[idx]||0,stars);
@@ -1842,7 +1860,7 @@ if(['localhost','127.0.0.1','[::1]'].includes(location.hostname) && /[?&]debug\b
   place:(i,r,c)=>place(i,r,c), state:()=>({reached,reachScore,clearBonus,decided,hintInfo,combo,sinceClear,grid,pieces,score,busy,over,bank,hand,luck,luckLive,specials,crafted:Object.fromEntries(RECIPES.map(r=>[r.m,dockCount(r.m)])),dealt,screen,level,dayState}),
   fits:(p,r,c)=>fitsAt(p,r,c), setCell:(r,c,m)=>{grid[r][c]=m;}, setPieces:(ps)=>{pieces=ps; drawTray();},
   give:(b)=>{Object.assign(bank,b); updateStash();}, def:()=>levelDef(level), start:(i)=>{show('game'); startBoard(i);},
-  setScore:(v)=>{score=v;}, tickDay:()=>refreshIfNewDay(), fx:()=>({fxList:fxList.length,fxParts:fxParts.length,particles:particles.length}), setDayRaw:(d)=>{ dayState.day=d; saveDay(); }, musicOn:()=>!!(music&&music.isOn()), life:()=>life, settings:()=>settings, tut:()=>tut, fillHome:()=>fillHome(), showHome:()=>showHome(), resetText:()=>Meta.resetText(), share:()=>doShare(), reach:()=>reachTarget(), hint:()=>useHint(), mod:()=>modifierFor(dayState.day), lcost:(z)=>lcost(z), addSpecial:(m)=>{ specials.push(m); renderDock(); updateAnvilGlow(); }, tilt:()=>mercyTilt(), practice:()=>practice, previewDay:(d)=>{ dayState.day=d; buildMap(); }, lightUp:(z,n=2)=>{ dayState.lights[z]=n; saveDay(); }, markDone:(a)=>{ dayState.done=a.slice(); saveDay(); }, openMap:()=>showMap({}), buildMap:()=>buildMap(), mapInfo:()=>({maxY:mapState().maxY,map:MAP}), newDay:(d)=>{ const s0=lsGet(K_DAY); if(s0){ s0.day=d; lsSet(K_DAY,s0); } checkDay(); }, history:()=>({history,bestDay,lastDay}), setBank:(b)=>{ bank=b; updateStash(); }, craftLight:(z)=>craftLight(z), goals:()=>curGoals, stripMet:()=>stripMet(), completeStrip:()=>completeStrip(), allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:()=>drinkLuck(), deal:()=>dealSet(), complete:()=>completeBoard(), audioState:()=>ac?ac.state:'none',
+  setScore:(v)=>{score=v;}, setCollected:(o)=>{collected=o;}, collected:()=>collected, tickDay:()=>refreshIfNewDay(), fx:()=>({fxList:fxList.length,fxParts:fxParts.length,particles:particles.length}), setDayRaw:(d)=>{ dayState.day=d; saveDay(); }, musicOn:()=>!!(music&&music.isOn()), life:()=>life, settings:()=>settings, tut:()=>tut, fillHome:()=>fillHome(), showHome:()=>showHome(), resetText:()=>Meta.resetText(), share:()=>doShare(), reach:()=>reachTarget(), hint:()=>useHint(), mod:()=>modifierFor(dayState.day), lcost:(z)=>lcost(z), addSpecial:(m)=>{ specials.push(m); renderDock(); updateAnvilGlow(); }, tilt:()=>mercyTilt(), practice:()=>practice, previewDay:(d)=>{ dayState.day=d; buildMap(); }, lightUp:(z,n=2)=>{ dayState.lights[z]=n; saveDay(); }, markDone:(a)=>{ dayState.done=a.slice(); saveDay(); }, openMap:()=>showMap({}), buildMap:()=>buildMap(), mapInfo:()=>({maxY:mapState().maxY,map:MAP}), newDay:(d)=>{ const s0=lsGet(K_DAY); if(s0){ s0.day=d; lsSet(K_DAY,s0); } checkDay(); }, history:()=>({history,bestDay,lastDay}), setBank:(b)=>{ bank=b; updateStash(); }, craftLight:(z)=>craftLight(z), goals:()=>curGoals, stripMet:()=>stripMet(), completeStrip:()=>completeStrip(), allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:()=>drinkLuck(), deal:()=>dealSet(), complete:()=>completeBoard(), audioState:()=>ac?ac.state:'none',
 }};
 start();
 })();

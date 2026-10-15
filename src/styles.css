@@ -35,13 +35,13 @@ h1,h2,h3{font-family:var(--font-display);font-weight:400;margin:0}
 
 /* ---------- play screen ---------- */
 #app{height:100%;height:100dvh;display:flex;flex-direction:column;justify-content:space-between;gap:10px;align-items:stretch;max-width:560px;margin:0 auto;padding:max(env(safe-area-inset-top,0px),14px) 16px max(env(safe-area-inset-bottom,0px),14px)}
-#hdr{flex:none;height:44px;display:flex;align-items:center;gap:10px}
+#hdr{flex:none;height:44px;display:flex;align-items:center;gap:6px}
 #lvlBadge{width:44px;height:44px;flex:none;border-radius:10px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--panel-line);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:26px;line-height:1}
 .hmid{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
-#zoneName{font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#zoneName{font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hrow{display:flex;gap:6px;align-items:center;white-space:nowrap}
 #todayTxt{font-size:12px;color:var(--muted)}
-.ibtn{width:44px;height:44px;min-height:44px;padding:0;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none}
+.ibtn{width:40px;height:44px;min-height:44px;padding:0;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none}
 #sound .xx{display:none}
 #sound[aria-pressed="false"]{color:#9a9da4}
 #sound[aria-pressed="false"] .wv{display:none}
@@ -270,8 +270,8 @@ button.tool{cursor:grab;touch-action:none}
 #comboMeter .pips i.on{background:var(--lamp);box-shadow:0 0 6px var(--lamp)}
 #comboMeter.pulse{animation:cmPulse .3s}
 @keyframes cmPulse{40%{transform:scale(1.15)}}
-#hintBtn{position:absolute;right:6px;top:-20px;z-index:3;width:40px;height:40px;min-height:40px;padding:0;border-radius:50%;background:var(--lamp);color:var(--on-lamp);box-shadow:inset 0 -3px 0 #b8892f,0 2px 0 rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center}
-#hintBtn:disabled{background:var(--slot);color:#8a8d94;box-shadow:inset 0 0 0 1px var(--panel-line);opacity:1}
+#hintBtn{color:var(--lamp)}
+#hintBtn:disabled{color:#8a8d94;opacity:1}
 .slot.hint{box-shadow:inset 0 0 0 2px var(--lamp);animation:hintPulse .9s ease-in-out infinite}
 @keyframes hintPulse{50%{box-shadow:inset 0 0 0 2px var(--lamp),0 0 14px rgba(255,207,92,.7)}}
 #goalsBar{gap:8px}
@@ -347,3 +347,8 @@ html.large .recipe .nm,html.large .irow .nm{font-size:19px}
 #home.sub .settings{max-height:94vh}
 #bootError{position:fixed;inset:0;z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--ground);color:var(--text);text-align:center;padding:24px}
 #bootError p{margin:0;font-size:18px}
+
+#starChip{flex:none;height:36px;min-width:70px;padding:0 8px;border-radius:6px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--panel-line);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05}
+#starChip b{font-size:11px;letter-spacing:1px;color:var(--lamp)}
+#starChip span{font-size:13px;font-weight:700;color:var(--text)}
+#starChip.max span{color:#8bf0a0}

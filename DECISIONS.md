@@ -75,3 +75,12 @@ Judgment calls I made without asking, so you can review and ask me to change or 
 - **Phone screen:** layout uses the dynamic viewport height and disables pull-to-refresh bounce so a swipe near the top does not move the board.
 - **Dead code removed** (old difficulty-mode remnants, unused helpers).
 - **Not done:** no haptics, no leaderboards, no real-device test (see the final report).
+
+## Playtest round 1 (v1.1.0)
+- **Stars from ore, not points.** Clear = 1 star; 2 and 3 stars need an ore value mined on that board. Ore value weights: coal 1, copper 1, iron 2, ruby 2, gold 3, emerald 5, diamond 6 (wood does not count). Thresholds per zone (first board of the zone; later boards scale with their target): Forest 9/12, Limestone 20/28, Granite 23/32, Slate 26/36, Basalt 23/32, Underworld 36/50. They come from the simulator (`tools/stars.mjs`): 2 stars is about 1.25x and 3 stars about 1.75x what a typical player holds at the clear.
+- **No more pointless prompt.** If the ore for 3 stars is already in hand when the board clears, it banks itself. If you have 2 stars worth, the prompt only offers the third. Ore from Prism Stones and Buried Treasure counts. Practice runs still count toward stars (they just give no ore).
+- **Bonus ore tiers** (share of the ore mined in that placement): 2 lines +25%, 3 +50%, 4 +75%, 5+ +100%; combo x3-4 +10%, x5+ +25%; All Clear +100%; total capped at +150%. Rounded to the nearest whole ore, at least 1 per ore type once the bonus reaches +50%; emerald and diamond bonus capped at +1 per play. This is different from your example of +4 of every ore for a 4-line clear: that would roughly double the economy.
+- **Rebalanced ore:** bonus ore alone made strip mines needed only 14% of the time and doubled crafting, so I lowered base ore rates about 20% (coal .185, copper .175, ruby .078, iron .033, gold .038). Strip mines are needed 55% of the time again; crafts per day match the old numbers. Daily twists that boost ore also make stars easier that day.
+- **Hint** is now a lamp-coloured bulb with a question mark in the top bar (greyed when you lack coal); header buttons are 40 wide to make room.
+- **Status bar:** I could not reproduce the top-of-screen shadow without your phone. My best guess is the translucent status bar style; I switched the installed app to a solid black one. If it persists, send a screenshot.
+- **Music:** C major pentatonic, about 77 bpm, soft marimba-like plucks with a quiet pad, bass notes and an echo; never repeats. Still off by default.

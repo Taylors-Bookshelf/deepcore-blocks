@@ -6,7 +6,13 @@ const D = require('../src/data.js'), C = require('../src/core.js');
 const { check, fails } = makeChecker();
 
 // ---- data: stars, modifiers, lamp costs ----
-check(D.starsFor(999, 1000) === 0 && D.starsFor(1000, 1000) === 1 && D.starsFor(1300, 1000) === 2 && D.starsFor(1700, 1000) === 3, 'stars come at 100%, 130% and 170% of the target');
+{ const at = [20, 30]; check(D.starsFromYield(0, at) === 1 && D.starsFromYield(19, at) === 1 && D.starsFromYield(20, at) === 2 && D.starsFromYield(30, at) === 3, 'the clear is one star; ore value earns the second and third'); }
+check(D.yieldOf({ coal: 3, iron: 2, emerald: 1, wood: 50, stone: 9 }) === 3 + 4 + 5, 'ore value counts ores and gems, not wood or rock');
+check(D.boardParams(1, 3).starAt[0] > D.boardParams(1, 0).starAt[0] && D.boardParams(1, 0).starAt[1] > D.boardParams(1, 0).starAt[0], 'star thresholds rise within a zone and 3 stars need more than 2');
+{ check(D.bonusPct(1, 1, false) === 0 && D.bonusPct(2, 1, false) === .25 && D.bonusPct(4, 1, false) === .75, 'bonus rises with the number of lines');
+  check(D.bonusPct(1, 5, false) === .25 && D.bonusPct(1, 3, false) === .1 && D.bonusPct(1, 1, true) === 1 && D.bonusPct(5, 9, true) === 1.5, 'long combos and All Clear add more, capped at +150%');
+  const b = D.bonusOre({ coal: 3, iron: 2, emerald: 3, wood: 4 }, .5); check(b.coal === 2 && b.iron === 1 && b.emerald === 1 && !b.wood, 'bonus ore is a share of what was mined (at least 1 at +50%), gems capped at +1, wood excluded');
+  check(Object.keys(D.bonusOre({ coal: 9 }, 0)).length === 0 && D.bonusOre({ coal: 1 }, .25).coal === undefined, 'no bonus below the first tier, and tiny hauls round down at low tiers'); }
 check(D.starBonus(1, 2400) === 0 && D.starBonus(2, 2400) === 240 && D.starBonus(3, 2400) === 480, 'each extra star is worth 10% of the target');
 const days = Array.from({ length: 90 }, (_, i) => `2026-${String(1 + Math.floor(i / 28)).padStart(2, '0')}-${String(1 + i % 28).padStart(2, '0')}`);
 const mods = days.map(d => D.modifierFor(d).id);
@@ -42,7 +48,7 @@ check(s.day.stars[4] === 1 && s.day.scores[4] > tg, 'the clear is recorded with 
 // 2. keep going: stars, bank button, risk
 await page.tap('#kpGo'); await page.waitForTimeout(300);
 check(await T(() => !!document.getElementById('bankBtn') && document.querySelectorAll('.pbar .mk').length === 3 && !!document.querySelector('.pbar.over')), 'playing on shows star markers and a BANK button');
-await tt('setScore', Math.round(tg * 1.3)); await page.waitForTimeout(600);
+const sa = await T(() => window.__deepcore.test.def().starAt); await tt('setCollected', { coal: sa[0] }); await page.waitForTimeout(600);
 check(await T(() => document.getElementById('mk0').classList.contains('on') && document.getElementById('mk1').classList.contains('on') && !document.getElementById('mk2').classList.contains('on') && /\//.test(document.getElementById('pgoal').textContent)), 'two stars light up and the bar shows the next goal');
 await tt('giveHand', { coal: 3 }); const bankBefore = (await st()).bank.coal;
 await tt('gameOver'); await page.waitForTimeout(1500); s = await st();
@@ -52,20 +58,34 @@ check(!s.day.fails || !s.day.fails[4], 'that cave-in does not count as a failed 
 
 // 3. banking with 3 stars pays the star bonus
 await page.tap('#again'); await page.waitForTimeout(600); await board(5); const tg5 = await target();
-await tt('setScore', Math.round(tg5 * 1.7) - 5); await clearRow(); await page.waitForTimeout(2600);
-check(await T(() => document.querySelectorAll('.shStar.got').length) === 3, 'the prompt shows three stars earned');
+const sa5 = await T(() => window.__deepcore.test.def().starAt);
+// 2 stars of ore at the moment of the clear: the prompt appears and offers to go for a third
+await tt('setCollected', { coal: sa5[0] }); await tt('setScore', tg5 - 5); await clearRow(); await page.waitForTimeout(2600);
+check(await T(() => document.querySelectorAll('.shStar.got').length) === 2, 'the prompt shows the two stars already earned from ore');
 await page.tap('#kpBank'); await page.waitForTimeout(3200); s = await st();
+check(s.day.stars[5] === 2 && s.screen === 'map', 'banking records the 2 stars');
+// the ore for 3 stars is already in hand at the clear: no prompt at all, it banks itself
+await board(5); await tt('setCollected', { coal: sa5[1] }); await tt('setScore', tg5 - 5); await clearRow(); await page.waitForTimeout(1500);
+check(await T(() => document.getElementById('sheetScrim').hidden), 'already at three stars when the board clears: no question is asked');
+await page.waitForTimeout(3000); s = await st();
 const expectBonus = D.starBonus(3, tg5);
-check(s.day.stars[5] === 3 && s.day.scores[5] >= Math.round(tg5 * 1.7) && s.screen === 'map', `banking at three stars records 3 stars and returns to the map (bonus ${expectBonus})`);
-check(s.day.scores[5] - (Math.round(tg5 * 1.7) - 5) > expectBonus, 'the star bonus is part of the board score');
+check(s.day.stars[5] === 3 && s.screen === 'map', `the board banks itself with 3 stars (bonus ${expectBonus})`);
+check(s.day.scores[5] > tg5 + expectBonus, 'the star bonus is part of the board score');
 // 4. auto-bank at three stars while playing on
 await board(6); const tg6 = await target(); await tt('setScore', tg6 - 5); await clearRow(); await page.waitForTimeout(2600); await page.tap('#kpGo'); await page.waitForTimeout(300);
-await tt('setScore', Math.round(tg6 * 1.7) - 5); await clearRow(); await page.waitForTimeout(4200); s = await st();
+await tt('setCollected', { coal: (await T(() => window.__deepcore.test.def().starAt))[1] }); await clearRow(); await page.waitForTimeout(4200); s = await st();
 check(s.screen === 'map' && s.day.stars[6] === 3, 'reaching three stars while playing on banks the board automatically');
 // 5. practice replays can still raise your stars
-await board(6); check(await tt('practice'), 'replay is a practice run'); await tt('setScore', Math.round(await target() * 1.3) - 5); await clearRow(); await page.waitForTimeout(2600); await page.tap('#kpBank'); await page.waitForTimeout(3200);
+await board(6); check(await tt('practice'), 'replay is a practice run'); await tt('setScore', (await target()) - 5); await clearRow(); await page.waitForTimeout(2600); await page.tap('#kpBank'); await page.waitForTimeout(3200);
 check((await st()).day.stars[6] === 3, 'a worse replay never lowers the stars you already have');
 
+// 5b. bonus ore: a two-line clear pays +25% of the ore mined in that play
+{ const sq = C.SHAPES.findIndex(sh => sh.w === 2 && sh.h === 2 && sh.cells.length === 4);
+  await board(4); await tt('setCollected', {});
+  await T((sq) => { const t = window.__deepcore.test; for (const r of [6, 7]) for (let c = 0; c < 8; c++) t.setCell(r, c, c < 6 ? 'coal' : null);
+    t.setPieces([{ cells: [[0, 0], [0, 1], [1, 0], [1, 1]], h: 2, w: 2, mats: ['stone', 'stone', 'stone', 'stone'], sid: sq }, null, null]); t.place(0, 6, 6); }, sq);
+  await page.waitForTimeout(2500); const col = await T(() => window.__deepcore.test.collected());
+  check(col.coal === 15, `a double clear that mined 12 coal gives +3 bonus coal (collected ${col.coal})`); }
 // 6. combo meter
 await board(4);
 for (let k = 0; k < 2; k++) { await clearRow(); await page.waitForTimeout(2300); }

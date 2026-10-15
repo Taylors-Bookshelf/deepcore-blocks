@@ -58,11 +58,11 @@ function botMove(lo, hi, pcs, rnd) {
   return opts[0];   // planner: same one-step search, no slips
 }
 
-export function runBoard(zi, bj, seed, strip, fails = 0) {
+export function runBoard(zi, bj, seed, strip, fails = 0, cont = null) {
   const def = { ...D.boardParams(zi, strip ? 1 : bj) }, rnd = makeRun(seed), VAL = D.VAL;
   if (strip) { const boost = {}; Object.entries(strip).forEach(([k, n]) => { if (k === 'wood') return; const o = D.ORES[k]; boost[k] = Math.min(6, Math.max(1, (n / 21) / (o.p * (o.vein[0] + o.vein[1]) / 2))); }); def.oreBoost = boost; if (strip.wood) def.base = { log: 2.4, dirt: 1, grass: .4 }; def.target = Infinity; }
   const mats = prefill(def, rnd); let [lo, hi] = bitsOf(mats);
-  let score = 0, combo = 0, since = 0, moves = 0, bigNext = false, deals = 0, allClears = 0, multi = 0, clearMoves = 0; const dealt = {}, got = {};
+  let score = 0, combo = 0, since = 0, moves = 0, bigNext = false, deals = 0, allClears = 0, multi = 0, clearMoves = 0; const dealt = {}, got = {}; let atClear = null; const trace = [];
   const tilt = Math.min(.75, Math.max(0, fails - 1) * .35);
   while (true) {
     deals++; let set;
@@ -72,19 +72,25 @@ export function runBoard(zi, bj, seed, strip, fails = 0) {
     let pcs = out.slice();
     while (pcs.some(Boolean)) {
       const mv = botMove(lo, hi, pcs, rnd);
-      if (!mv) return { win: false, score, moves, deals, got, target: def.target, allClears, multi, clearMoves };
+      if (!mv) return { win: !!atClear, score, moves, deals, got, target: def.target, allClears, multi, clearMoves, atClear, trace, died: true };
       const p = pcs[mv.i]; pcs[mv.i] = null; moves++; score += p.cells.length;
       p.cells.forEach(([r, c], k) => { mats[(mv.pl.r0 + r) * 8 + mv.pl.c0 + c] = p.mats[k]; });
       const kill = new Set(); for (let r = 0; r < 8; r++) { let f = true; for (let c = 0; c < 8; c++) if (!mats[r * 8 + c]) f = false; if (f) for (let c = 0; c < 8; c++) kill.add(r * 8 + c); }
       for (let c = 0; c < 8; c++) { let f = true; for (let r = 0; r < 8; r++) if (!mats[r * 8 + c]) f = false; if (f) for (let r = 0; r < 8; r++) kill.add(r * 8 + c); }
+      const playGot = {}; kill.forEach(k => { const m = mats[k]; if (m && D.YIELD_W[m]) playGot[m] = (playGot[m] || 0) + 1; });
       let n = 0; for (let r = 0; r < 8; r++) { let f = true; for (let c = 0; c < 8; c++) if (!mats[r * 8 + c]) f = false; if (f) n++; } for (let c = 0; c < 8; c++) { let f = true; for (let r = 0; r < 8; r++) if (!mats[r * 8 + c]) f = false; if (f) n++; }
       if (n) { combo++; since = 0; clearMoves++; if (n > 1) multi++; kill.forEach(k => { const m = mats[k]; if (m) { score += VAL[m] || 0; const res = m === 'log' ? 'wood' : (m === 'grass' ? 'dirt' : m); got[res] = (got[res] || 0) + 1; mats[k] = null; } }); score += D.lineScore(n, combo); }
       else { since++; if (since >= 3) combo = 0; }
       [lo, hi] = bitsOf(mats);
       if (n && lo === 0 && hi === 0) { score += Math.max(10, Math.round((strip ? D.ZONES[zi].target : def.target) * .15 / 10) * 10); allClears++; bigNext = true; }
+      if (n) { const acNow = lo === 0 && hi === 0; Object.entries(D.bonusOre(playGot, D.bonusPct(n, combo, acNow))).forEach(([k, v]) => { got[k] = (got[k] || 0) + v; }); }
+      if (cont && !strip) {
+        if (!atClear && score >= def.target) atClear = { y: D.yieldOf(got), moves, score };
+        if (atClear) { const y = D.yieldOf(got); trace.push([moves, y]); if (y >= cont.cap || moves > 700) return { win: true, score, moves, deals, got, target: def.target, allClears, multi, clearMoves, atClear, trace, died: false }; }
+      } else
       if (strip ? Object.entries(strip).every(([k, v]) => (got[k] || 0) >= v) : score >= def.target) return { win: true, score, moves, deals, got, target: def.target, allClears, multi, clearMoves };
       if (pcs.every((q, i) => !q) ) break;
-      if (pcs.every(q => !q || !C.SHAPES[q.sid].pl.some(pl => !(lo & pl.lo) && !(hi & pl.hi)))) return { win: false, score, moves, deals, got, target: def.target, allClears, multi, clearMoves };
+      if (pcs.every(q => !q || !C.SHAPES[q.sid].pl.some(pl => !(lo & pl.lo) && !(hi & pl.hi)))) return { win: !!atClear, score, moves, deals, got, target: def.target, allClears, multi, clearMoves, atClear, trace, died: true };
     }
   }
 }

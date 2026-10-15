@@ -24,7 +24,7 @@ const near = (a, b, tol = 1) => Math.abs(a - b) <= tol;
 // ---- reference size ----
 { const t = await setup(390, 844); const m = await measure(t.page);
   check(near(m.hdr.h, 44) && near(m.badge.w, 44) && near(m.badge.h, 44), `header row is 44 tall, level badge 44x44 (${Math.round(m.hdr.h)}, ${Math.round(m.badge.w)})`);
-  check(m.ibtn.length === 3 && m.ibtn.every(([w, h]) => near(w, 44) && near(h, 44)), 'info, map and sound buttons are 44x44');
+  check(m.ibtn.length === 4 && m.ibtn.every(([w, h]) => near(w, 40) && near(h, 44)), 'hint, info, map and sound buttons are 40x44');
   check(near(m.hdr.x, 16) && near(m.vw - m.hdr.r, 16), 'side padding is 16');
   check(near(m.goals.h, 36), `progress bar is 36 tall (${m.goals.h})`);
   check(near(m.strip.h, 38), `resource strip is 38 tall (${m.strip.h})`);

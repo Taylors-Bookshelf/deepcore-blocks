@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#46494f">
 <meta name="description" content="Deepcore Blocks: a mining block puzzle. Place pieces, clear lines, dig from the forest to the Underworld.">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>Deepcore Blocks</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
@@ -25,6 +25,7 @@
       <div id="zoneName">THE FOREST</div>
       <div class="hrow"><span class="tier" id="tier">Easy</span><span id="todayTxt">Today <span id="best">0</span><span class="plus" id="bestPlus"></span></span></div>
     </div>
+    <button id="hintBtn" class="ibtn" type="button" aria-label="Hint: show a good move for 3 coal"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19h6M10 22h4M12 2.5a6.5 6.5 0 0 0-3.7 11.8c.6.5 1 1.1 1 1.9v.3h5.4v-.3c0-.8.4-1.4 1-1.9A6.5 6.5 0 0 0 12 2.5z"/><path d="M10.2 8.2a1.9 1.9 0 1 1 2.8 1.7c-.7.4-1 .8-1 1.5"/><path d="M12 13.4v.1" stroke-width="2.2"/></svg></button>
     <button id="infoBtn" class="ibtn" type="button" aria-label="Field guide"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.5" r=".6" fill="currentColor"/></svg></button>
     <button id="homeBtn" class="ibtn" type="button" aria-label="Map"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg></button>
     <button id="sound" class="ibtn" type="button" aria-label="Sound" aria-pressed="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="wv" d="M17 9a4 4 0 0 1 0 6"/><path class="xx" d="M17 9l5 6M22 9l-5 6"/></svg></button>
@@ -60,7 +61,6 @@
     <button id="anvilBtn" type="button" aria-label="Open the anvil to craft specials"><canvas id="anvilIcon" width="16" height="16"></canvas><span>CRAFT</span></button>
   </div>
   <div id="trayWrap">
-    <button id="hintBtn" type="button" aria-label="Hint: show a good move for 3 coal"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg></button>
     <div id="luckBadge" hidden><span class="pips"></span><span id="luckTxt"></span></div>
     <div id="tray">
       <div class="slot" data-i="0"><canvas></canvas></div>

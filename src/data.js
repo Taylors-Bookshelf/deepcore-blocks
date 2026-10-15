@@ -7,7 +7,7 @@ function hashStr(s){ let h=2166136261; for(const ch of s){ h^=ch.charCodeAt(0); 
 // Ore rarity: chance per piece that it carries this ore, and how many touching cells the vein fills.
 // Emeralds and diamonds are handled per zone (rates and per-board caps live with the zones).
 const ORES = {
-  coal:{p:.24, vein:[1,3]}, copper:{p:.23, vein:[1,2]}, ruby:{p:.10, vein:[1,2]}, iron:{p:.04, vein:[1,2]}, gold:{p:.05, vein:[1,1]},
+  coal:{p:.185, vein:[1,3]}, copper:{p:.175, vein:[1,2]}, ruby:{p:.078, vein:[1,2]}, iron:{p:.033, vein:[1,2]}, gold:{p:.038, vein:[1,1]},
 };
 // Points for mining each block: deeper rock is worth more, ore far more, gems most
 // Internal block ids keep their old names so saves stay valid: stone = limestone, deep = slate, obsidian = basalt, ember = magmastone.
@@ -61,10 +61,24 @@ const MODIFIERS=[
 const modifierFor=day=>MODIFIERS[hashStr('mod:'+day)%MODIFIERS.length];
 // what a torch or lantern costs on a given day
 const lightCost=(kind,mod)=>{ const m=(mod&&mod.lightMul)||1; return Object.fromEntries(Object.entries(LIGHTS[kind].cost).map(([k,v])=>[k,Math.ceil(v*m)])); };
-// Stars: 1 for the target, 2 at 130%, 3 at 170%. Each star after the first is worth 10% of the target in bonus points.
-const STAR_AT=[1,1.3,1.7];
-const starsFor=(score,target)=>STAR_AT.reduce((n,x)=>score>=target*x?n+1:n,0);
+// Stars: the clear itself is 1 star. 2 and 3 stars come from how much ore and gems you mined on the board ("yield"), so you
+// cannot blaze through on combos alone. Each star after the first is worth 10% of the target in bonus points.
+const YIELD_W={coal:1,copper:1,iron:2,ruby:2,gold:3,emerald:5,diamond:6};            // wood does not count: it is not mined ore
+const yieldOf=got=>Object.entries(YIELD_W).reduce((t,[k,w])=>t+w*((got&&got[k])||0),0);
+// [2 stars, 3 stars] on the first board of each zone, set from tools/stars.mjs (about 1.25x and 1.75x what a typical player has at the clear); later boards scale with their target
+const STAR_YIELD=[[9,12],[20,28],[23,32],[26,36],[23,32],[36,50]];
+const starsFromYield=(y,at)=>1+(y>=at[0]?1:0)+(y>=at[1]?1:0);
 const starBonus=(stars,target)=>Math.max(0,stars-1)*Math.round(target*.1/10)*10;
+// Combo bonuses also pay out ore: a multi-line clear, a long combo or an All Clear adds a share of the ore mined in that play.
+const BONUS_LINES=[0,0,.25,.5,.75,1];
+const bonusPct=(lines,combo,allClear)=>Math.min(1.5,BONUS_LINES[Math.min(lines,5)]+(combo>=5?.25:combo>=3?.1:0)+(allClear?1:0));
+const RARE_GEMS=['emerald','diamond'];
+function bonusOre(counts,pct){
+  const out={}; if(pct<=0) return out;
+  Object.keys(YIELD_W).forEach(k=>{ const v=(counts&&counts[k])||0; if(!v) return;
+    let b=Math.round(v*pct); if(pct>=.5&&b<1) b=1; if(RARE_GEMS.includes(k)) b=Math.min(b,1); if(b>0) out[k]=b; });
+  return out;
+}
 const STASH_KEYS=['wood','coal','iron','copper','gold','ruby','emerald','diamond'];
 const GEM_KEYS=['ruby','emerald','diamond'];
 
@@ -75,13 +89,14 @@ function boardParams(zi,j,mod){
   const z=ZONES[zi], f=j/(BOARDS_PER_ZONE-1);
   const oreBoost={...(z.boost||{})}; if(mod&&mod.ore) Object.entries(mod.ore).forEach(([k,v])=>{ oreBoost[k]=(oreBoost[k]||1)*v; });
   const gems={}; Object.entries(z.gems||{}).forEach(([k,g])=>{ gems[k]=mod&&mod.gemMul?{p:g.p*mod.gemMul,cap:g.cap+(mod.gemCapAdd||0)}:g; });
-  return { zone:zi, zoneName:z.name, rock:z.rock, base:z.mixes[j], ores:z.ores.filter(k=>((z.oreFrom&&z.oreFrom[k])||0)<=j), oreBoost, gems, specialMul:(mod&&mod.specialMul)||1,
+  const tg=Math.round(z.target*(1+(z.growth===undefined?.2:z.growth)*j)/10)*10, sc=tg/z.target;
+  return { zone:zi, j, starAt:STAR_YIELD[zi].map(v=>Math.round(v*sc)), zoneName:z.name, rock:z.rock, base:z.mixes[j], ores:z.ores.filter(k=>((z.oreFrom&&z.oreFrom[k])||0)<=j), oreBoost, gems, specialMul:(mod&&mod.specialMul)||1,
     target:Math.round(z.target*(1+(z.growth===undefined?.2:z.growth)*j)/10)*10,
     d:Math.min(.97,z.d[0]+(z.d[1]-z.d[0])*f), pre:Math.round(z.pre[0]+(z.pre[1]-z.pre[0])*f) };
 }
 // Points for clearing n lines at once with a combo of c. Doubles and better pay extra (called Double / Triple / Quad / Mega).
 const lineScore=(n,c)=> n*10*n*c + (n>=2 ? 25*n*(n-1) : 0);
 const lineName=n=> n>=5?'Mega!' : n===4?'Quad!' : n===3?'Triple!' : n===2?'Double!' : '';
-const api={MODIFIERS,modifierFor,lightCost,STAR_AT,starsFor,starBonus,lineScore,lineName,STRIP_BASE,GEM_KEYS,LIGHTS,LIGHTS_NEEDED,lightKind,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARDS_PER_ZONE,BOARD_COUNT,RECIPES,STASH_KEYS};
+const api={MODIFIERS,modifierFor,lightCost,YIELD_W,yieldOf,STAR_YIELD,starsFromYield,starBonus,BONUS_LINES,bonusPct,bonusOre,lineScore,lineName,STRIP_BASE,GEM_KEYS,LIGHTS,LIGHTS_NEEDED,lightKind,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARDS_PER_ZONE,BOARD_COUNT,RECIPES,STASH_KEYS};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.DeepcoreData=api;
 })(typeof self!=='undefined'?self:globalThis);
