@@ -69,9 +69,16 @@ const play = async (page, n) => { for (let k = 0; k < n * 3; k++) { const r = aw
 // ---- the day can end while the app is open ----
 { const t = await phone(); await t.page.goto(t.base + '?debug'); await t.page.waitForTimeout(600);
   await t.page.tap('#mapBtn'); await t.page.waitForTimeout(400);
-  await t.page.evaluate(() => { const T = window.__deepcore.test; T.markDone([0, 1]); T.setDayRaw('2000-01-01'); T.tickDay(); }); await t.page.waitForTimeout(500);
-  const s = await t.page.evaluate(() => { const st = window.__deepcore.test.state().dayState; return [st.day, st.done.length, document.querySelectorAll('#mapNodes .node').length]; });
-  check(s[0] !== '2000-01-01' && s[1] === 0 && s[2] === 1, `after midnight the map refreshes into a fresh day (${s})`);
+  // cleared a board yesterday: the new day keeps the progress
+  const today = await t.page.evaluate(() => window.__deepcore.test.state().dayState.day);
+  const [y, m, d] = today.split('-').map(Number), yest = new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
+  await t.page.evaluate((yest) => { const T = window.__deepcore.test; T.markDone([0, 1]); T.setRun({ day: yest, lastClear: yest }); T.tickDay(); }, yest); await t.page.waitForTimeout(500);
+  let s = await t.page.evaluate(() => { const st = window.__deepcore.test.state().dayState; return [st.day, st.done.length, document.querySelectorAll('#mapNodes .node').length]; });
+  check(s[0] === today && s[1] === 2 && s[2] === 3, `after midnight the map moves to the new day and keeps your depth (${s})`);
+  // missed a whole day: the Forest boards cave back in
+  await t.page.evaluate(() => { const T = window.__deepcore.test; T.setRun({ day: '2000-01-02', lastClear: '2000-01-01' }); T.tickDay(); }); await t.page.waitForTimeout(800);
+  s = await t.page.evaluate(() => { const st = window.__deepcore.test.state().dayState; return [st.day, st.done.length, !document.getElementById('prospector').hidden && /missed a day/.test(document.getElementById('pText').textContent)]; });
+  check(s[1] === 0 && s[2], `a missed day drops you back to the start of the layer, with a message (${s})`);
   await t.close(); }
 
 // ---- offline ----

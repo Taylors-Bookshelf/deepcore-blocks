@@ -20,9 +20,9 @@ function rankFor(points){
 }
 
 // ---------- the profile that lasts across days ----------
-const newLife=()=>({v:1, firstDay:'', days:0, points:0, cleared:0, stars:0, caveIns:0, specialsCrafted:0, hints:0,
+const newLife=()=>({v:1, firstDay:'', days:0, points:0, cleared:0, stars:0, caveIns:0, specialsCrafted:0, hints:0, runs:0,
   streak:{cur:0,best:0,last:''}, mined:{}, seen:{}, zones:{}, twists:{}, tutorialDone:false,
-  records:{bestBoard:0,bestCombo:0,bestLines:0,bestDay:0}});
+  records:{bestBoard:0,bestCombo:0,bestLines:0,bestDay:0,deepest:0,bestRun:0}});
 const prevDay=day=>{ const [y,m,d]=day.split('-').map(Number); const t=new Date(Date.UTC(y,m-1,d)); t.setUTCDate(t.getUTCDate()-1); return t.toISOString().slice(0,10); };
 // a day counts for the streak once you clear a board; consecutive Pacific days extend it
 function touchStreak(life,today){
@@ -40,15 +40,16 @@ function msUntilReset(now=new Date()){
 }
 function resetText(now){ const ms=msUntilReset(now), h=Math.floor(ms/3600000), m=Math.floor(ms%3600000/60000); return h>0?`${h}h ${m}m`:`${Math.max(1,m)}m`; }
 
-// ---------- the share text (a little grid of how the day went) ----------
-const SQ={0:'⬛',1:'🟫',2:'🟧',3:'🟨'};
-function shareText({day,mod,dayState,total,streak,url}){
-  const st=dayState.stars||{}, rows=[];
-  for(let z=0;z<D.ZONES.length;z++){ let row=''; for(let j=0;j<4;j++){ const i=z*4+j; row+=SQ[dayState.done.includes(i)?Math.max(1,st[i]||1):0]; } rows.push(row); }
+// ---------- the share text: how deep this descent has got ----------
+function shareText({day,run,zone,tool,total,streak,fragments,url}){
+  const done=new Set(run.done||[]), rows=[];
+  D.ZONES.forEach((z,zi)=>{ if(z.core) return; const n=Math.min(z.boards,10), per=z.boards/n; let row='';
+    for(let k=0;k<n;k++){ const i=D.idxOf(zi,Math.floor(k*per)); row+=done.has(i)?'🟧':'⬛'; } rows.push(row); });
   const [y,m,d]=day.split('-').map(Number), when=new Date(Date.UTC(y,m-1,d)).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
-  const head=`Deepcore Blocks · ${when}`;
-  const line2=`${dayState.done.length}/${D.BOARD_COUNT} boards · ${total.toLocaleString()} pts`+(streak>1?` · ${streak}-day streak`:'');
-  return [head,line2,`Twist: ${mod.name}`,...rows,url].join('\n');
+  const head=`Deepcore Blocks · ${when}`+(fragments?' '+'✦'.repeat(fragments):'');
+  const line2=`Day ${Math.max(1,run.days||1)} of my descent · ${zone} · ${tool}`;
+  const line3=`${total.toLocaleString()} pts`+(streak>1?` · ${streak}-day streak`:'');
+  return [head,line2,line3,...rows,url].join('\n');
 }
 
 // ---------- save codes: back up progress by copying a string, restore it on another device ----------
@@ -64,9 +65,11 @@ function decodeSave(code){
 // ---------- the discovery log: everything there is to find ----------
 const LOG=[
   ...[['dirt','Topsoil'],['log','Wood'],['stone','Limestone'],['granite','Granite'],['deep','Slate'],['obsidian','Basalt'],['ember','Magmastone']].map(([id,name])=>({id,name,group:'Rock and earth',kind:'mined'})),
-  ...[['coal','Coal'],['copper','Copper'],['iron','Iron'],['gold','Gold']].map(([id,name])=>({id,name,group:'Ore',kind:'mined'})),
+  {id:'crust',name:'Crust rock',group:'Rock and earth',kind:'mined'},
+  ...[['bone','Bone'],['coal','Coal'],['copper','Copper'],['iron','Iron'],['gold','Gold'],['meteorite','Meteorite'],['prismore','Prism Ore']].map(([id,name])=>({id,name,group:'Ore',kind:'mined'})),
   ...[['ruby','Ruby'],['emerald','Emerald'],['diamond','Diamond']].map(([id,name])=>({id,name,group:'Gems',kind:'mined'})),
-  ...[['prism','Prism Stone'],['fossil','Fossil'],['treasure','Buried Treasure'],['blast','Blast Charge'],['sledgehammer','Sledgehammer'],['rescue','Rescue Potion'],['luck','Luck Tonic']].map(([id,name])=>({id,name,group:'Specials',kind:'seen'})),
+  ...[['tool_bone','Bone tools'],['tool_copper','Copper tools'],['tool_iron','Iron tools'],['tool_steel','Steel tools'],['tool_galaxy','Galaxy Alloy tools']].map(([id,name])=>({id,name,group:'Tools forged',kind:'seen'})),
+  ...[['prism','Geode'],['fossil','Fossil'],['treasure','Buried Treasure'],['blast','Blast Charge'],['sledgehammer','Sledgehammer'],['rescue','Rescue Potion'],['luck','Luck Tonic']].map(([id,name])=>({id,name,group:'Specials',kind:'seen'})),
   ...D.ZONES.map((z,i)=>({id:String(i),name:z.name,group:'Zones reached',kind:'zones'})),
   ...D.MODIFIERS.map(m=>({id:m.id,name:m.name,group:'Daily twists',kind:'twists'})),
 ];

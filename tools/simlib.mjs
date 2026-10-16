@@ -58,7 +58,7 @@ function botMove(lo, hi, pcs, rnd) {
   return opts[0];   // planner: same one-step search, no slips
 }
 
-export function runBoard(zi, bj, seed, strip, fails = 0, cont = null) {
+export function runBoard(zi, bj, seed, strip, fails = 0, cont = null, onMine = null) {
   const def = { ...D.boardParams(zi, strip ? 1 : bj) }, rnd = makeRun(seed), VAL = D.VAL;
   if (strip) { const boost = {}; Object.entries(strip).forEach(([k, n]) => { if (k === 'wood') return; const o = D.ORES[k]; boost[k] = Math.min(6, Math.max(1, (n / 21) / (o.p * (o.vein[0] + o.vein[1]) / 2))); }); def.oreBoost = boost; if (strip.wood) def.base = { log: 2.4, dirt: 1, grass: .4 }; def.target = Infinity; }
   const mats = prefill(def, rnd); let [lo, hi] = bitsOf(mats);
@@ -79,6 +79,7 @@ export function runBoard(zi, bj, seed, strip, fails = 0, cont = null) {
       for (let c = 0; c < 8; c++) { let f = true; for (let r = 0; r < 8; r++) if (!mats[r * 8 + c]) f = false; if (f) for (let r = 0; r < 8; r++) kill.add(r * 8 + c); }
       const playGot = {}; kill.forEach(k => { const m = mats[k]; if (m && D.YIELD_W[m]) playGot[m] = (playGot[m] || 0) + 1; else if (m === 'log') playGot.wood = (playGot.wood || 0) + 1; });
       let n = 0; for (let r = 0; r < 8; r++) { let f = true; for (let c = 0; c < 8; c++) if (!mats[r * 8 + c]) f = false; if (f) n++; } for (let c = 0; c < 8; c++) { let f = true; for (let r = 0; r < 8; r++) if (!mats[r * 8 + c]) f = false; if (f) n++; }
+      if (n && onMine && onMine(kill.map ? kill : [...kill].map(k => mats[k]).filter(Boolean)) === 'break') return { win: false, broke: true, score, moves, deals, got, target: def.target, allClears, multi, clearMoves };
       if (n) { combo++; since = 0; clearMoves++; if (n > 1) multi++; kill.forEach(k => { const m = mats[k]; if (m) { score += VAL[m] || 0; const res = m === 'log' ? 'wood' : (m === 'grass' ? 'dirt' : m); got[res] = (got[res] || 0) + 1; mats[k] = null; } }); score += D.lineScore(n, combo); }
       else { since++; if (since >= 3) combo = 0; }
       [lo, hi] = bitsOf(mats);

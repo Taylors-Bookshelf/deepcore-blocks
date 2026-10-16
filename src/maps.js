@@ -3,74 +3,81 @@
 // 24 boards (6 zones of 4) plus a strip-mine branch per zone. The cave is dug open board by board as the player clears them.
 (function(root){
 const D=(typeof require!=='undefined'&&typeof module!=='undefined')?require('./data.js'):root.DeepcoreData;
-const COLS=10, ZONE_TOP=[0,13,22,31,40,49], ROWS=58, SURFACE=6;          // rows 0-5 sky, row 6 grass line; the last zone ends in lava
-const NZ=D.ZONES.length, NB=NZ*4;
+// rows 0-5 sky, row 6 grass line; every layer below gets a band tall enough for its boards; the Ancient Core is a cavern at the bottom
+const COLS=10, SURFACE=6, PITCH=1.55, CORE_ROWS=12;
+const NZ=D.ZONES.length, NB=D.BOARD_COUNT;
+const ZONE_TOP=[0]; D.ZONES.forEach((z,i)=>{ if(i===0) return; const prev=D.ZONES[i-1]; ZONE_TOP[i]=i===1?13:ZONE_TOP[i-1]+2.2+prev.boards*PITCH; });
+ZONE_TOP.forEach((v,i)=>ZONE_TOP[i]=Math.round(v));
+const ROWS=ZONE_TOP[NZ-1]+CORE_ROWS;
 const zoneAt=row=>{ let z=0; for(let k=1;k<ZONE_TOP.length;k++) if(row>=ZONE_TOP[k]) z=k; return z; };
 const WEATHER=['clear','clear','cloudy','overcast','rain','snow','sunset','dusk'];
 const SCENERY=['mountains','hills','lake','meadow','mountains','lake','hills'];
 const TREES=['oak','pine','birch','mixed','autumn','mixed'];
-const FEATURES=[ ['pebbles','pebbles','pebbles'], ['rails','mushrooms','bones'], ['pebbles','geode','rails','bones'], ['crystals','rails','mushrooms'], ['crystals','geode','crystals'], ['lavafall','embers','bones','crystals'] ];
+const FEATURES=[ ['pebbles','pebbles','pebbles'], ['rails','mushrooms','bones'], ['pebbles','rails','mushrooms'], ['geode','rails','bones'], ['crystals','geode','crystals'], ['lavafall','embers','crystals'], ['embers','embers','lavafall'], [] ];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 // ---------------------------------------------------------------- generator
-function genMap(day){
-  const rnd=D.rng(D.hashStr('map:'+day)+3), pick=a=>a[Math.floor(rnd()*a.length)], rr=(a,b)=>a+rnd()*(b-a);
-  const m={day, weather:pick(WEATHER), scenery:pick(SCENERY), trees:pick(TREES), leaf:rnd(), nodes:[], segs:[], strip:[], tunnelW:[], features:[], lightSlots:[], trees_list:[], clouds:[], peaks:[], lake:null};
-  // ---- node positions: a random walk down the shaft, a different shape every day
-  // depth of each board: the forest dips through the dirt, then every zone runs four boards down its band
+function genMap(seed,day){
+  day=day||seed;
+  const rnd=D.rng(D.hashStr('map:'+seed)+3), pick=a=>a[Math.floor(rnd()*a.length)], rr=(a,b)=>a+rnd()*(b-a);
+  const sky=D.rng(D.hashStr('sky:'+day)+5), spick=a=>a[Math.floor(sky()*a.length)], sr=(a,b)=>a+sky()*(b-a);   // the surface changes every day
+  const m={day, seed, weather:spick(WEATHER), scenery:spick(SCENERY), trees:spick(TREES), leaf:sky(), nodes:[], segs:[], strip:[], tunnelW:[], features:[], trees_list:[], clouds:[], peaks:[], lake:null, camps:[]};
+  // ---- node positions: a random walk down the shaft, a different shape every run
   const ys=[5.4, 8.1+rr(-.5,.5), 9.9+rr(-.3,.3), 11.6+rr(-.3,.3)];
-  for(let z=1;z<NZ;z++){ const off=z===NZ-1?[2,3.4,4.8,6.2]:[2,3.6,5.2,7.4]; off.forEach((o,k)=>ys.push(ZONE_TOP[z]+o+rr(-.3,.3))); }
+  for(let z=1;z<NZ;z++){ const n=D.ZONES[z].boards;
+    if(D.ZONES[z].core){ ys.push(ZONE_TOP[z]+CORE_ROWS*.66-2.22); continue; }
+    for(let k=0;k<n;k++) ys.push(ZONE_TOP[z]+1.6+k*PITCH+rr(-.2,.2)); }
   let x=rr(1.4,8.6), dir=rnd()<.5?-1:1;
   for(let i=0;i<NB;i++){
-    if(i>0){ let step=dir*rr(2,4.2); let nx=x+step; if(nx<1.5||nx>8.5){ dir=-dir; nx=x+dir*rr(2,4.2); } x=clamp(nx,1.5,8.5); if(rnd()<.3) dir=-dir; }
+    if(D.ZONES[D.zoneOfIdx(i)].core){ m.nodes.push({x:5,y:+ys[i].toFixed(2)}); continue; }
+    if(i>0){ let step=dir*rr(1.6,3.6); let nx=x+step; if(nx<1.5||nx>8.5){ dir=-dir; nx=x+dir*rr(1.6,3.6); } x=clamp(nx,1.5,8.5); if(rnd()<.3) dir=-dir; }
     m.nodes.push({x:+x.toFixed(2),y:+ys[i].toFixed(2)});
   }
   // ---- tunnels between nodes: straight, elbow or wiggle, with a width per zone
-  for(let z=0;z<NZ;z++) m.tunnelW.push(pick([.45,.55,.65]));   // narrow, tidy tunnels
+  for(let z=0;z<NZ;z++) m.tunnelW.push(D.ZONES[z].core?.9:pick([.45,.55,.65]));   // narrow, tidy tunnels
   for(let i=1;i<NB;i++){
-    const a=m.nodes[i-1], b=m.nodes[i], z=Math.floor(i/4), style=i===1?'diag':pick(['diag','elbowV','elbowH','wiggle','diag']);
+    const a=m.nodes[i-1], b=m.nodes[i], z=D.zoneOfIdx(i), style=i===1||D.ZONES[z].core?'diag':pick(['diag','elbowV','elbowH','wiggle','diag']);
     let pts=[[a.x,a.y],[b.x,b.y]];
     if(style==='elbowV') pts=[[a.x,a.y],[a.x,b.y],[b.x,b.y]];
     if(style==='elbowH') pts=[[a.x,a.y],[b.x,a.y],[b.x,b.y]];
     if(style==='wiggle'){ const mx=(a.x+b.x)/2+rr(-1.2,1.2), my=(a.y+b.y)/2; pts=[[a.x,a.y],[clamp(mx,.8,9.2),my],[b.x,b.y]]; }
     m.segs.push({from:i-1,to:i,pts,w:m.tunnelW[z]});
   }
-  // ---- strip-mine branch: sideways from each zone's third board, at the same depth
+  // ---- side tunnel: sideways from each layer's third board, at the same depth (none for the Core)
   for(let z=0;z<NZ;z++){
-    const p=m.nodes[z*4+2]; let best=null;
+    if(D.ZONES[z].core){ m.strip.push(null); continue; }
+    const from=D.idxOf(z,2), p=m.nodes[from]; let best=null;
     for(let t=0;t<30&&!best;t++){
-      const side=(t%2===0?(p.x<5?1:-1):(p.x<5?-1:1)), sx=clamp(p.x+side*rr(2.4,3.6),1.1,8.9), sy=+(p.y+(z===0?.15:rr(-.1,.45))).toFixed(2);
-      const clear=m.nodes.every((n,i)=>i===z*4+2||Math.hypot(n.x-sx,n.y-sy)>=1.7) && Math.abs(sx-p.x)>=2 && m.strip.every(o=>Math.hypot(o.x-sx,o.y-sy)>=1.7);
-      if(clear||t===29) best={x:+sx.toFixed(2),y:sy,from:z*4+2,side,zone:z};
+      const side=(t%2===0?(p.x<5?1:-1):(p.x<5?-1:1)), sx=clamp(p.x+side*rr(2.4,3.6),1.1,8.9), sy=+(p.y+(z===0?.15:rr(-.1,.35))).toFixed(2);
+      const clear=m.nodes.every((n,i)=>i===from||Math.hypot(n.x-sx,n.y-sy)>=1.5) && Math.abs(sx-p.x)>=2 && m.strip.every(o=>!o||Math.hypot(o.x-sx,o.y-sy)>=1.5);
+      if(clear||t===29) best={x:+sx.toFixed(2),y:sy,from,side,zone:z};
     }
     m.strip.push(best);
   }
-  // ---- two lamp spots beside each zone's gate tunnel (board 3 -> board 4)
-  for(let z=0;z<NZ;z++){
-    const a=m.nodes[z*4+2], b=m.nodes[z*4+3]; const mx=(a.x+b.x)/2, my=(a.y+b.y)/2, off=m.tunnelW[z]+.7;
-    m.lightSlots.push([{x:mx-off,y:my-.2},{x:mx+off,y:my+.4}].map(p=>({x:+clamp(p.x,.3,9.7).toFixed(2),y:+p.y.toFixed(2)})));
-  }
+  // ---- camps in Magmastone, beside the boards that end each stretch
+  (D.ZONES[D.MAGMA_Z].camps||[]).forEach(c=>{ const n=m.nodes[D.idxOf(D.MAGMA_Z,c-1)]; m.camps.push({idx:D.idxOf(D.MAGMA_Z,c-1),x:+clamp(n.x+(n.x<5?1.1:-1.1),.6,9.4).toFixed(2),y:n.y}); });
   // ---- decorations in the rock
-  for(let z=0;z<NZ;z++){ const kinds=[pick(FEATURES[z]),pick(FEATURES[z]),pick(FEATURES[z])]; const top=z===0?7.5:ZONE_TOP[z]+.5, bot=(z===NZ-1?ROWS-3:ZONE_TOP[z+1])-.8;
-    kinds.forEach(k=>{ for(let n=0;n<4;n++) m.features.push({type:k,zone:z,x:+rr(.3,9.5).toFixed(2),y:+rr(top,bot).toFixed(2),s:rnd()}); }); }
+  for(let z=0;z<NZ;z++){ if(!FEATURES[z].length) continue; const top=z===0?7.5:ZONE_TOP[z]+.5, bot=(z===NZ-1?ROWS-3:ZONE_TOP[z+1])-.8, per=Math.max(4,Math.round((bot-top)/2.5));
+    const kinds=[pick(FEATURES[z]),pick(FEATURES[z]),pick(FEATURES[z])];
+    kinds.forEach(k=>{ for(let n=0;n<per/3;n++) m.features.push({type:k,zone:z,x:+rr(.3,9.5).toFixed(2),y:+rr(top,bot).toFixed(2),s:rnd()}); }); }
   // ---- surface
-  m.scale=rnd();
-  m.sun={x:rr(1,9),y:rr(.9,1.9)};
+  m.scale=sky();
+  m.sun={x:sr(1,9),y:sr(.9,1.9)};
   const nc=m.weather==='clear'?3:m.weather==='cloudy'?7:m.weather==='overcast'?9:m.weather==='rain'?8:m.weather==='snow'?7:4;
-  for(let i=0;i<nc;i++) m.clouds.push({x:rr(-1,9.5),y:rr(.3,3.2),w:rr(1.6,3.6),s:rnd()});
+  for(let i=0;i<nc;i++) m.clouds.push({x:sr(-1,9.5),y:sr(.3,3.2),w:sr(1.6,3.6),s:sky()});
   const px=m.nodes[0].x;
-  if(m.scenery==='lake'){ let w=rr(2.6,3.8), x0=px<5?rr(5,6.6):rr(.6,2.2); m.lake={x0:+Math.max(.2,x0).toFixed(2),x1:+Math.min(9.8,x0+w).toFixed(2)}; }
-  for(let i=0;i<4;i++) m.peaks.push({x:rr(-.5,10),h:rr(1.6,3.4),w:rr(1.8,3.6)});
-  for(let tx=rr(.2,.9); tx<9.9; tx+=rr(.95,2.1)){
+  if(m.scenery==='lake'){ let w=sr(2.6,3.8), x0=px<5?sr(5,6.6):sr(.6,2.2); m.lake={x0:+Math.max(.2,x0).toFixed(2),x1:+Math.min(9.8,x0+w).toFixed(2)}; }
+  for(let i=0;i<4;i++) m.peaks.push({x:sr(-.5,10),h:sr(1.6,3.4),w:sr(1.8,3.6)});
+  for(let tx=sr(.2,.9); tx<9.9; tx+=sr(.95,2.1)){
     if(Math.abs(tx-px)<.8) continue; if(m.lake&&tx>m.lake.x0-.2&&tx<m.lake.x1+.2) continue;
-    m.trees_list.push({x:+tx.toFixed(2),h:+rr(1.7,3.4).toFixed(2),kind:m.trees==='mixed'?pick(['oak','pine','birch']):m.trees==='autumn'?'oak':m.trees,tone:rnd()});
+    m.trees_list.push({x:+tx.toFixed(2),h:+sr(1.7,3.4).toFixed(2),kind:m.trees==='mixed'?spick(['oak','pine','birch']):m.trees==='autumn'?'oak':m.trees,tone:sky()});
   }
   return m;
 }
 
 // ---------------------------------------------------------------- renderer
 const HEX=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
-// st: {dug:(nodeIdx)=>bool, stripOpen:(z)=>bool, stripDone:(z)=>bool, lights:{z:count}, maxY:deepest dug depth}
+// st: {dug:(nodeIdx)=>bool, stripOpen:(z)=>bool, stripDone:(z)=>bool, maxY:deepest dug depth, now:ms for the core's shimmer}
 function drawMap(cv,ts,m,st,TEX,dpr){
   const W=COLS*ts, H=ROWS*ts;
   cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); cv.style.width=W+'px'; cv.style.height=H+'px';
@@ -96,12 +103,12 @@ function drawMap(cv,ts,m,st,TEX,dpr){
   if(m.weather==='snow'){ x.fillStyle='#fff'; for(let i=0;i<60;i++) x.fillRect(R()*W,R()*SURFACE*ts,q*1.2,q*1.2); }
   // ground: grass line then dirt, with a lake cut into the surface if the day has one
   for(let row=SURFACE;row<ROWS;row++) for(let col=0;col<COLS;col++){
-    const zi=zoneAt(row); let tex=zi===0?(row===SURFACE?'grass':'dirt'):D.ZONES[zi].rock;
+    const zi=zoneAt(row); let tex=zi===0?(row===SURFACE?'grass':'dirt'):D.ZONES[zi].rock;   // the Core's cavern is cut out of crust rock
     x.drawImage(TEX[tex],col*ts,row*ts,ts,ts);
     if(m.weather==='snow'&&row===SURFACE){ x.fillStyle='rgba(245,250,255,.82)'; x.fillRect(col*ts,row*ts,ts,ts*.34); }
   }
   // ore flecks scattered through the walls
-  for(let row=SURFACE+2;row<ROWS;row++) for(let col=0;col<COLS;col++){ const zi=zoneAt(row), z=D.ZONES[zi]; if(zi>0&&R()<.1&&z.ores.length){ const o=z.ores[Math.floor(R()*z.ores.length)]; x.drawImage(TEX[o+'@'+z.rock],col*ts,row*ts,ts,ts); } }
+  for(let row=SURFACE+2;row<ROWS;row++) for(let col=0;col<COLS;col++){ const zi=zoneAt(row), z=D.ZONES[zi]; if(zi>0&&R()<.1&&z.ores.length){ const o=z.ores[Math.floor(R()*z.ores.length)], t=TEX[o+'@'+z.rock]; if(t) x.drawImage(t,col*ts,row*ts,ts,ts); } }
   x.fillStyle='rgba(0,0,0,.26)'; x.fillRect(0,(SURFACE+1)*ts,W,(ROWS-SURFACE-1)*ts);
   if(m.lake){ const w0=m.lake.x0*ts, w1=m.lake.x1*ts; x.fillStyle=m.weather==='snow'?'#bfd8ea':'#2f7fc4'; x.fillRect(w0,(SURFACE+.06)*ts,w1-w0,.94*ts); x.fillStyle='rgba(255,255,255,.28)'; for(let k=0;k<7;k++) x.fillRect(w0+R()*(w1-w0-ts*.7),(SURFACE+.2+R()*.55)*ts,ts*(.4+R()*.4),q);
     x.fillStyle='#2f6b22'; for(let k=0;k<5;k++){ const rx=(k%2?w0:w1)+(R()-.5)*ts*.4; x.fillRect(rx,(SURFACE-.45)*ts,q*1.4,.5*ts); } }
@@ -112,35 +119,39 @@ function drawMap(cv,ts,m,st,TEX,dpr){
   const walk=(pts,w,top)=>{ for(let k=1;k<pts.length;k++){ const [ax,ay]=pts[k-1],[bx,by]=pts[k]; const len=Math.hypot(bx-ax,by-ay); for(let s=0;s<=len;s+=.18){ const t=len?s/len:0; brush(ax+(bx-ax)*t,ay+(by-ay)*t,w,top); } } };
   m.segs.forEach(sg=>{ if(st.dug(sg.to)) walk(sg.pts,sg.w,sg.from===0?SURFACE:SURFACE+1); });   // the first tunnel breaks through the grass: an open pit, not a roofed cave
   m.nodes.forEach((n,i)=>{ if(st.dug(i)&&n.y>SURFACE+.8) brush(n.x,n.y,.85); });
-  m.strip.forEach((s,z)=>{ if(!st.stripOpen(z)) return; const p=m.nodes[z*4+2]; walk([[p.x,p.y],[s.x,p.y],[s.x,s.y]],.5); brush(s.x,s.y,st.stripDone(z)?1.9:1.15); });
-  const lamps=[]; Object.entries(st.lights||{}).forEach(([z,n])=>{ for(let k=0;k<Math.min(2,n);k++) lamps.push({z:+z,k,...m.lightSlots[+z][k]}); });
-  lamps.forEach(l=>brush(l.x,l.y,.25));
+  m.strip.forEach((s,z)=>{ if(!s||!st.stripOpen(z)) return; const p=m.nodes[s.from]; walk([[p.x,p.y],[s.x,p.y],[s.x,s.y]],.5); brush(s.x,s.y,st.stripDone(z)?1.6:1.05); });
+  // lamps light the way on their own: one beside every other dug board (torches in the Forest, lanterns below)
+  const lamps=[]; m.nodes.forEach((n,i)=>{ const z=D.zoneOfIdx(i); if(i===0||D.ZONES[z].core||!st.dug(i)||(i%2&&D.jOfIdx(i)!==0)) return; const side=n.x<5?1:-1; lamps.push({z,x:+clamp(n.x+side*.95,.4,9.6).toFixed(2),y:n.y-.25}); });
+  lamps.forEach(l=>brush(l.x,l.y,.3));
+  (m.camps||[]).forEach(c=>{ if(st.dug(c.idx)) brush(c.x,c.y,.75); });
   carve.forEach(k=>{ const row=Math.floor(k/COLS), col=k%COLS, zi=zoneAt(row); x.fillStyle=zi===0?'rgba(24,14,8,.86)':'rgba(8,6,4,.88)'; x.fillRect(col*ts,row*ts,ts,ts); });
   // decorations (only in rock near dug ground, never inside a tunnel)
   const reveal=st.maxY;
   m.features.forEach(f=>{ if(f.y>reveal+3.5||f.y<SURFACE+1.5) return; const col=Math.floor(f.x), row=Math.floor(f.y); if(carve.has(row*COLS+col)) return; drawFeature(x,f,ts,q); });
   // rails + supports along dug tunnels in the stone zones
-  m.segs.forEach(sg=>{ const z=Math.floor(sg.to/4); if(!st.dug(sg.to)||!(z>=1&&z<=3)||!m.features.some(f=>f.zone===z&&f.type==='rails')) return; const [ax,ay]=sg.pts[0],[bx,by]=sg.pts[sg.pts.length-1];
+  m.segs.forEach(sg=>{ const z=D.zoneOfIdx(sg.to); if(!st.dug(sg.to)||!(z>=1&&z<=3)||!m.features.some(f=>f.zone===z&&f.type==='rails')) return; const [ax,ay]=sg.pts[0],[bx,by]=sg.pts[sg.pts.length-1];
     [.35,.75].forEach(t=>{ const px=ax+(bx-ax)*t, py=ay+(by-ay)*t; F(px-.42,py-.7,.12,.7,'#5a3d20'); F(px+.3,py-.7,.12,.7,'#5a3d20'); F(px-.5,py-.78,1,.12,'#6f4c28'); F(px-.5,py-.78,1,.04,'#8a6236'); }); });
   // lamps with a warm halo: lit tunnels glow, so the way you've lit is easy to see
-  lamps.forEach(l=>{ const gr=x.createRadialGradient(l.x*ts,l.y*ts,0,l.x*ts,l.y*ts,ts*2.4); gr.addColorStop(0,'rgba(255,196,90,.55)'); gr.addColorStop(1,'rgba(255,150,40,0)'); x.fillStyle=gr; x.fillRect((l.x-2.4)*ts,(l.y-2.4)*ts,4.8*ts,4.8*ts);
+  lamps.forEach(l=>{ const gr=x.createRadialGradient(l.x*ts,l.y*ts,0,l.x*ts,l.y*ts,ts*2.2); gr.addColorStop(0,'rgba(255,196,90,.42)'); gr.addColorStop(1,'rgba(255,150,40,0)'); x.fillStyle=gr; x.fillRect((l.x-2.2)*ts,(l.y-2.2)*ts,4.4*ts,4.4*ts);
     if(l.z===0) drawTorch(x,(l.x-.5)*ts,(l.y-.55)*ts,ts); else drawLantern(x,(l.x-.5)*ts,(l.y-.5)*ts,ts); });
   // trees and surface details
   m.trees_list.forEach(t=>drawTree(x,t,m,ts,q,TEX));
+  // a past life: one tiny violet glint in the grass for every core fragment
+  for(let k=0;k<(st.fragments||0);k++){ const gx=(m.nodes[0].x+(k%2?1:-1)*(1.3+k*.45))*ts, gy=(SURFACE+.1)*ts; x.fillStyle='#2a1a5a'; x.fillRect(gx-q*1.5,gy-q*1.5,q*3,q*3); x.fillStyle='#c8b8ff'; x.fillRect(gx-q*.5,gy-q*.5,q,q); x.fillStyle='rgba(200,184,255,.35)'; x.fillRect(gx-q*3,gy-q*.5,q*6,q); }
   // route line (only through dug ground)
   x.strokeStyle='rgba(255,226,140,.75)'; x.lineWidth=Math.max(2,ts*.08); x.setLineDash([ts*.18,ts*.18]);
   m.segs.forEach(sg=>{ if(!st.dug(sg.to)) return; x.beginPath(); sg.pts.forEach(([px,py],k)=>{ if(k===0) x.moveTo(px*ts,py*ts); else x.lineTo(px*ts,py*ts); }); x.stroke(); });
-  m.strip.forEach((s,z)=>{ if(!st.stripOpen(z)) return; const p=m.nodes[z*4+2]; x.beginPath(); x.moveTo(p.x*ts,p.y*ts); x.lineTo(s.x*ts,p.y*ts); x.lineTo(s.x*ts,s.y*ts); x.stroke(); }); x.setLineDash([]);
+  (m.camps||[]).forEach(c=>{ if(st.dug(c.idx)) drawCamp(x,(c.x-.5)*ts,(c.y-.55)*ts,ts); });
+  m.strip.forEach((s,z)=>{ if(!s||!st.stripOpen(z)) return; const p=m.nodes[s.from]; x.beginPath(); x.moveTo(p.x*ts,p.y*ts); x.lineTo(s.x*ts,p.y*ts); x.lineTo(s.x*ts,s.y*ts); x.stroke(); }); x.setLineDash([]);
   // strip mine chambers get ore piles once cleared
-  m.strip.forEach((s,z)=>{ if(!st.stripDone(z)) return; for(let k=0;k<5;k++){ const ox=s.x+(R()-.5)*2.4, oy=s.y+.55+R()*.3; F(ox-.22,oy-.14,.44,.2,'#2a2218'); F(ox-.16,oy-.2,.32,.14,D.ZONES[z].ores[0]==='coal'?'#3a3a3e':'#c9a050'); }
+  m.strip.forEach((s,z)=>{ if(!s||!st.stripDone(z)) return; for(let k=0;k<5;k++){ const ox=s.x+(R()-.5)*2, oy=s.y+.55+R()*.3; F(ox-.22,oy-.14,.44,.2,'#2a2218'); F(ox-.16,oy-.2,.32,.14,k%2?'#3a3a3e':'#c9a050'); }
     F(s.x-.5,s.y-.7,1,.06,'#7a5a34'); F(s.x-.5,s.y-.7,.06,.7,'#6a4a2a'); F(s.x+.44,s.y-.7,.06,.7,'#6a4a2a'); });
   // fog: below the deepest dug board the mine is unexplored
   const fy=(reveal+3.2)*ts, fg=x.createLinearGradient(0,fy,0,fy+4.5*ts); fg.addColorStop(0,'rgba(10,7,5,0)'); fg.addColorStop(1,'rgba(10,7,5,.97)');
   x.fillStyle=fg; x.fillRect(0,fy,W,H-fy); x.fillStyle='rgba(10,7,5,.97)'; x.fillRect(0,fy+4.5*ts,W,H);
-  // the underworld's lava lake, once you have dug down to it
-  if(reveal>ZONE_TOP[NZ-1]+1.5){ const L0=ROWS-1.7, lake=X=>L0+.28*Math.sin(X*1.3+m.scale*6)+.12*Math.sin(X*3.1);
-    const glow=x.createLinearGradient(0,(L0-1.9)*ts,0,(L0+.3)*ts); glow.addColorStop(0,'rgba(255,120,30,0)'); glow.addColorStop(1,'rgba(255,120,30,.45)'); x.fillStyle=glow; x.fillRect(0,(L0-1.9)*ts,W,2.2*ts);
-    drawLava(x,0,ROWS-2.1,10,2.1,ts,R,lake); }
+  // the Ancient Core: a cavern of sparkling magma with a temple in the middle, once you have dug down to it
+  const cz=NZ-1, ct=ZONE_TOP[cz];
+  if(reveal>ct-6){ drawCore(x,ct,ts,R,m,st); }
   return {carve};
 }
 function drawFeature(x,f,ts,q){
@@ -173,6 +184,26 @@ function drawTree(x,t,m,ts,q,TEX){
     x.fillStyle=leaf[0]; x.fillRect(X-.9*ts,base-h-.1*ts,1.8*ts,1.4*ts); x.fillStyle=leaf[1]; x.fillRect(X-.7*ts,base-h-.4*ts,1.4*ts,.8*ts); x.fillStyle=leaf[2]; x.fillRect(X-.4*ts,base-h-.5*ts,.6*ts,.35*ts);
     if(snow){ x.fillStyle='#f4f8fc'; x.fillRect(X-.7*ts,base-h-.4*ts,1.4*ts,q*2.4); } }
 }
+// a miners' camp in Magmastone: a small tent and a fire, where a missed day sends you back to
+function drawCamp(x,X,Y,ts){
+  const u=ts/16, P=(i,j,w,h,c)=>{ x.fillStyle=c; x.fillRect(X+i*u,Y+j*u,w*u,h*u); };
+  for(let j=0;j<7;j++){ P(7-j,4+j,2*j+2,1,j<1?'#e8d5a8':'#c9b07a'); } P(7,6,2,5,'#3a2a1a');
+  P(1,11,14,1,'#2a1a10'); P(11,9,3,2,'#ff7a1a'); P(12,8,1,1,'#ffd23f'); P(11,11,3,1,'#5a3d20');
+}
+// the temple at the heart of the world: stepped stone, two pillars, and the empty socket where the portal piece goes
+function drawCore(x,top,ts,R,m,st){
+  const W=COLS*ts, u=ts/8, H=CORE_ROWS*ts, Y0=top*ts;
+  const bg=x.createLinearGradient(0,Y0,0,Y0+H); bg.addColorStop(0,'#1a0d0a'); bg.addColorStop(.6,'#2a0f08'); bg.addColorStop(1,'#4a1406'); x.fillStyle=bg; x.fillRect(0,Y0+ts*.5,W,H);
+  const lake=X=>top+CORE_ROWS*.72+.18*Math.sin(X*1.7+m.scale*5);
+  drawLava(x,0,top+CORE_ROWS*.62,10,CORE_ROWS*.4,ts,R,lake);
+  for(let k=0;k<40;k++){ const sx=R()*W, sy=(lake(sx/ts)+.2+R()*3)*ts; x.fillStyle=R()<.5?'#fff2b0':'#ffd0f5'; x.fillRect(sx,sy,u*.8,u*.8); }
+  const cx=5*ts, base=(top+CORE_ROWS*.66)*ts;
+  [[7,'#5a4a6a'],[5.6,'#6a5a7a'],[4.2,'#7a6a8a']].forEach(([w,c],k)=>{ x.fillStyle=c; x.fillRect(cx-w/2*ts,base-(k+1)*u*3,w*ts,u*3); x.fillStyle='rgba(255,255,255,.12)'; x.fillRect(cx-w/2*ts,base-(k+1)*u*3,w*ts,u*.6); });
+  const py=base-u*9-ts*2.4; x.fillStyle='#8a7a9a'; x.fillRect(cx-1.9*ts,py,ts*.5,ts*2.4); x.fillRect(cx+1.4*ts,py,ts*.5,ts*2.4);
+  x.fillStyle='#9d8db0'; x.fillRect(cx-2.3*ts,py-u*2,4.6*ts,u*2); x.fillStyle='#6a5a7a'; x.fillRect(cx-2.1*ts,py-u*3.4,4.2*ts,u*1.4);
+  const g=x.createRadialGradient(cx,base-u*9-ts*1.1,0,cx,base-u*9-ts*1.1,ts*1.6); g.addColorStop(0,'rgba(200,170,255,.55)'); g.addColorStop(1,'rgba(120,80,200,0)'); x.fillStyle=g; x.fillRect(cx-1.6*ts,py,3.2*ts,2.4*ts);
+  x.strokeStyle='#e8dcff'; x.lineWidth=Math.max(2,u*.8); x.setLineDash([u,u*.6]); x.strokeRect(cx-.5*ts,base-u*9-ts*1.6,ts,ts); x.setLineDash([]);
+}
 // a wall torch: wooden stick, layered flame, warm halo
 function drawTorch(x,X,Y,ts){
   const u=ts/16, P=(i,j,w,h,c)=>{ x.fillStyle=c; x.fillRect(X+i*u,Y+j*u,w*u,h*u); };
@@ -196,6 +227,6 @@ function drawLava(x,x0,y0,w,h,ts,R,edgeRow){
     x.fillStyle=pal[k]; x.fillRect(X*ts,Y*ts,Math.ceil(u),Math.ceil(u));
   }
 }
-const api={genMap,drawMap,drawTorch,drawLantern,COLS,ROWS,ZONE_TOP,zoneAt,WEATHER,SCENERY,TREES,NZ,NB};
+const api={genMap,drawMap,drawTorch,drawLantern,COLS,ROWS,ZONE_TOP,CORE_ROWS,zoneAt,WEATHER,SCENERY,TREES,NZ,NB};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.DeepcoreMaps=api;
 })(typeof self!=='undefined'?self:globalThis);

@@ -2,7 +2,7 @@
 
 **[Play it here](https://taylors-bookshelf.github.io/deepcore-blocks/)** (best on a phone: open the link, then Add to Home Screen).
 
-A mining block puzzle. Drag sets of three pieces onto an 8×8 board, clear rows and columns, and dig through a new 24-board world map every day: from the forest surface down through limestone caves, granite halls, slate caverns and the basalt gem depths to the Underworld. Craft the ore you find into torches, lanterns and special blocks.
+A mining block puzzle. Drag sets of three pieces onto an 8×8 board, clear rows and columns, and dig a long descent from the forest surface through limestone, slate, granite, basalt and magmastone to the Ancient Core, a few boards a day over a couple of weeks. Forge better tools to break harder rock, and craft special blocks from the ore you find.
 
 It's a static web app: no build step, no server code, no runtime dependencies.
 
@@ -63,7 +63,7 @@ TestFlight needs an Apple Developer Program membership, and Play internal testin
 ## Notes
 
 - Progress is saved in the browser (`localStorage`), per device.
-- The world map resets at midnight Pacific time for everyone.
+- Days follow Pacific time: clear a board each day to keep your depth; the daily twist changes at midnight Pacific.
 - Analytics are off until you paste a PostHog project key into `src/config.js`.
 - Art is original pixel art (16×16 PNG sprites in `assets/`, from the design package in `design/`); a few items are still drawn in code. Keep the name, art and any store listing original too.
 - `DECISIONS.md` lists every call made without asking; `CHANGELOG.md` lists each release.

@@ -6,10 +6,10 @@ const D = require('../src/data.js'), C = require('../src/core.js');
 const { check, fails } = makeChecker();
 
 // ---- data ----
-check(D.ZONES.map(z => z.name).join() === 'The Forest,Limestone Caves,Granite Halls,Slate Caverns,Basalt Gem Depths,The Underworld', 'six zones in the agreed order');
-check(D.BOARD_COUNT === 24 && D.STRIP_BASE === 24, '24 boards a day; strip mines are numbered after them');
-check(D.ZONES[2].rock === 'granite' && D.BASE_MATS.includes('granite') && D.DROPS.granite[0] === 'Granite', 'granite is a real block between limestone and slate');
-check(D.ZONES.every((z, i) => i === 0 || z.d[0] > D.ZONES[i - 1].d[0]) && D.ZONES.every((z, i) => i === 0 || z.target >= D.ZONES[i - 1].target), 'difficulty and targets rise zone by zone');
+check(D.ZONES.map(z => z.name).join() === 'The Forest,Limestone Caves,Slate Caverns,Granite Halls,Basalt Depths,Magmastone,The Crust,Ancient Core', 'the descent: seven layers and the Core, in the agreed order');
+check(D.BOARD_COUNT === 62 && D.STRIP_BASE === 62 && D.ZONES.map(z => z.boards).join() === '4,6,6,6,6,30,3,1', '62 boards (4, 6, 6, 6, 6, 30, 3 and the Core); side tunnels are numbered after them');
+check(D.ZONES[2].rock === 'deep' && D.ZONES[3].rock === 'granite' && D.BASE_MATS.includes('granite') && D.BASE_MATS.includes('crust'), 'slate comes before granite; the crust is a real block');
+{ const Z = D.ZONES.filter(z => !z.core); check(Z.every((z, i) => i === 0 || z.d[0] > Z[i - 1].d[0]) && Z.every((z, i) => i === 0 || z.target >= Z[i - 1].target), 'difficulty and targets rise layer by layer'); }
 check(!D.MODES && !D.ORES.cinnabar && D.ORES.ruby && D.DROPS.ruby[0] === 'Ruby' && !D.RECIPES.some(r => r.cost.cinnabar), 'no difficulty modes; cinnabar is now ruby');
 check(D.STASH_KEYS.includes('ruby') && D.GEM_KEYS.join() === 'ruby,emerald,diamond', 'ruby sits with the gems');
 check(D.lineScore(1, 1) === 10 && D.lineScore(2, 1) > 2 * D.lineScore(1, 1) + 25 && D.lineScore(3, 1) > D.lineScore(2, 1) * 2 && D.lineName(2) === 'Double!' && D.lineName(3) === 'Triple!' && D.lineName(4) === 'Quad!', 'doubles, triples and quads pay extra and are named');
@@ -49,14 +49,12 @@ await tt('markDone', [0]); await tt('start', 0); await page.waitForTimeout(2600)
 const live = await T(() => new Promise(res => { let n = 0; const o = CanvasRenderingContext2D.prototype.clearRect; CanvasRenderingContext2D.prototype.clearRect = function (...a) { n++; return o.apply(this, a); }; setTimeout(() => { CanvasRenderingContext2D.prototype.clearRect = o; res(n); }, 500); }));
 check(live > 20, `the board still animates (${live} clears in half a second)`);
 
-// practice run on a cleared board: points, no ore
-check(await tt('practice'), 'replaying a cleared board is a practice run');
+// replaying a cleared board gives ore again (the stash lasts the whole descent)
+check(!(await tt('practice')), 'replaying a cleared board is not a practice run any more');
 await tt('setBank', { coal: 3 });
-await T(() => { const t = window.__deepcore.test; for (let c = 0; c < 8; c++) t.setCell(7, c, null); ['coal', 'coal', 'iron', 'log', 'log', 'copper'].forEach((m, c) => t.setCell(7, c, m)); t.setPieces([{ cells: [[0, 0], [0, 1]], h: 1, w: 2, mats: ['stone', 'stone'], sid: 1 }, null, null]); t.place(0, 7, 6); });
+await T(() => { const t = window.__deepcore.test; for (let c = 0; c < 8; c++) t.setCell(7, c, null); ['coal', 'coal', 'copper', 'log', 'log', 'copper'].forEach((m, c) => t.setCell(7, c, m)); t.setPieces([{ cells: [[0, 0], [0, 1]], h: 1, w: 2, mats: ['stone', 'stone'], sid: 1 }, null, null]); t.place(0, 7, 6); });
 await page.waitForTimeout(2300); let s = await st();
-check(s.score > 60 && Object.values(s.hand).every(v => !v) && s.bank.coal === 3, `a practice run scores points but collects no ore (score ${s.score}, hand ${JSON.stringify(s.hand)})`);
-check(/Practice run/.test(await T(() => document.getElementById('bGoals').textContent)), 'the banner says it is a practice run');
-await tt('start', 1); await page.waitForTimeout(2200); check(!(await tt('practice')), 'a board you have not cleared is not a practice run');
+check(s.hand.coal >= 2 && s.hand.copper >= 2, `a replay collects ore (hand ${JSON.stringify(s.hand)})`);
 
 // mercy: cave-ins are counted per board and ease the dealer
 await tt('start', 2); await page.waitForTimeout(2200);
@@ -79,8 +77,8 @@ check(await T(() => ['stone', 'granite', 'deep', 'ember', 'obsidian'].every(r =>
 await ctx.addInitScript(() => { localStorage.clear(); localStorage.setItem('deepcore-profile', JSON.stringify({ bank: { cinnabar: 7, coal: 3 }, crafted: { jackhammer: 1 }, prospector: 1 })); localStorage.setItem('deepcore-day', JSON.stringify({ day: '2099-01-01', done: [0, 1, 2], scores: {}, prospector: false })); localStorage.setItem('deepcore-mode', '2'); });
 await page.reload(); await page.waitForTimeout(700);
 s = await st(); const mig = await T(() => ({ schema: localStorage.getItem('deepcore-schema'), mode: localStorage.getItem('deepcore-mode'), specials: window.__deepcore.test.state().specials }));
-check(s.bank.ruby === 7 && s.bank.cinnabar === undefined && s.bank.coal === 3, `old cinnabar became ruby (${JSON.stringify(s.bank)})`);
-check(mig.specials.join() === 'sledgehammer' && mig.schema === '3' && mig.mode === null, 'specials kept (jackhammer is now the sledgehammer), schema stamped, old difficulty setting removed');
+check(Object.keys(s.bank).length === 0 && !s.bank.cinnabar, `an old save starts a fresh descent: empty stash (${JSON.stringify(s.bank)})`);
+check(mig.specials.length === 0 && mig.schema === '4' && mig.mode === null && s.day.done.length === 0 && s.day.tool === 0, 'specials cleared, schema 4 stamped, the run starts on the grass with branch tools');
 check(s.day.done.length === 0, "today's map restarts because the boards were renumbered");
 check(errors.length === 0, 'no page errors ' + errors.join(' | '));
 await close();

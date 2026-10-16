@@ -1,18 +1,27 @@
-// Balance test: bots of different skill play the real dealer. "mid" is calibrated to a typical player (under the v0.3.0
-// dealer it needed 5-10 tries on boards 4-x and 5-x, matching a tester report). Slow (about a minute): run with `npm run test:balance`.
-import { createRequire } from 'node:module';
+// Balance test: bots play the real dealer. "mid" is calibrated to a typical player (under the v0.3.0 dealer it needed
+// 5-10 tries on the deepest boards, matching a tester report). Slow (a few minutes): run with `npm run test:balance`.
+// Whole-descent pacing (days, hours per layer, Crust breaks) is in tools/run.mjs.
 import { runBoard, cfg, D } from '../tools/simlib.mjs';
 let fails = 0; const check = (c, m) => { if (!c) { fails++; console.error('FAIL:', m); } else console.log('ok  :', m); };
-cfg.bot = 'mid'; const RUNS = 40;
-const attempts = zi => { let wins = 0, total = 0; for (let j = 0; j < 4; j++) for (let k = 0; k < RUNS; k++) { total++; if (runBoard(zi, j, 777 + zi * 1000 + j * 100 + k).win) wins++; } return total / Math.max(1, wins); };
-const a = [0, 1, 2, 3, 4, 5].map(attempts);
-console.log('average tries per board by zone (typical player):', a.map(x => x.toFixed(2)).join('  '));
-check(a[0] <= 1.1, 'forest boards are easy (<=1.1 tries)');
-check(a[4] <= 2.0 && a[5] <= 2.4, 'the two deepest zones are winnable without 5-10 retries');
-check((a[4] + a[5]) / 2 >= 1.25 && (a[4] + a[5]) / 2 <= 2.0, `the two deepest zones average ${((a[4] + a[5]) / 2).toFixed(2)} tries (target about 1.5-1.8)`);
-check(a.every((x, i) => i === 0 || x >= a[i - 1] - 0.08), 'difficulty rises zone by zone');
-// resource supply: coal and copper over zone 2's first three boards (what a lantern gate asks for)
-let coal = 0, copper = 0, n = 0; for (let k = 0; k < 40; k++) { let c = 0, cu = 0, ok = true; for (let j = 0; j < 3; j++) { let r; let t = 0; do { r = runBoard(1, j, 9000 + k * 10 + j + t * 500); t++; } while (!r.win && t < 8); c += r.got.coal || 0; cu += r.got.copper || 0; } coal += c; copper += cu; n++; }
-console.log(`zone 2, boards 1-3: average coal ${(coal / n).toFixed(1)}, copper ${(copper / n).toFixed(1)} (two lanterns cost 40 coal + 20 copper)`);
-check(coal / n > 20 && coal / n < 55 && copper / n > 12 && copper / n < 40, 'a lantern gate is reachable some of the time but usually needs a strip mine');
+cfg.bot = 'mid'; const RUNS = 24; let forestWood = 0;
+const layers = D.ZONES.map((z, i) => i).filter(i => !D.ZONES[i].core);
+const picks = zi => { const n = D.ZONES[zi].boards; return [...new Set([0, Math.floor(n / 3), Math.floor(2 * n / 3), n - 1])]; };
+const attempts = zi => { let wins = 0, total = 0; for (const j of picks(zi)) for (let k = 0; k < RUNS; k++) { total++; if (runBoard(zi, j, 777 + zi * 1000 + j * 100 + k).win) wins++; } return total / Math.max(1, wins); };
+const a = layers.map(attempts);
+console.log('average tries per board by layer (typical player):', a.map(x => x.toFixed(2)).join('  '));
+check(a[0] <= 1.1, 'Forest boards are easy (<=1.1 tries)');
+check(a.every((x, i) => i === 0 || x >= a[i - 1] - 0.1), 'difficulty rises layer by layer');
+check(a[D.MAGMA_Z] <= 1.8, `Magmastone, the long layer, stays fair (${a[D.MAGMA_Z].toFixed(2)} tries)`);
+check(a[D.CRUST_Z] >= 1.4 && a[D.CRUST_Z] <= 3, `the Crust is hard but passable (${a[D.CRUST_Z].toFixed(2)} tries)`);
+// each layer should give roughly what the next tools cost: often enough, sometimes needing the side tunnel
+for (let z = 0; z < D.MAGMA_Z; z++) {
+  const cost = D.TOOLS[z + 1].cost, got = {}; let runs = 0;
+  for (let k = 0; k < 12; k++) { runs++; for (let j = 0; j < D.ZONES[z].boards; j++) { let r, t = 0; do { r = runBoard(z, j, 5000 + z * 777 + k * 31 + j + t * 997); t++; } while (!r.win && t < 8); Object.entries(r.got).forEach(([m, v]) => got[m] = (got[m] || 0) + v); } }
+  // wood only grows in the Forest: later tools are paid from the wood you carried down, checked below
+  const ratio = Math.min(...Object.entries(cost).filter(([m]) => m !== 'wood' || z === 0).map(([m, v]) => (got[m] || 0) / runs / v));
+  if (z === 0) forestWood = (got.wood || 0) / runs;
+  console.log(`${D.ZONES[z].name}: haul vs ${D.TOOLS[z + 1].name} = ${ratio.toFixed(2)}x  (${Object.entries(cost).map(([m, v]) => `${m} ${((got[m] || 0) / runs).toFixed(1)}/${v}`).join(', ')})`);
+  check(ratio >= .55 && ratio <= 2.6, `${D.ZONES[z].name} gives about what ${D.TOOLS[z + 1].name} cost (${ratio.toFixed(2)}x)`);
+}
+{ const need = D.TOOLS.reduce((a, t) => a + (t.cost.wood || 0), 0); check(forestWood >= need * 1.3, `the Forest gives enough wood for every tool handle (${forestWood.toFixed(0)} for ${need})`); }
 console.log(fails ? `BALANCE TESTS FAILED (${fails})` : 'BALANCE TESTS PASSED'); if (fails) process.exitCode = 1;

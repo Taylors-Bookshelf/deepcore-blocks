@@ -23,7 +23,7 @@ const base = D.boardParams(3, 1), gold = D.boardParams(3, 1, byId.gold_rush), ge
 check(gold.oreBoost.gold === 3 && !base.oreBoost.gold, 'Gold Rush triples gold');
 check(gem.gems.emerald.p > D.boardParams(4, 1).gems.emerald.p && gem.gems.emerald.cap === D.boardParams(4, 1).gems.emerald.cap + 1, 'Gem Fever makes gems commoner and raises the cap');
 check(tre.specialMul === 3 && base.specialMul === 1, 'Treasure Day triples special blocks');
-check(D.lightCost('torch', byId.bright_lamps).coal === 8 && D.lightCost('lantern', byId.bright_lamps).coal === 15 && D.lightCost('torch').coal === 10, 'Bright Lamps cost 25% less (rounded up)');
+check(D.toolCost(2, byId.forge_day).copper === 15 && D.toolCost(5, byId.forge_day).meteorite === 12 && D.toolCost(2).copper === 20, 'Forge Day makes tools 25% cheaper (rounded up)');
 // the hint engine returns legal, ranked moves
 { const S = C.SHAPES, lo = 0, hi = 0; const r = C.rankMoves(lo, hi, [S[3], S[4], null]); check(r.length > 0 && r[0].v >= r[r.length - 1].v, 'rankMoves lists legal moves best first'); }
 
@@ -76,7 +76,7 @@ await board(6); const tg6 = await target(); await tt('setScore', tg6 - 5); await
 await tt('setCollected', { coal: (await T(() => window.__deepcore.test.def().starAt))[1] }); await clearRow(); await page.waitForTimeout(4200); s = await st();
 check(s.screen === 'map' && s.day.stars[6] === 3, 'reaching three stars while playing on banks the board automatically');
 // 5. practice replays can still raise your stars
-await board(6); check(await tt('practice'), 'replay is a practice run'); await tt('setScore', (await target()) - 5); await clearRow(); await page.waitForTimeout(2600); await page.tap('#kpBank'); await page.waitForTimeout(3200);
+await board(6); check(!(await tt('practice')), 'a replay is an ordinary board now (it gives ore)'); await tt('setScore', (await target()) - 5); await clearRow(); await page.waitForTimeout(2600); await page.tap('#kpBank'); await page.waitForTimeout(3200);
 check((await st()).day.stars[6] === 3, 'a worse replay never lowers the stars you already have');
 
 // 5b. bonus ore: a two-line clear pays +25% of the ore mined in that play
@@ -109,12 +109,12 @@ await tt('setBank', { coal: 2 }); await page.waitForTimeout(100);
 check(await T(() => document.getElementById('hintBtn').disabled), 'hint is disabled without enough coal');
 check(await T(() => window.DCA.buffer.some(e => e.event === 'hint_used')), 'analytics recorded the hint');
 
-// 9. daily twist shown, and Bright Lamps cheaper
+// 9. daily twist shown, and Forge Day makes tools cheaper
 await T(() => window.__deepcore.test.openMap());
 const modName = await T(() => window.__deepcore.test.mod().name);
 check(await T((n) => document.getElementById('mapDate').textContent.includes(n), modName), `the map shows today's twist (${modName})`);
-const lampDay = days.find(d => D.modifierFor(d).id === 'bright_lamps'); await tt('previewDay', lampDay);
-const lc = await tt('lcost', 0); check(lc.coal === 8 && lc.wood === 4, `on a Bright Lamps day a torch costs 8 coal + 4 wood (${JSON.stringify(lc)})`);
+const forgeDay = days.find(d => D.modifierFor(d).id === 'forge_day'); await tt('previewDay', forgeDay);
+const lc = await tt('tcost', 1); check(lc.bone === 9 && lc.wood === 5, `on a Forge Day bone tools cost 9 bone + 5 wood (${JSON.stringify(lc)})`);
 check(errors.filter(e => !/404/.test(e)).length === 0, 'no page errors ' + errors.join(' | '));
 await close();
 console.log(fails.length ? `R4 TESTS FAILED (${fails.length})` : 'R4 TESTS PASSED'); if (fails.length) process.exitCode = 1;

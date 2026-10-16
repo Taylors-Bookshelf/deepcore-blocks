@@ -23,7 +23,7 @@
     <div id="lvlBadge" aria-label="Board"><span id="level">1-1</span></div>
     <div class="hmid">
       <div id="zoneName">THE FOREST</div>
-      <div class="hrow"><span class="tier" id="tier">Easy</span><span id="todayTxt">Today <span id="best">0</span><span class="plus" id="bestPlus"></span></span></div>
+      <div class="hrow"><span class="tier" id="tier">Easy</span><span id="durChip" hidden></span><span id="todayTxt">Today <span id="best">0</span><span class="plus" id="bestPlus"></span></span></div>
     </div>
     <button id="hintBtn" class="ibtn" type="button" aria-label="Hint: show a good move for 3 coal"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19h6M10 22h4M12 2.5a6.5 6.5 0 0 0-3.7 11.8c.6.5 1 1.1 1 1.9v.3h5.4v-.3c0-.8.4-1.4 1-1.9A6.5 6.5 0 0 0 12 2.5z"/><path d="M10.2 8.2a1.9 1.9 0 1 1 2.8 1.7c-.7.4-1 .8-1 1.5"/><path d="M12 13.4v.1" stroke-width="2.2"/></svg></button>
     <button id="infoBtn" class="ibtn" type="button" aria-label="Field guide"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.5" r=".6" fill="currentColor"/></svg></button>
@@ -71,7 +71,7 @@
 <div id="sheetScrim" hidden><div id="sheet" class="sheet" role="dialog" aria-label="No free special slot"></div></div>
 <div id="craftPanel" hidden>
   <div class="panel" role="dialog" aria-labelledby="craftTitle">
-    <div class="top"><h2 id="craftTitle">Craft</h2><button id="craftClose" type="button">Close</button></div>
+    <div class="top"><h2 id="craftTitle">Forge</h2><button id="craftClose" type="button">Close</button></div>
     <div id="craftBody"></div>
   </div>
 </div>
@@ -103,7 +103,7 @@
     <button id="mapHome" type="button">Home</button>
     <div class="mapmeta"><div class="label" id="mapDate"></div><div id="mapProg"></div></div>
     <span id="mapBadge" hidden></span>
-    <button id="mapCraft" type="button">Craft</button>
+    <button id="mapCraft" type="button">Forge</button>
   </div>
   <div id="mapScroll"><div id="mapInner"><canvas id="mapCanvas"></canvas><div id="mapNodes"></div></div></div>
   <div id="nodeCard" hidden>
@@ -117,23 +117,43 @@
   <div id="prospector" hidden>
     <div class="ppanel">
       <canvas id="pMedal" width="16" height="16"></canvas>
-      <h2>Prospector</h2>
-      <p id="pText">You mined every board today.</p>
+      <h2 id="pTitle">Notice</h2>
+      <p id="pText"></p>
       <p class="label" id="pCount"></p>
-      <button id="pOk" class="go" type="button">Back to the map</button>
+      <button id="pOk" class="go" type="button">OK</button>
     </div>
   </div>
+</div>
+<div id="core" hidden>
+  <canvas id="coreCv"></canvas>
+  <div id="coreHint">Place the portal at the heart of the temple</div>
+  <div id="corePiece" aria-label="The portal piece"><canvas width="16" height="16"></canvas></div>
+  <div id="coreTally" hidden>
+    <div class="ppanel tally">
+      <h2>The Ancient Core</h2>
+      <p class="fine" id="ctLine"></p>
+      <div id="ctRows"></div>
+      <div class="ctTotal"><span>Final score</span><b id="ctTotal"></b></div>
+      <label class="label" for="ctName">Your name for the record</label>
+      <input id="ctName" maxlength="18" autocomplete="off" placeholder="Miner">
+      <div class="row"><button id="ctShare" type="button">Share</button><button id="ctSave" type="button">Download</button></div>
+      <button id="ctDone" class="go" type="button">Continue</button>
+    </div>
+  </div>
+  <div id="credits" hidden><div id="credRoll"></div><button id="credSkip" type="button">Skip</button></div>
 </div>
 <div id="home">
   <h1>Deepcore<br>Blocks</h1>
   <canvas id="homeStrip" width="80" height="16"></canvas>
+  <div id="homeFrag" hidden></div>
   <div id="homeMain" class="menu">
     <button id="contBtn" class="go" type="button" hidden></button>
     <button id="mapBtn" class="go" type="button">World Map</button>
     <div class="menuRow"><button id="profileBtn" type="button">Profile</button><button id="settingsBtn" type="button">Settings</button></div>
     <div id="homeCard">
-      <div class="hcTop"><div><b id="hcToday"></b><span class="k">boards today</span></div><span id="hcPts"></span></div>
-      <div class="hcChips"><span class="chip" id="hcTwist"></span><span class="chip" id="hcStreak" hidden></span><button id="shareBtn" type="button" hidden>Share</button></div>
+      <div class="hcTop"><div><b id="hcToday"></b><span class="k" id="hcSub"></span></div><span id="hcPts"></span></div>
+      <div class="hcChips"><span class="chip" id="hcTool"></span><span class="chip" id="hcTwist"></span><span class="chip" id="hcStreak" hidden></span><button id="shareBtn" type="button" hidden>Share</button></div>
+      <p class="fine" id="hcWarn" hidden></p>
     </div>
     <div id="installHint" hidden><p id="installText"></p><div class="row"><button id="installBtn" class="go" type="button" hidden>Install</button><button id="installClose" type="button">Not now</button></div></div>
   </div>

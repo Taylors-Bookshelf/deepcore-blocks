@@ -295,7 +295,7 @@ button.tool{cursor:grab;touch-action:none}
 .menuRow{display:flex;gap:10px}.menuRow button{flex:1}
 #homeCard{display:flex;flex-direction:column;gap:10px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--panel-line);border-radius:10px;padding:12px 14px}
 .hcTop{display:flex;justify-content:space-between;align-items:baseline}
-.hcTop b{font-family:var(--font-display);font-weight:400;font-size:30px;line-height:1;margin-right:8px}
+.hcTop b{display:block;font-family:var(--font-display);font-weight:400;font-size:28px;line-height:1}
 .hcTop .k{font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
 #hcPts{font-size:15px;font-weight:700;color:var(--lamp)}
 .hcChips{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -351,3 +351,41 @@ html.large .recipe .nm,html.large .irow .nm{font-size:19px}
 #starChip.max span{color:#8bf0a0}
 
 #todayTxt{display:none}   /* today's total lives on the home screen and map; the play header stays calm */
+#hcWarn{margin:0;color:var(--lamp)}
+#homeFrag{position:absolute;top:max(env(safe-area-inset-top,0px),18px);right:20px;font-size:14px;letter-spacing:3px;color:#d8c8ff;text-shadow:0 0 8px rgba(190,160,255,.8);opacity:.75}
+.durbar{position:relative;height:14px;border-radius:7px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--panel-line);overflow:hidden;margin-top:6px}
+.durbar i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#8a6bff,#5fd8ff)}
+.durbar span{position:relative;display:block;text-align:center;font-size:11px;font-weight:700;line-height:14px}
+#durChip{font-size:11px;font-weight:700;letter-spacing:.5px;padding:1px 6px;border-radius:3px;background:#3a2e5e;color:#d8ccff}
+#durChip.low{background:var(--danger);color:#fff}
+.node.core{width:46px;height:46px;background:radial-gradient(circle,#b9a0ff,#4a2e8a);box-shadow:0 0 18px rgba(190,160,255,.9)}
+
+/* ---------- the Ancient Core: the finale ---------- */
+#core{position:fixed;inset:0;z-index:60;background:#120806;overflow:hidden;touch-action:none}
+#coreCv{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+#coreHint{position:absolute;left:0;right:0;top:max(env(safe-area-inset-top,0px),24px);text-align:center;font-family:var(--font-display);font-size:26px;color:#e8dcff;text-shadow:0 2px 0 #000,0 0 14px rgba(190,160,255,.8);padding:0 20px}
+#corePiece{position:absolute;left:50%;bottom:max(env(safe-area-inset-bottom,0px),40px);width:84px;height:84px;margin-left:-42px;border-radius:14px;background:rgba(30,20,50,.8);box-shadow:inset 0 0 0 2px #8a6aff,0 0 24px rgba(160,120,255,.7);display:flex;align-items:center;justify-content:center;cursor:grab;animation:cpulse 1.6s ease-in-out infinite}
+#corePiece canvas{width:56px;height:56px;image-rendering:pixelated;pointer-events:none}
+#corePiece.drag{animation:none;transition:none;box-shadow:0 0 36px rgba(200,170,255,.9)}
+@keyframes cpulse{50%{box-shadow:inset 0 0 0 2px #c8b8ff,0 0 40px rgba(190,160,255,.95)}}
+#coreTally{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,6,16,.72);padding:16px}
+.tally{max-width:380px;width:100%;display:flex;flex-direction:column;gap:10px;text-align:left}
+.tally h2{color:#d8c8ff;font-size:34px;text-align:center}
+#ctRows div{display:flex;justify-content:space-between;font-size:15px;padding:3px 0;border-bottom:1px solid var(--panel-line)}
+.ctTotal{display:flex;justify-content:space-between;align-items:baseline;font-size:16px;font-weight:700}
+.ctTotal b{font-family:var(--font-display);font-weight:400;font-size:34px;color:var(--lamp)}
+#ctName{font-family:var(--font-ui);font-size:17px;color:var(--text);background:var(--inset);border:0;border-radius:8px;box-shadow:inset 0 0 0 1px var(--panel-line);padding:10px;user-select:text;-webkit-user-select:text}
+.tally .row{display:flex;gap:10px}.tally .row button{flex:1}
+#credits{position:absolute;inset:0;background:#07040c;overflow:hidden}
+#credRoll{position:absolute;left:0;right:0;top:100%;text-align:center;color:#e8dcff;padding:0 24px;font-size:17px;line-height:1.6}
+#credRoll h3{font-family:var(--font-display);font-size:24px;color:var(--lamp);margin:34px 0 6px;font-weight:400}
+#credRoll .big{font-family:var(--font-display);font-size:44px;color:#d8c8ff;text-shadow:0 0 18px rgba(190,160,255,.8);line-height:1.1}
+#credSkip{position:absolute;right:16px;bottom:max(env(safe-area-inset-bottom,0px),20px);min-height:38px;opacity:.75}
+#coreTally .ppanel.tally{align-items:stretch;text-align:left;padding:20px}
+#coreTally .ppanel.tally h2,#coreTally .ppanel.tally #ctLine{text-align:center}
+#ctRows{display:flex;flex-direction:column;width:100%}
+#ctRows div{gap:12px}
+#ctRows b{font-weight:700}
+#coreTally .label{margin-top:4px}
+#coreTally #ctDone{width:100%}
+#coreTally .ppanel.tally{width:min(380px,100%)}

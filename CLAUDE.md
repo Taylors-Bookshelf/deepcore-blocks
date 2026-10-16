@@ -16,28 +16,30 @@ A mining-themed 8×8 block puzzle: drag 3-piece sets onto the board, clear rows 
 - `src/styles.css`: all styles, from the design tokens (`design/tokens.json`): flat slate ground, panel surfaces with a 1px inset line, amber lamp accent. Jersey 10 for numbers and titles, Chakra Petch for text (`fonts/`, both OFL).
 - `design/`: the design package as delivered (spec, tokens, effects, mockups, SVG + PNG sprites). `assets/`: the 16×16 PNGs the game loads.
 - `src/data.js`: tables only (ores, point values, zones, recipes, lights, daily twists, stars, `boardParams`). `src/core.js`: bitboard, solver, piece families, the `chooseSet` dealer, `dressPiece`, move evaluator `rankMoves`. No DOM, runs in Node.
-- `src/maps.js`: daily world-map generator and renderer. `src/meta.js`: lifetime rank, streaks, countdown, share text, save codes, discovery log catalogue, ambient music engine (no DOM except WebAudio).
+- `src/maps.js`: the descent's map generator (tunnels per run, surface per day) and renderer (automatic lamps, camps, the Core temple). `src/meta.js`: lifetime rank, streaks, countdown, share text, save codes, discovery log catalogue, ambient music engine (no DOM except WebAudio).
 - `src/analytics.js` + `src/config.js`: anonymous PostHog analytics (empty key = off); `src/analytics.js` exposes `window.DCA`.
 - `src/game.js`: the screen layer in one IIFE: sprite pipeline (`TEX`, `OVERC`, `SPR`; procedural art is the fallback if a PNG is missing), catalog (`MATS`), state, dealer glue, UI, effects, sound, game flow (`startBoard`, async `place`, `reachTarget`, `bankBoard`, `gameOver`), specials dock, anvil and craft panels, make-room sheet, field guide, profile, settings, tutorial, saving (schema versioned), home, world map, drag, render loop, boot.
 - `tools/`: `sim.mjs`, `day.mjs`, `mercy.mjs` simulate bot players on the real dealer (`--bot mid` is calibrated to a typical player). `tests/`: see above.
 
 ## Design rules (keep unless told otherwise)
 
-**Boards and progression**
-- 24 boards per day: 6 zones × 4 (The Forest, Limestone Caves, Granite Halls, Slate Caverns, Basalt Gem Depths, The Underworld). The map regenerates every **Pacific-time** day with a different surface and tunnels (`maps.js`); the cave is dug open board by board, only the forest shows at first. Internal block ids stay `grass/dirt/log/stone/granite/deep/obsidian/ember` (display names Topsoil, Wood, Limestone, Granite, Slate, Basalt, Magmastone).
-- Clearing all 24 in a day earns **Prospector**; the day-end screen then lets you spend leftovers on specials.
-- **Gates:** the 4th board of each zone needs 2 torches (Forest: 10 coal + 5 wood each) or 2 lanterns (deeper: 20 coal + 10 copper each), crafted from the map's Craft panel. **Strip mine:** a side tunnel after each zone's 3rd board (once per zone per day, not one of the 24): resource goals instead of a score, score becomes a daily bonus. Ore rates were tuned (`tools/day.mjs`) so it is needed about 55-65% of the time.
-- A board clears at its **score target**. Reaching it clears the board for good and banks the haul; stars beyond the first come from **ore value** mined on the board (`YIELD_W`, per-board thresholds in `boardParams().starAt` from `STAR_YIELD`, calibrated with `tools/stars.mjs`); if 3★ ore is already held at the clear the board banks itself, otherwise BANK IT or KEEP GOING (each extra star +10% of the target). Multi-line clears, combos and All Clears also pay **bonus ore** (`bonusPct`/`bonusOre` in data.js; the sims include it, so re-run `tools/day.mjs` and `tools/stars.mjs` after changing ore rates or tiers). A cave-in while playing on loses only the ore gathered since and keeps the clear.
-- **Haul:** ore, gems and wood mined on a board sit in `hand` (shown as +n) and bank at the clear; a cave-in without a Rescue Potion loses them. The **stash resets each Pacific day**; leftovers become bonus points on yesterday's record. Replaying a cleared board is a **practice run** (points and stars, no ore).
-- No difficulty setting; `ZONES[].d` sets dealer difficulty. Repeated cave-ins on one board ease the dealer (`mercyTilt`). One **daily twist** per day (`MODIFIERS`): Gold Rush, Ruby Rain, Gem Fever, Treasure Day, Coal Seams, Bright Lamps.
+**Boards and progression (the Descent, v2.0)**
+- One long run, kept across days (`dayState` in game.js is the run, saved under `deepcore-run`): Forest 4, Limestone Caves 6, Slate Caverns 6, Granite Halls 6, Basalt Depths 6, Magmastone 30 (camps after 10 and 20), The Crust 3, Ancient Core 1 (`ZONES[].boards`, indices via `Z_START`/`zoneOfIdx`/`jOfIdx`). Pacific-time days still drive the daily twist and once-a-day side tunnels.
+- **Tools** gate each layer's first board (`TOOLS`, `toolNeeded`): branch → bone → copper → iron → steel → Galaxy Alloy, forged on the map (Forge panel, or one tap on the locked board). Lamps are automatic map decoration.
+- **Missed day** (no clear yesterday or today): `settle()` drops the current layer's boards (to the last camp in Magmastone). Tools and stash are kept.
+- **Galaxy Alloy wear** (`WEAR`, `PRISM_MEND`, `STASH_MEND`): breaking in the Crust (`toolBreak`) sends the run back to the start of Magmastone at `DUR_AFTER_BREAK`.
+- **Ancient Core** (`openCore`): place the portal, tally, name, share/download card, credits, then `finishRun()` starts a new run with a core fragment (max 5, Legendary at 5).
+- A board clears at its **score target**; stars beyond the first come from **ore value** (`YIELD_W`, `STAR_YIELD`, calibrated with `tools/stars.mjs`); 3★ ore at the clear banks itself, otherwise FINISH or KEEP MINING. Multi-line clears, combos and All Clears pay **bonus ore** (`bonusPct`/`bonusOre`). Replays give ore.
+- **Side tunnels** (`STRIP_BASE + layer`): after a layer's third board, once a day; goals = what the next tools still lack. Pacing and economy are simulated with `tools/run.mjs` (whole descents) and checked by `npm run test:balance`.
+- No difficulty setting; `ZONES[].d` sets dealer difficulty. Repeated cave-ins ease the dealer (`mercyTilt`). One **daily twist** per day (`MODIFIERS`), including Forge Day (cheaper tools).
 
 **Blocks and resources**
-- Base blocks blend between zones (`ZONES[].mixes`); a block never appears before its zone. Ores (`ORES`): coal, copper, iron, ruby (a common gem-looking resource), gold; gems (`ZONES[].gems`, capped per board): emerald, diamond. Wood comes from logs. Rates and the per-zone boosts are balance-tuned; do not change them without re-running the sims.
+- Base blocks blend between zones (`ZONES[].mixes`); a block never appears before its zone. Ores (`ORES`): bone, coal, copper, iron, gold, meteorite, prism ore (rainbow), ruby (a common gem-looking resource); gems (`ZONES[].gems`, capped per board): emerald, diamond. Wood comes from logs and only grows in the Forest. Rates and the per-zone boosts are balance-tuned; do not change them without re-running the sims.
 - Point values in `VAL`: deeper rock worth more, ore far more, gems most.
 
 **Specials**
-- Craft-only, held in a **3-slot dock in any mix** (duplicates allowed): Blast Charge, Sledgehammer, Rescue Potion, Luck Tonic (`RECIPES`). Crafting with a full dock opens the make-room sheet (destroy one special; ore is spent only on confirm). Random-only on the board: Prism Stone, Fossil, Buried Treasure (`SPECIAL_MIX`, `SPECIAL_RATE` 1%/2%/3% by tier).
-- Blast Charge breaks the 8 neighbours; Sledgehammer reshuffles the board (no trapped gaps, no full lines, room for the tray); Rescue Potion is used automatically on a cave-in (undo last placement, fresh set); Luck Tonic (tap to drink) favours the next 7 sets. Prism = 3 of a zone ore/gem; Fossil = 1,000 points; Buried Treasure = a haul of ore/gems.
+- Craft-only, held in a **3-slot dock in any mix** (duplicates allowed): Blast Charge, Sledgehammer, Rescue Potion, Luck Tonic (`RECIPES`). Crafting with a full dock opens the make-room sheet (destroy one special; ore is spent only on confirm). Random-only on the board: Geode (internal id `prism`), Fossil (5 bones), Buried Treasure (`SPECIAL_MIX`, `SPECIAL_RATE` 1%/2%/3% by tier).
+- Blast Charge breaks the 8 neighbours; Sledgehammer reshuffles the board (no trapped gaps, no full lines, room for the tray); Rescue Potion is used automatically on a cave-in (undo last placement, fresh set); Luck Tonic (tap to drink) favours the next 7 sets. Geode = 3 of a layer ore/gem; Fossil = 5 bones + 600 points; Buried Treasure = a haul of ore/gems.
 
 **Dealer and feel**
 - Every dealt set is solvable (a cave-in is always the player's fault). Easy boards get strong help that fades with difficulty; "mercy" adds help as the board fills; nearly empty boards get a hunt for All-Clear sets. Pieces come in families (all rotations/mirrors equally likely); big corner pieces are dialled down.
@@ -46,12 +48,13 @@ A mining-themed 8×8 block puzzle: drag 3-piece sets onto the board, clear rows 
 
 ## Saving
 
-`localStorage` only (keys `deepcore-profile`, `-day`, `-board`, `-life`, `-settings`, `-schema`, `-sound`, `-install`, `-aid`, `-analytics`). `SCHEMA` (currently 3) and `migrate()` handle format changes; a saved board is validated before use. Settings has a save-code backup/restore (`DC1.…`) and a reset. Progress does not follow a player across devices without a code.
+`localStorage` only (keys `deepcore-profile`, `-run`, `-board`, `-life`, `-settings`, `-schema`, `-sound`, `-install`, `-aid`, `-analytics`). `SCHEMA` (currently 4) and `migrate()` handle format changes; a saved board is validated before use. Settings has a save-code backup/restore (`DC1.…`) and a reset. Progress does not follow a player across devices without a code.
 
 ## Open items to raise with the designer
 
 - Rank thresholds, daily-twist strengths, hint price (3 coal) and star bonus are first-pass numbers.
 - Ambient music is off by default (it would play with the iPhone silent switch on).
-- Random special art (Prism, Fossil, Treasure), potions, torch, lantern and wood are still the original procedural pixel art; the design package did not cover them.
+- Art not from the design package: bone, meteorite and prism ore overlays, crust rock, tool icons, portal, camp, temple (drawn to match), plus the older procedural specials, potions, torch, lantern and wood.
+- Pacing (days to Magmastone, hours inside it, Crust break rate) is simulated, not yet measured with players.
 - Leaderboards need a backend and are not built; the share card is the social feature.
 - Keep the game's own identity in names, art and store listings. Do not use other games' names, logos or textures.

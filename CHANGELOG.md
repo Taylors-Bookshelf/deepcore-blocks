@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.0 — The Descent
+- One long journey instead of a daily map: dig from the Forest through Limestone, Slate, Granite and Basalt, a long Magmastone stretch and the Crust, to the Ancient Core. Progress and stash carry over from day to day.
+- Tools instead of torches and lanterns: branch, bone, copper, iron, steel and Galaxy Alloy tools each open the next layer (forged on the map; one tap from the locked board when you can afford them). Lamps now light the tunnels by themselves.
+- New ores: bones (Forest), meteorite (Basalt) and rainbow prism ore (Magmastone, the Crust). New Crust rock. Basalt brightened so it stands out on the board. The Prism Stone special is now the Geode; Fossils give bones.
+- Clear a board every day to keep your depth. Miss a day and you drop back to the start of your layer, or the last camp in Magmastone (camps after boards 10 and 20).
+- Galaxy Alloy wears in the deepest rock; prism ore mends it (stash prism ore mends at the Forge). If it breaks in the Crust you go back to the start of Magmastone.
+- The Ancient Core: place the portal, see the final tally, enter your name, share or download a card, roll the credits, then begin again on the grass with a core fragment (up to five; five is Legendary).
+- Replays give ore again. Side tunnels (once a day per layer) ask for what your next tools still need.
+- Home and map show your layer, board, tools and streak; the share text shows your descent.
+
 ## 1.3.1
 - Possible fix for the map sometimes ignoring taps after finishing a board (iPhone): the map's scroll area is rebuilt each time it opens, an old iOS scrolling setting is removed, and finishing a board can no longer run twice.
 

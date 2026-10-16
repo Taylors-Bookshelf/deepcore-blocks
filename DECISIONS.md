@@ -99,3 +99,18 @@ Judgment calls I made without asking, so you can review and ask me to change or 
 - **Map:** removed the root lines, burrows, blue pools and the small fossil marks; narrower tunnels (half to two-thirds of a tile) and smaller chambers; the first tunnel opens the grass as a pit.
 - **Gate flow:** one tap places all remaining lights when you can afford them; if not, the gate sends you to the strip mine (when it's open) or the Craft panel.
 - **Crafting split:** map Craft = torches/lanterns (plus the strip-mine shortcut); board CRAFT = specials. The end-of-day "spend leftovers" button now opens the specials anvil.
+
+## The Descent (v2.0.0)
+- **Layers and boards:** Forest 4, Limestone 6, Slate 6, Granite 6, Basalt 6, Magmastone 30 (camps after boards 10 and 20), Crust 3, Ancient Core 1: 62 in all.
+- **Tool costs (first pass, from the simulator):** bone 12 bone + 6 wood; copper 20 copper + 10 wood; iron 20 iron + 10 wood; steel 25 iron + 25 coal; Galaxy Alloy 15 meteorite + 10 iron. Wood only grows in the Forest, so its surplus (about 46) pays for the later handles (26). Forge Day (replaces Bright Lamps) makes tools 25% cheaper.
+- **Pacing (simulated typical player, about 8 boards a day):** Magmastone on day 5, about 2.3 hours inside it, the Core around day 15. The Crust needs about 2 tries per board and breaks the tools in roughly 3 of 4 runs once. Real players are slower, so expect longer.
+- **Galaxy Alloy wear:** Magmastone wears 0.04% per magmastone block but never below 10%, and any prism ore mined there mends fully. The Crust wears 0.62% per crust block; each prism ore mined mends 7%. Each prism ore in the stash mends 12% at the Forge. After a break, tools come back at 60%.
+- **Missed days:** a day counts when you clear a board. If neither yesterday nor today has a clear, the next visit drops the boards of your current layer (back to the last camp in Magmastone, or the start of the Crust). Tools and stash always stay. A message explains it.
+- **Side tunnels:** once a day per layer, after its third board. They ask for whatever the next tools still lack (at least a third of their cost); in Magmastone and the Crust they ask for 6 prism ore and 4 gold.
+- **Replays give ore** (no more practice runs), since the stash now lasts the whole descent.
+- **Stars:** thresholds re-measured for the new layers (2 stars at about 1.25x and 3 at 1.75x a typical player's ore value at the clear). Board 1-1 now has bones, so its wood-based stars are gone.
+- **Ore balance:** copper in Limestone was trimmed (1.5 to 1.15 boost), iron in Granite and meteorite in Basalt raised so each layer gives roughly what the next tools cost (1.0-1.8x).
+- **Fresh start:** v2.0 starts everyone on a new descent: stash and specials cleared; lifetime stats, ranks, discovery log and settings kept.
+- **Names:** "Prism Stone" special renamed Geode (purple, so it can't be mistaken for rainbow prism ore). The Fossil now gives 5 bones and 600 points. The map's Craft button is now Forge.
+- **The Core:** drag the portal into the temple; a 4-second light show; tally = board points + the value of all ore and gems mined on the run; name (stored on this phone, last 10 runs kept), Share (image when the phone supports it) and Download (PNG card). Credits roll for 60 seconds (skippable) and credit "Taylor's Bookshelf" for design and direction (change it if you prefer another name). Then a new run on the grass. Core fragments show as small violet stars on the home and map screens and as glints in the grass on the map; five earns Legendary.
+- **Art I drew** (16×16, same style): bone, meteorite and prism ore overlays, Crust rock, the six tool icons, the portal, the camp tent, the temple. Basalt is the package sprite lifted about 20% in brightness.

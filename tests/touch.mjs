@@ -55,11 +55,11 @@ const txt = await page.evaluate(() => document.getElementById('infoBody').textCo
 check(/Coal/.test(txt) && /Common/.test(txt) && /Unusual/.test(txt) && /Rare/.test(txt) && /points each/.test(txt), 'resources section lists names, rarity and points');
 await page.tap('#infoTabs button:nth-child(3)');
 const crafting = await page.evaluate(() => document.getElementById('infoBody').textContent);
-check(/Torch/.test(crafting) && /Lantern/.test(crafting) && /strip mine/i.test(crafting) && /Luck Tonic/.test(crafting), 'crafting guide covers torches, lanterns, strip mines and the Luck Tonic');
+check(/Bone tools/.test(crafting) && /Galaxy Alloy/.test(crafting) && /side tunnel/i.test(crafting) && /Luck Tonic/.test(crafting), 'crafting guide covers the tools, side tunnels and the Luck Tonic');
 await page.tap('#infoClose');
 
 // difficulty naming
-await page.evaluate(() => window.__deepcore.test.start(23)); await page.waitForTimeout(2500);
+await page.evaluate(() => window.__deepcore.test.start(59)); await page.waitForTimeout(2500);
 check(await page.evaluate(() => document.getElementById('tier').textContent) === 'Expert', 'top difficulty is named Expert');
 check(!(await page.content()).includes('Brutal'), 'no "Brutal" left in the page');
 

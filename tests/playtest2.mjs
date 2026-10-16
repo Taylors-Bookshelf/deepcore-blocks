@@ -28,14 +28,12 @@ check(after === 3, `placing the other two deals a fresh set (${after} pieces)`);
 const body = await T(() => document.body.innerText);
 check(!/\bbank(ed)?\b/i.test(body), 'no "bank" wording on screen');
 
-// 2. the first Forest board has no ore, so its stars come from wood
+// 2. the first Forest board now has bones, so its stars count ore value like every other board
 await tt('start', 0); await page.waitForTimeout(2600);
 const d0 = await T(() => window.__deepcore.test.def());
-check(d0.starWood && d0.starAt[0] < d0.starAt[1], `board 1-1 counts wood for stars (${d0.starAt})`);
-await tt('setCollected', { wood: d0.starAt[0] }); await page.waitForTimeout(400);
-check(await T(() => document.getElementById('scStars').textContent === '★★★' && /\//.test(document.getElementById('scTxt').textContent)), 'with 2-star wood the chip points at the third star');
-const d1 = await T(async () => { const t = window.__deepcore.test; t.start(1); await new Promise(r => setTimeout(r, 2600)); return t.def(); });
-check(!d1.starWood, 'board 1-2 has coal, so it uses ore value');
+check(!d0.starWood && d0.ores.includes('bone') && d0.starAt[0] < d0.starAt[1], `board 1-1 has bones to mine for stars (${d0.starAt})`);
+await tt('setCollected', { bone: d0.starAt[0] }); await page.waitForTimeout(400);
+check(await T(() => document.getElementById('scStars').textContent === '★★★' && /\//.test(document.getElementById('scTxt').textContent)), 'with 2-star ore value the chip points at the third star');
 
 // 3. no permanent combo badge
 check(await T(() => !document.getElementById('comboMeter')), 'no combo badge on the board');

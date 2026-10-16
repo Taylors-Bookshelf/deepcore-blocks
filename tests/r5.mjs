@@ -15,12 +15,12 @@ check(Meta.rankFor(0).name === 'Rookie Miner' && Meta.rankFor(5000).name === 'Pi
   Meta.touchStreak(l, '2026-10-15'); check(l.streak.cur === 1 && l.streak.best === 3, 'missing a day restarts it but keeps the best');
   check(Meta.prevDay('2026-03-01') === '2026-02-28' && Meta.prevDay('2027-01-01') === '2026-12-31', 'previous-day maths handles month and year ends'); }
 check(Meta.resetText(new Date('2026-01-15T07:00:00Z')) === '1h 0m' && Meta.resetText(new Date('2026-07-15T06:30:00Z')) === '30m' && Meta.resetText(new Date('2026-07-15T07:00:00Z')) === '24h 0m', 'the countdown runs to midnight Pacific in winter and summer');
-{ const day = { done: [0, 1, 2, 5, 23], stars: { 0: 3, 1: 2, 2: 1, 5: 3, 23: 1 } }; const t = Meta.shareText({ day: '2026-10-14', mod: { name: 'Gold Rush' }, dayState: day, total: 18420, streak: 4, url: 'https://x.test/' }).split('\n');
-  check(t[0] === 'Deepcore Blocks · Oct 14' && /5\/24 boards · 18,420 pts · 4-day streak/.test(t[1]) && t[2] === 'Twist: Gold Rush' && t.length === 10 && t[3] === '🟨🟧🟫⬛' && t[4] === '⬛🟨⬛⬛' && t[8] === '⬛⬛⬛🟫' && t[9] === 'https://x.test/', 'the share text is a small grid of the day'); }
+{ const run = { done: [0, 1, 2, 3, 4, 5], days: 3 }; const t = Meta.shareText({ day: '2026-10-14', run, zone: 'Limestone Caves', tool: 'Bone tools', total: 18420, streak: 4, fragments: 0, url: 'https://x.test/' }).split('\n');
+  check(t[0] === 'Deepcore Blocks · Oct 14' && t[1] === 'Day 3 of my descent · Limestone Caves · Bone tools' && t[2] === '18,420 pts · 4-day streak' && t[3] === '🟧🟧🟧🟧' && t[4].startsWith('🟧🟧⬛') && t.length === 11 && t[10] === 'https://x.test/', 'the share text shows the descent as a small grid, layer by layer'); }
 { const code = Meta.encodeSave({ profile: { bank: { coal: 7 } }, life: { x: 1 }, note: 'ünïcode ✓' }); const back = Meta.decodeSave(code);
   check(/^DC1\./.test(code) && back && back.profile.bank.coal === 7 && back.note === 'ünïcode ✓', 'save codes round-trip, including unicode');
   check(Meta.decodeSave(code.slice(0, -4)) === null && Meta.decodeSave(code.replace(/\.[a-z0-9]+\./, '.zzzz.')) === null && Meta.decodeSave('garbage') === null && Meta.decodeSave('') === null, 'damaged or fake codes are refused'); }
-check(Meta.LOG.length === 7 + 4 + 3 + 7 + D.ZONES.length + D.MODIFIERS.length && new Set(Meta.LOG.map(e => e.kind + e.id)).size === Meta.LOG.length, `the discovery log has ${Meta.LOG.length} unique entries`);
+check(Meta.LOG.length === 8 + 7 + 3 + 5 + 7 + D.ZONES.length + D.MODIFIERS.length && new Set(Meta.LOG.map(e => e.kind + e.id)).size === Meta.LOG.length, `the discovery log has ${Meta.LOG.length} unique entries`);
 
 // ---- the game ----
 const { page, base, errors, close, ctx, cdp } = await phone();
@@ -64,7 +64,7 @@ await tt('complete'); await page.waitForTimeout(3200); life = await tt('life');
 check(life.streak.cur === 1 && life.cleared === 1 && life.stars >= 1 && life.records.bestBoard > 0 && life.records.bestLines >= 1 && life.firstDay, 'clearing a board starts the streak and updates the records');
 await T(() => window.__deepcore.test.showHome()); await page.waitForTimeout(200);
 home = await T(() => ({ cont: document.getElementById('contBtn').hidden, streak: document.getElementById('hcStreak').hidden, share: document.getElementById('shareBtn').hidden, today: document.getElementById('hcToday').textContent }));
-check(home.streak && !home.share && /1 \/ 24/.test(home.today), `home shows today's count and a Share button; a 1-day streak is not shown (${home.today})`);
+check(home.streak && !home.share && /The Forest/.test(home.today), `home shows where you are and a Share button; a 1-day streak is not shown (${home.today})`);
 await page.tap('#profileBtn'); await page.waitForTimeout(200);
 check(await T(() => /Rookie Miner/.test(document.getElementById('profBody').textContent) && document.querySelectorAll('.stat').length === 12), 'the profile shows the rank and twelve stats');
 await page.tap('#profTabs button:nth-child(2)'); await page.waitForTimeout(200);
@@ -74,7 +74,7 @@ await page.tap('#profClose');
 // share
 await T(() => { window.__shared = null; navigator.share = async (d) => { window.__shared = d.text; }; });
 await page.tap('#shareBtn'); await page.waitForTimeout(300);
-check(await T(() => /Deepcore Blocks/.test(window.__shared || '') && /1\/24 boards/.test(window.__shared || '')), 'Share hands the day\'s text to the phone\'s share sheet');
+check(await T(() => /Deepcore Blocks/.test(window.__shared || '') && /Day 1 of my descent/.test(window.__shared || '')), 'Share hands the day\'s text to the phone\'s share sheet');
 // continue button
 await tt('start', 2); await page.waitForTimeout(2600);
 await T(() => { const t = window.__deepcore.test, s = t.state(); const p = s.pieces[0]; for (let r = 7; r >= 0; r--) for (let c = 0; c < 8; c++) if (t.fits(p, r, c)) { t.place(0, r, c); return; } }); await page.waitForTimeout(800);

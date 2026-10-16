@@ -1,4 +1,5 @@
-// Progression tests: the map digs open as boards are cleared; torch/lantern gates; strip mines; the daily reset and day-end tally.
+// The descent: the map digs open board by board; tools open each new layer; side tunnels; missed days and camps;
+// Galaxy Alloy wear in the Crust; and the Ancient Core finale with its core fragment.
 import { phone, makeChecker } from './helpers.mjs';
 const { check, fails } = makeChecker();
 const { page, base, errors, close } = await phone();
@@ -6,76 +7,78 @@ await page.goto(base + '?debug'); await page.waitForTimeout(500);
 const T = (fn, arg) => page.evaluate(fn, arg);
 const tt = (fn, ...a) => page.evaluate(([f, a]) => window.__deepcore.test[f](...a), [fn, a]);
 const nodes = () => T(() => [...document.querySelectorAll('#mapNodes .node')].map(n => n.className.replace('node ', '')));
-const st = () => T(() => { const s = window.__deepcore.test.state(); return { bank: s.bank, day: s.dayState }; });
+const st = () => T(() => { const s = window.__deepcore.test.state(); return { bank: s.bank, day: s.dayState, screen: s.screen }; });
+const upto = n => Array.from({ length: n }, (_, k) => k);
 
 await page.tap('#mapBtn'); await page.waitForTimeout(500);
-let n = await nodes(); check(n.length === 1 && n[0].includes('open'), 'a fresh day shows only the first board');
+let n = await nodes(); check(n.length === 1 && n[0].includes('open'), 'a fresh descent shows only the first board');
 await tt('markDone', [0]); await tt('buildMap'); n = await nodes(); check(n.length === 2, 'clearing a board digs open the next one');
-await tt('markDone', [0, 1]); await tt('buildMap'); n = await nodes(); check(n.length === 3, 'one more cleared, one more revealed');
-
-// ---- the torch gate (board 1-4) ----
 await tt('markDone', [0, 1, 2]); await tt('buildMap'); n = await nodes();
-check(n.filter(c => c.includes('gate')).length === 1 && n.filter(c => c.includes('strip')).length === 1, 'after board 1-3: a gate marker for 1-4 and a strip-mine branch appear');
+check(n.filter(c => c.includes('strip')).length === 1 && !n.some(c => c.includes('gate')), 'after board 1-3 the Forest side tunnel opens; board 1-4 needs no new tools');
+
+// ---- tools open the next layer ----
+await tt('markDone', upto(4)); await tt('buildMap'); n = await nodes();
+check(n.filter(c => c.includes('gate')).length === 1, 'the first Limestone board waits for bone tools');
 await page.tap('.node.gate'); await page.waitForTimeout(250);
-check(/strip mine/i.test(await T(() => document.getElementById('ncGo').textContent)), 'without enough for torches the gate points to the strip mine');
+check(/side tunnel/i.test(await T(() => document.getElementById('ncGo').textContent)), 'without the bones the gate points to the side tunnel');
 await page.tap('#ncClose'); await page.tap('#mapCraft'); await page.waitForTimeout(250);
-check(await T(() => !document.getElementById('craftPanel').hidden && document.querySelectorAll('#craftBody .recipe').length === 1 && /Torch/.test(document.getElementById('craftBody').textContent) && !/Blast/.test(document.getElementById('craftBody').textContent)), 'the map craft panel offers torches only, no specials');
-check(await T(() => document.querySelector('#craftBody .recipe button.go').disabled), 'cannot craft a torch without coal and wood');
-await tt('setBank', { coal: 20, wood: 10 }); await tt('craftLight', 0); await page.waitForTimeout(100);
-let s = await st(); check(s.bank.coal === 10 && s.bank.wood === 5 && s.day.lights[0] === 1, 'a torch costs 10 coal + 5 wood');
-check(await T(() => !!document.querySelector('.node.gate')), 'one torch is not enough');
-await tt('craftLight', 0); s = await st(); check(s.day.lights[0] === 2 && !s.bank.coal, 'second torch placed');
-await page.tap('#craftClose'); await page.waitForTimeout(200); n = await nodes();
-check(!n.some(c => c.includes('gate')) && n.length === 5, 'with two torches the gate opens and board 1-4 is revealed');
-// one tap: with enough in the stash, the gate card places both torches at once
-await tt('lightUp', 0, 0); await tt('setBank', { coal: 20, wood: 10 }); await tt('buildMap'); await page.tap('.node.gate'); await page.waitForTimeout(250);
-check(/Place 2 torches/.test(await T(() => document.getElementById('ncGo').textContent)), 'with enough coal and wood the gate offers to place both torches');
-await page.tap('#ncGo'); await page.waitForTimeout(600); s = await st(); n = await nodes();
-check(s.day.lights[0] === 2 && !s.bank.coal && !n.some(c => c.includes('gate')), 'one tap places both torches and opens the way');
+check(await T(() => /Bone tools/.test(document.getElementById('craftBody').textContent) && !/Blast/.test(document.getElementById('craftBody').textContent) && document.querySelector('#craftBody .recipe button.go').disabled), 'the Forge offers bone tools (and no specials), not yet affordable');
+await page.tap('#craftClose');
+await tt('setBank', { bone: 12, wood: 6, coal: 3 }); await tt('buildMap'); await page.tap('.node.gate'); await page.waitForTimeout(250);
+check(/Forge Bone tools/.test(await T(() => document.getElementById('ncGo').textContent)), 'with 12 bone and 6 wood the gate offers to forge bone tools');
+await page.tap('#ncGo'); await page.waitForTimeout(600); let s = await st(); n = await nodes();
+check(s.day.tool === 1 && !s.bank.bone && !s.bank.wood && s.bank.coal === 3 && !n.some(c => c.includes('gate')), 'one tap forges bone tools and opens Limestone Caves');
 
-// ---- the lantern gate (board 2-4) ----
-await tt('markDone', [0, 1, 2, 3, 4, 5, 6]); await tt('buildMap');
-check(await T(() => !!document.querySelector('.node.gate')), 'a lantern gate guards board 2-4');
-await tt('setBank', { coal: 20, copper: 10 }); await tt('craftLight', 1); s = await st();
-check(s.bank.coal === 0 && s.bank.copper === 0 && s.day.lights[1] === 1, 'a lantern costs 20 coal + 10 copper');
-
-// ---- strip mine ----
-await tt('setBank', { coal: 5 });
-await T(() => [...document.querySelectorAll('.node.strip')].find(b => /Limestone Caves/.test(b.getAttribute('aria-label'))).click()); await page.waitForTimeout(250);
-const goalTxt = await T(() => document.getElementById('ncGoals').textContent.replace(/\s+/g, ' '));
-check(/Gather/.test(goalTxt), 'strip mine card lists what to gather (' + goalTxt.trim() + ')');
+// ---- side tunnel ----
+await tt('setTool', 0); await tt('setBank', { bone: 4 }); await tt('markDone', upto(3)); await tt('buildMap');
+await T(() => document.querySelector('.node.strip').click()); await page.waitForTimeout(250);
+check(/Gather/.test(await T(() => document.getElementById('ncGoals').textContent)), 'the side tunnel card lists what to gather');
 await page.tap('#ncGo'); await page.waitForTimeout(2600);
-const g = await tt('goals'); check(g && g.coal === 15 && g.copper === 10, `strip mine asks for exactly what two lanterns still lack (${JSON.stringify(g)})`);
+const g = await tt('goals'); check(g && g.bone === 8 && g.wood === 6, `the side tunnel asks for what the next tools still lack (${JSON.stringify(g)})`);
 check(await T(() => !!document.querySelector('.stripGoals .goal')) && await T(() => !document.getElementById('pfill')), 'goal chips replace the score bar');
-check(await tt('stripMet') === false, 'goals not met yet');
-await tt('giveHand', { coal: 15, copper: 10 }); await T(() => window.__deepcore.test.setScore(240));
-check(await tt('stripMet') === true, 'strip mine is complete when the haul meets the goals');
-const doneBefore = (await st()).day.done.length;
+await tt('giveHand', { bone: 8, wood: 6 }); await T(() => window.__deepcore.test.setScore(240));
+check(await tt('stripMet') === true, 'the side tunnel is done when the haul meets the goals');
 await tt('completeStrip'); await page.waitForTimeout(2400); s = await st();
-check(s.day.strip[1] === true && s.day.bonus === 240 && s.bank.coal === 20 && s.bank.copper === 10, `strip mine banks the haul and adds its score to the daily bonus (${JSON.stringify({ b: s.day.bonus, bank: s.bank })})`);
-check(s.day.done.length === doneBefore, 'the strip mine is not one of the 24 boards');
-check(await T(() => !!document.querySelector('.node.strip.done')), 'cleared strip mine is marked');
+check(s.day.strip[0] === true && s.bank.bone === 12 && s.bank.wood === 6 && s.day.done.length === 3, `it banks the haul and is not one of the descent's boards (${JSON.stringify(s.bank)})`);
+check(await T(() => !!document.querySelector('.node.strip.done')), 'a mined side tunnel is marked until tomorrow');
 
-// ---- daily reset ----
-await tt('setBank', { coal: 10, iron: 2 });
-await tt('newDay', '2000-01-01'); await page.waitForTimeout(200);
-const h = await tt('history'); s = await st();
-check(Object.values(s.bank).every(v => !v), 'the stash is emptied at the new day');
-check(h.lastDay && h.lastDay.leftover === 10 * 15 + 2 * 30 && h.lastDay.bonus === 240, `leftovers became bonus points on yesterday's record (${JSON.stringify(h.lastDay)})`);
-check(s.day.done.length === 0 && !s.day.lights[0] && !s.day.bonus, 'the new day starts fresh (no boards, lights or bonus)');
+// ---- missed days: the cave settles, but never past a Magmastone camp ----
+await tt('setTool', 5, 90); await tt('markDone', upto(28 + 14)); await tt('setRun', { camp: 10, lastClear: '2000-01-01', day: '2000-01-02' }); await tt('tickDay'); await page.waitForTimeout(700); s = await st();
+check(s.day.done.length === 38 && s.day.done.includes(37) && !s.day.done.includes(38), `a missed day in Magmastone drops you back to your last camp (${s.day.done.length} boards kept)`);
+await page.tap('#pOk');
+await tt('markDone', upto(13)); await tt('setRun', { camp: 0, lastClear: '2000-01-01', day: '2000-01-02' }); await tt('tickDay'); await page.waitForTimeout(700); s = await st();
+check(s.day.done.length === 10 && s.day.tool === 5, `in Slate Caverns a missed day drops you to the start of the layer, tools kept (${s.day.done.length})`);
+await page.tap('#pOk');
 
-// ---- day-end tally after the last board ----
-await tt('markDone', Array.from({ length: 23 }, (_, i) => i)); await tt('setBank', { coal: 7, gold: 1 });
-await tt('start', 23); await page.waitForTimeout(2600); await tt('complete'); await page.waitForTimeout(3600);
-check(await T(() => !document.getElementById('prospector').hidden), 'Prospector badge shows after all 24');
-await page.tap('#pOk'); await page.waitForTimeout(300);
-check(await T(() => !document.getElementById('dayEnd').hidden && /\d+ bonus points/.test(document.getElementById('dayEndTotal').textContent)), 'day-end tally shows leftover bonus points');
-await page.tap('#dayEndCraft'); await page.waitForTimeout(250);
-check(await T(() => { const a = document.getElementById('anvil'); return !a.hidden && a.getBoundingClientRect().height > 100 && document.querySelectorAll('#recipes .recipe').length === 4; }), 'the tally lets you spend leftovers on specials');
-await page.tap('#anvilClose');
+// ---- the Forge mends Galaxy Alloy with prism ore ----
+await tt('setTool', 5, 50); await tt('setBank', { prismore: 3 }); await tt('mend'); s = await st();
+check(Math.round(s.day.dur) === 86 && !s.bank.prismore, `three prism ore mend the tools from 50% to 86% (${s.day.dur})`);
 
-// ---- info panel documents the new systems ----
-await page.tap('#homeBtn').catch(() => {});
+// ---- the Crust can break the tools, sending you back to the start of Magmastone ----
+await tt('setTool', 5, 1); await tt('markDone', upto(58)); await tt('start', 58); await page.waitForTimeout(2600);
+check(await T(() => !document.getElementById('durChip').hidden && /TOOLS/.test(document.getElementById('durChip').textContent)), 'the tool meter shows in the Crust');
+await T(() => { const t = window.__deepcore.test; for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) t.setCell(r, c, null); for (let c = 0; c < 6; c++) t.setCell(7, c, 'crust'); t.setCell(0, 0, 'crust'); t.setPieces([{ cells: [[0, 0], [0, 1]], h: 1, w: 2, mats: ['crust', 'crust'], sid: 1 }, null, null]); t.place(0, 7, 6); });
+await page.waitForTimeout(4500); s = await st();
+check(s.screen === 'map' && await tt('frontier') === 28 && s.day.dur === 60, `worn-out tools shatter: back to the start of Magmastone at 60% (${await tt('frontier')})`);
+check(await T(() => !document.getElementById('prospector').hidden && /shattered/.test(document.getElementById('pTitle').textContent)), 'a message explains what happened');
+await page.tap('#pOk');
+
+// ---- the Ancient Core ----
+await tt('setTool', 5, 90); await tt('markDone', upto(61)); await tt('openMap'); await page.waitForTimeout(800);
+check(await T(() => !!document.querySelector('.node.core')), 'after the Crust the Core appears on the map');
+await page.tap('.node.core'); await page.waitForTimeout(600);
+check(await T(() => !document.getElementById('core').hidden && !document.getElementById('corePiece').hidden), 'the Core opens with one piece to place');
+await tt('placePortal'); await page.waitForTimeout(4800);
+check(await T(() => !document.getElementById('coreTally').hidden && +document.getElementById('ctTotal').textContent.replace(/,/g, '') > 0), 'placing the portal leads to the final tally');
+await page.fill('#ctName', 'Tester'); await page.tap('#ctDone'); await page.waitForTimeout(500);
+check(await T(() => !document.getElementById('credits').hidden), 'the credits roll');
+await page.tap('#credSkip'); await page.waitForTimeout(800); s = await st();
+const life = await tt('life');
+check(s.screen === 'home' && s.day.done.length === 0 && s.day.tool === 0 && await tt('fragments') === 1 && life.hall.length === 1 && life.hall[0].name === 'Tester', 'the descent starts again on the grass with one core fragment and the record kept');
+check(await T(() => !document.getElementById('homeFrag').hidden), 'a small sign of the past life shows on the home screen');
+await tt('fragments', 5); await tt('markDone', upto(61)); await tt('openCore'); await tt('placePortal'); await page.waitForTimeout(4800); await page.tap('#ctDone'); await page.waitForTimeout(300); await page.tap('#credSkip'); await page.waitForTimeout(500);
+check(await tt('fragments') === 5, 'core fragments stop at five');
+
 check(errors.length === 0, 'no page errors ' + errors.join(' | '));
 await close();
 console.log(fails.length ? `GATE TESTS FAILED (${fails.length})` : 'GATE TESTS PASSED'); if (fails.length) process.exitCode = 1;
