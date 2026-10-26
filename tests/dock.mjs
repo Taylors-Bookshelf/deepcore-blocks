@@ -21,17 +21,20 @@ await page.tap('#anvilClose');
 check(await page.evaluate(() => document.querySelectorAll('#dockSlots .tool:not(.empty)').length) === 3 && !(await page.evaluate(() => document.getElementById('anvilBtn').classList.contains('afford'))), 'three dock tiles are shown and the CRAFT glow turns off when full');
 check(await page.evaluate(() => !!document.querySelector('#dockSlots .tool[data-m="blast"] .spark')), 'the Blast Charge has its fuse spark');
 
-// drag a Blast Charge from slot 1 onto the first tray piece
+// drag a Blast Charge straight onto the board: it blows up the 3x3 patch under the finger
 const geo = () => page.evaluate(() => { const b = document.getElementById('board').getBoundingClientRect(); const c = (e) => { const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
-  return { cell: (b.width + 2) / 8, tool: [...document.querySelectorAll('#dockSlots .tool')].map(c), slot: [...document.querySelectorAll('.slot')].map(c) }; });
+  return { left: b.left, top: b.top, cell: (b.width + 2) / 8, tool: [...document.querySelectorAll('#dockSlots .tool')].map(c), slot: [...document.querySelectorAll('.slot')].map(c) }; });
+await page.evaluate(() => { const t = window.__deepcore.test; for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) t.setCell(r, c, null); for (let r = 2; r <= 4; r++) for (let c = 2; c <= 4; c++) t.setCell(r, c, 'stone'); t.setCell(7, 7, 'stone'); });
 let g = await geo();
-await touchDrag(page, cdp, g.tool[0], [g.slot[0][0], g.slot[0][1] + g.cell * 1.2]); await page.waitForTimeout(400);
-s = await st(); check(s.specials.join() === 'blast,rescue', `dropping a Blast Charge on a piece uses it and frees the slot (${s.specials})`);
-check(s.pieces[0].mats.includes('blast'), 'the piece now carries the Blast Charge');
+// a drop outside the board does nothing and keeps the special
+await touchDrag(page, cdp, g.tool[0], [g.slot[1][0], g.slot[1][1] + g.cell * 1.2]); await page.waitForTimeout(300);
+s = await st(); check(s.specials.join() === 'blast,blast,rescue', `a Blast Charge dropped off the board is kept (${s.specials})`);
+g = await geo(); const target = [g.left + 3.5 * g.cell, g.top + 3.5 * g.cell + g.cell * 1.2];
+await touchDrag(page, cdp, g.tool[0], target); await page.waitForTimeout(3500);
+s = await st(); const grid = await page.evaluate(() => window.__deepcore.test.state().grid);
+check(s.specials.join() === 'blast,rescue', `dropping a Blast Charge on the board uses it and frees the slot (${s.specials})`);
+check([2, 3, 4].every(r => [2, 3, 4].every(c => !grid[r][c])) && grid[7][7], 'it clears exactly the 3x3 patch under the finger');
 check(await page.evaluate(() => document.querySelectorAll('#dockSlots .tool:not(.empty)').length) === 2, 'the dock redraws with two tiles');
-// a piece takes only one special
-g = await geo(); await touchDrag(page, cdp, g.tool[0], [g.slot[0][0], g.slot[0][1] + g.cell * 1.2]); await page.waitForTimeout(300);
-s = await st(); check(s.specials.join() === 'blast,rescue', 'a second special on the same piece is refused and kept');
 
 // Luck is tapped from its slot; Rescue is automatic
 await tt('give', { ruby: 30, diamond: 2 });

@@ -35,6 +35,15 @@ check(!d0.starWood && d0.ores.includes('bone') && d0.starAt[0] < d0.starAt[1], `
 await tt('setCollected', { bone: d0.starAt[0] }); await page.waitForTimeout(400);
 check(await T(() => document.getElementById('scStars').textContent === '★★★' && /\//.test(document.getElementById('scTxt').textContent)), 'with 2-star ore value the chip points at the third star');
 
+// 2b. picking up a second piece while the first is still gliding back must not leave the first slot looking empty
+await tt('start', 1); await page.waitForTimeout(2600);
+const vis = await T(async () => { const sl = [...document.querySelectorAll('.slot')], ev = (t, el, x, y) => el.dispatchEvent(new PointerEvent(t, { bubbles: true, clientX: x, clientY: y, pointerType: 'mouse', isPrimary: true }));
+  const r0 = sl[0].getBoundingClientRect(), r1 = sl[1].getBoundingClientRect();
+  ev('pointerdown', sl[0], r0.left + 20, r0.top + 20); ev('pointerup', window, r0.left + 20, r0.top + 20);
+  await new Promise(r => setTimeout(r, 40)); ev('pointerdown', sl[1], r1.left + 20, r1.top + 20); ev('pointerup', window, r1.left + 20, r1.top + 20);
+  await new Promise(r => setTimeout(r, 600)); return sl.map(x => x.firstElementChild.style.opacity); });
+check(vis.every(o => o === ''), `every tray piece stays visible after quick taps (${JSON.stringify(vis)})`);
+
 // 3. no permanent combo badge
 check(await T(() => !document.getElementById('comboMeter')), 'no combo badge on the board');
 check(errors.length === 0, 'no page errors ' + errors.join(' | '));

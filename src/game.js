@@ -478,7 +478,7 @@ function drawTray(){
     const cv=s.firstElementChild, p=pieces[i];
     if(!p){ cv.hidden=true; s.classList.remove('nofit','special'); return; }
     const w=p.w*pitch-2, h=p.h*pitch-2;
-    cv.hidden=false; cv.style.width=w+'px'; cv.style.height=h+'px'; cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr);
+    cv.hidden=false; if(!drag||drag.i!==i) cv.style.opacity=''; cv.style.width=w+'px'; cv.style.height=h+'px'; cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr);
     const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); drawPiece(ctx,p,pitch,0,0,1,trayCell);
     s.classList.toggle('nofit',!canPlaceAnywhere(p));
     s.classList.toggle('special',p.mats.some(m=>MATS[m].kind==='special'));
@@ -1381,7 +1381,7 @@ const INFO_TABS={
   },
   Crafting(b){
     b.append(infoEl('h3','TWO KINDS OF CRAFTING'),infoEl('p',`Tools are forged on the map (the Craft button at the top). Specials are crafted during a board, from the CRAFT button next to your dock, which holds three specials in any mix.`));
-    b.append(infoEl('h3','HOW'),infoList([`Tap CRAFT, then tap Craft on anything you can afford. Your specials dock holds three at a time (any mix).`,`Drag a crafted Blast Charge or Sledgehammer from the dock onto one of the three pieces. It replaces the block under your finger. Tap a Luck Tonic to drink it.`,`The special fires when the line it's in clears.`]));
+    b.append(infoEl('h3','HOW'),infoList([`Tap CRAFT, then tap Craft on anything you can afford. Your specials dock holds three at a time (any mix).`,`Drag a Blast Charge onto the board to blow up the 3×3 patch under it, or a Sledgehammer to shake the blocks into a fresh layout. Tap a Luck Tonic to drink it.`]));
     b.append(infoEl('h3','WHAT YOU CAN CRAFT'));
     craftList().forEach(c=>{ const row=infoEl('div',undefined,'irow'); row.append(iconOf(c.item?ITEM[c.item]:(SPR[c.mat]||TEX[c.mat]))); const d=infoEl('div'); d.append(infoEl('div',c.name,'nm'),infoEl('div',c.desc,'meta'),
       infoEl('div','Costs: '+Object.entries(c.cost).map(([k,v])=>`${v} ${DROPS[k][0]}`).join(', '),'meta')); row.append(d); b.append(row); });
@@ -1409,8 +1409,8 @@ $('anvilClose').onclick=()=>{ $('anvil').hidden=true; };
 $('anvil').addEventListener('pointerdown',e=>{ if(e.target.id==='anvil') $('anvil').hidden=true; });
 const uiOpen=()=>screen!=='game' || !$('anvil').hidden || !$('info').hidden || !$('sheetScrim').hidden;
 
-// drag a crafted special onto a tray piece; it replaces the block nearest your finger
-let spDrag=null;
+// drag a crafted special straight onto the board: a Blast Charge blows up the 3×3 patch under your finger, a Sledgehammer shakes the board
+let spDrag=null, spAim=null;
 function startSpecialDrag(e,m,idx){
   if(over||busy||uiOpen()||dockAnim||specials[idx]!==m) return;
   e.preventDefault(); unlockAudio();
@@ -1419,25 +1419,42 @@ function startSpecialDrag(e,m,idx){
   gx.setTransform(dpr,0,0,dpr,0,0); gx.imageSmoothingEnabled=false; gx.clearRect(0,0,s,s); gx.drawImage(SPR[m]||TEX[m],0,0,s,s);
   ghost.hidden=false; moveSpecialDrag(e);
 }
-function slotAt(x,y){ const el=document.elementFromPoint(x,y); return el && el.closest ? el.closest('.slot') : null; }
+const boardCellAt=(x,y)=>{ const B=boardC.getBoundingClientRect(); const c=Math.floor((x-B.left)/cell), r=Math.floor((y-B.top)/cell); return (r>=0&&c>=0&&r<N&&c<N)?{r,c}:null; };
 function moveSpecialDrag(e){
   if(!spDrag) return;
   const s=Math.round(cell*.9), lift=spDrag.touch?cell*1.2:0;
   ghost.style.transform=`translate(${e.clientX-s/2}px,${e.clientY-s/2-lift}px)`;
   spDrag.x=e.clientX; spDrag.y=e.clientY-lift;
-  slots.forEach(sl=>sl.classList.remove('droptarget'));
-  const sl=slotAt(spDrag.x,spDrag.y); if(sl && pieces && pieces[+sl.dataset.i]) sl.classList.add('droptarget');
+  const at=boardCellAt(spDrag.x,spDrag.y); spAim=at?{...at,m:spDrag.m}:null;
 }
 function endSpecialDrag(){
-  if(!spDrag) return; const d=spDrag; spDrag=null; ghost.hidden=true;
-  slots.forEach(sl=>sl.classList.remove('droptarget'));
-  const sl=slotAt(d.x,d.y); if(!sl||!pieces) return; const p=pieces[+sl.dataset.i]; if(!p) return;
-  if(p.mats.some(m=>MATS[m].kind==='special')){ showCombo('One special per piece'); A.track('special_rejected',{m:d.m}); A.attempt('special_on_special',d.m); return; }
-  const cv=sl.firstElementChild.getBoundingClientRect(), cs=cv.width/p.w;
-  let bestK=0, bd=1e9; p.cells.forEach(([r,c],k)=>{ const cx=cv.left+(c+.5)*cs, cy=cv.top+(r+.5)*cs, dd=(cx-d.x)**2+(cy-d.y)**2; if(dd<bd){bd=dd;bestK=k;} });
-  p.mats=p.mats.slice(); p.mats[bestK]=d.m; dockRemove(d.idx); A.track('special_applied',{m:d.m,sid:p.sid});
-  renderDock(); drawTray(); saveBoard();
-  [880,1175,1568].forEach((f,j)=>blip(f,.1,'triangle',.05,j*.05));
+  if(!spDrag) return; const d=spDrag; spDrag=null; ghost.hidden=true; spAim=null;
+  const at=boardCellAt(d.x,d.y); if(!at||over||busy) return;
+  if(d.m==='sledgehammer'&&!grid.some(row=>row.some(Boolean))){ showCombo('Nothing to shake'); return; }
+  dockRemove(d.idx); renderDock(); A.track('special_used',{m:d.m,r:at.r,c:at.c,idx:level-1});
+  useSpecial(d.m,at.r,at.c);
+}
+async function useSpecial(m,r,c){
+  busy=true; skipFlag=false; undo=null; life.seen[m]=true;
+  if(m==='blast'){
+    const ctx=mineCtx(), hit=[]; if(grid[r][c]&&MATS[grid[r][c]].kind!=='special') mineCell(r,c,ctx); flushCtx(ctx);
+    grid[r][c]='blast'; const count=await detonate(r,c,hit); const pts=MATS.blast.pts*count; score+=pts;
+    for(const sp of hit){ showSkip(); await skippable(playSpecial(sp)); }
+    showSkip(); await skippable(playSplash('Blast Charge',`+${pts}`,'blast'));
+    if(grid.every(row=>row.every(v=>!v))){ const ac=allClearBonus(); score+=ac; bigNext=true; showSkip(); playAllClear(ac); await skippable(REDUCE?600:1300); }
+  } else if(m==='sledgehammer'){
+    score+=MATS.sledgehammer.pts; doShake(); showSkip(); await skippable(playSplash('Sledgehammer',`+${MATS.sledgehammer.pts}`,'sledgehammer')); await skippable(REDUCE?300:700);
+  }
+  busy=false; $('skipHint').hidden=true; skipFlag=false; updateDur();
+  if(toolBreakable()&&dayState.dur<=0&&zoneOfIdx(level-1)===CRUST_Z){ toolBreak(); return; }
+  if(pieces.every(q=>!q)) dealSet();
+  updateHUD(); drawTray(); updateHintBtn();
+  const dd=levelDef(level);
+  if(dd.strip){ if(stripMet()){ completeStrip(); return; } }
+  else if(!reached){ if(score>=dd.target){ reachTarget(); return; } }
+  else if(starsNow()>=3){ bankBoard(); return; }
+  if(pieces.every(q=>!q||!canPlaceAnywhere(q))) gameOver();
+  saveBoard(); saveProfile();
 }
 window.addEventListener('pointermove',moveSpecialDrag);
 window.addEventListener('pointerup',endSpecialDrag); window.addEventListener('pointercancel',endSpecialDrag);
@@ -1543,7 +1560,18 @@ function refreshIfNewDay(){
   if(screen==='map') showMap({}); else { checkDay(); fillHome(); }
 }
 setInterval(refreshIfNewDay,30000);
-document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') refreshIfNewDay(); });
+// coming back from sleep or another app: drop any drag the phone cut short, and rebuild the map's scroll area (iOS can leave it ignoring taps)
+function onResume(){
+  if(drag){ const d=drag; drag=null; ghost.hidden=true; ghost.style.transition=''; slots[d.i].firstElementChild.style.opacity=''; }
+  if(spDrag){ spDrag=null; spAim=null; ghost.hidden=true; }
+  slots.forEach(sl=>{ sl.firstElementChild.style.opacity=''; });
+  refreshIfNewDay();
+  if(screen==='map'){ const sc=$('mapScroll'), top=sc.scrollTop; sc.style.overflowY='hidden'; void sc.offsetHeight; buildMap(); requestAnimationFrame(()=>{ sc.style.overflowY=''; void sc.offsetHeight; sc.scrollTop=top; }); }
+  if(screen==='game'){ layout(); drawTray(); }
+}
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') onResume(); });
+window.addEventListener('pageshow',e=>{ if(e.persisted) onResume(); });
+window.addEventListener('focus',()=>{ if(screen==='map') onResume(); });
 $('homeBtn').onclick=()=>showMap({});
 $('mapBtn').onclick=()=>showMap({});
 $('contBtn').onclick=()=>{ const sb=savedBoard(); if(!sb){ showMap({}); return; } show('game'); restoreBoard(sb); A.track('continue_board',{idx:sb.idx}); };
@@ -1872,7 +1900,8 @@ let drag=null;
 slots.forEach(s=>s.addEventListener('pointerdown',e=>{
   const i=+s.dataset.i; if(over||busy||uiOpen()||!pieces||!pieces[i]) return;
   e.preventDefault(); unlockAudio();
-  clearTimeout(returnTimer); ghost.style.transition=''; if(!tut.active) clearHint();
+  // a piece still gliding back to its slot must reappear now: cancelling that glide used to leave its slot looking empty until tapped
+  clearTimeout(returnTimer); slots.forEach(sl=>{ sl.firstElementChild.style.opacity=''; }); ghost.style.transition=''; if(!tut.active) clearHint();
   const p=pieces[i]; drag={i,p,touch:e.pointerType!=='mouse',target:null,t0:performance.now(),x0:e.clientX,y0:e.clientY,moved:0,raw:null};
   { const cr=s.firstElementChild.getBoundingClientRect(); drag.cx=cr.left+cr.width/2; drag.cy=cr.top+cr.height/2; drag.k0=(trayCell+2)/cell; }
   const gw=p.w*cell-SEAM, gh=p.h*cell-SEAM; ghost.width=Math.round(gw*dpr); ghost.height=Math.round(gh*dpr); ghost.style.width=gw+'px'; ghost.style.height=gh+'px';
@@ -2005,6 +2034,10 @@ function render(now){
     drawPiece(bx,drag.p,cell,pv.c0*cell,pv.r0*cell,.92,bs);
     outlinePiece(bx,drag.p,pv.c0*cell,pv.r0*cell,cell,bs,'#000',Math.max(6,cell*.16));
     outlinePiece(bx,drag.p,pv.c0*cell,pv.r0*cell,cell,bs,`rgba(255,250,215,${pu})`,Math.max(3,cell*.08)); }
+  if(spAim){ const pu3=.55+.45*Math.sin(now/120); bx.fillStyle=spAim.m==='blast'?`rgba(255,120,40,${.28*pu3})`:`rgba(160,190,220,${.18*pu3})`;
+    if(spAim.m==='blast'){ for(let a2=spAim.r-1;a2<=spAim.r+1;a2++)for(let b2=spAim.c-1;b2<=spAim.c+1;b2++) if(a2>=0&&b2>=0&&a2<N&&b2<N) bx.fillRect(b2*cell,a2*cell,bs,bs);
+      bx.strokeStyle=`rgba(255,200,90,${pu3})`; bx.lineWidth=Math.max(2,cell*.06); bx.strokeRect(Math.max(0,spAim.c-1)*cell,Math.max(0,spAim.r-1)*cell,(Math.min(N-1,spAim.c+1)-Math.max(0,spAim.c-1)+1)*cell-SEAM,(Math.min(N-1,spAim.r+1)-Math.max(0,spAim.r-1)+1)*cell-SEAM); }
+    else bx.fillRect(0,0,N*cell-SEAM,N*cell-SEAM); }
   if(hintInfo&&pieces&&pieces[hintInfo.i]){ const hp=pieces[hintInfo.i], pu2=.6+.4*Math.sin(now/180);
     bx.fillStyle=`rgba(255,207,92,${.2*pu2})`; hp.cells.forEach(([r,c])=>bx.fillRect((hintInfo.c0+c)*cell,(hintInfo.r0+r)*cell,bs,bs));
     drawPiece(bx,hp,cell,hintInfo.c0*cell,hintInfo.r0*cell,.4,bs); outlinePiece(bx,hp,hintInfo.c0*cell,hintInfo.r0*cell,cell,bs,`rgba(255,207,92,${pu2})`,Math.max(3,cell*.08)); }

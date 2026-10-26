@@ -65,8 +65,8 @@ const toolNeeded=z=>Math.min(z,TOOLS.length-1);
 const WEAR={ember:.04, crust:.62}, PRISM_MEND=7, STASH_MEND=12, DUR_MAX=100, DUR_AFTER_BREAK=60;
 // Craftable specials (anvil). Never spawn randomly.
 const RECIPES=[
-  {m:'blast',      cost:{coal:12, iron:3},                                  desc:'Explodes when its line clears, breaking the 8 blocks around it and mining their ore.'},
-  {m:'sledgehammer', cost:{copper:10, ruby:8, iron:8, gold:4},            desc:'Swing it to shake the remaining blocks into a fresh arrangement with no trapped gaps.'},
+  {m:'blast',      cost:{coal:12, iron:3},                                  desc:'Drag it onto the board: it blows up a 3×3 patch and mines everything in it.'},
+  {m:'sledgehammer', cost:{copper:10, ruby:8, iron:8, gold:4},            desc:'Drag it onto the board: it shakes the blocks into a fresh arrangement with no trapped gaps.'},
   {m:'rescue',     cost:{ruby:20, emerald:1},                           desc:'Used automatically on a cave-in: undoes your last placement and deals a fresh set of pieces.'},
   {m:'luck',       cost:{ruby:12, diamond:1},                           desc:'Tap to drink. For the next 7 sets, the dealer leans toward pieces that clear rows, columns, and even the whole board.'},
 ];

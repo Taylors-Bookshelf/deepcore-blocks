@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.1
+- Specials are used directly: drag a Blast Charge onto the board to blow up the 3×3 patch under it (a glowing square shows where), or a Sledgehammer to shake the board. They no longer have to be set into a piece first.
+- Fixed: a tray piece could look missing until tapped (picking up a second piece while the first was still gliding back).
+- Fixed (probably): the map ignoring taps after the phone wakes from sleep; the map and any interrupted drag are reset when the game comes back.
+- Bones look like bones.
+
 ## 2.0.0 — The Descent
 - One long journey instead of a daily map: dig from the Forest through Limestone, Slate, Granite and Basalt, a long Magmastone stretch and the Crust, to the Ancient Core. Progress and stash carry over from day to day.
 - Tools instead of torches and lanterns: branch, bone, copper, iron, steel and Galaxy Alloy tools each open the next layer (forged on the map; one tap from the locked board when you can afford them). Lamps now light the tunnels by themselves.
