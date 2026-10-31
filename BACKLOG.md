@@ -4,8 +4,8 @@
 
 2026-10-29 · @Taylor
 
-Current build: **v2.0.1** (Oct 26, The Descent update)  
-Next build: **v2.0.2** on 2026-10-31 (see Roadmap)
+Current build: **v2.0.2** (Oct 31)  
+Next build: **v2.1.0** on 2026-11-15 (see Roadmap)
 
 **P0** blocks gameplay  
 **P1** affects quality or experience  
@@ -35,11 +35,11 @@ Every code change is logged as a **change point** (CP) when it ships, typed by t
 
 ## Open items
 
-Eighteen items are open. Each lists the bug, feature or improvement it blocks, or "Non-blocker" for a question to follow up later. Anything with an open item stays in Scoping. Closed items keep their resolution; proposals for the open ones follow the table.
+Twenty-one items are open. Each lists the bug, feature or improvement it blocks, or "Non-blocker" for a question to follow up later. Anything with an open item stays in Scoping. Closed items keep their resolution; proposals for the open ones follow the table.
 
 | ID | Item | Blocks | Status | Resolution / notes |
 | --- | --- | --- | --- | --- |
-| OI-1 | What does the Fossil grant past the Forest? | I-5, F-3 | Closed | Bone becomes an ingredient in Rescue Potion and Luck Tonic, on top of their gem cost. Below the Forest it comes only from Fossils, which grant 5–8 (1–2 potions). (2026-10-31) |
+| OI-1 | What does the Fossil grant past the Forest? | I-5, F-3 | Closed | Bone becomes an ingredient in Rescue Potion and Luck Tonic. Below the Forest it comes only from Fossils, which grant 4–8 (1–2 potions). Luck Tonic dropped its diamond. (2026-10-31) |
 | OI-2 | How do layers and depth work? | F-1 | Open | Proposal and diagram below. |
 | OI-3 | How do vein boards appear and read? | F-2 | Open | Proposal below. |
 | OI-4 | What does a cave-in cost on a vein board? | F-2 | Open | Proposal below. |
@@ -72,6 +72,9 @@ Eighteen items are open. Each lists the bug, feature or improvement it blocks, o
 | OI-31 | Where do the reward basin, preview and hold slot fit on screen? | F-8 | Open | Same crowding concern as the flow meter. |
 | OI-32 | Do daily achievements and streaks create pressure that undercuts the calm goal? | Non-blocker | Open | — |
 | OI-33 | What is Career's "Daily grind" share? | F-4 | Open | Listed in the Game Modes overview but never defined. |
+| OI-34 | Should Fossils appear in the Forest? | Non-blocker | Open | Forest boards are Easy tier, which has a 0% special rate, so I-3's "4–5 boards with a Fossil" can't happen. 2.0.2 tunes bone alone: 6–8 boards. |
+| OI-35 | Is the Crust's 1-star cap right? | Non-blocker | Open | At the ramp's 35% the Crust gave 0 stars on about half of runs (Core on day 27 instead of 14). 2.0.2 caps its 1-star line at 3 (a typical player's 10th percentile); 2 and 3 stars keep 60/85%. |
+| OI-36 | Do the star lines hold up with real players? | Non-blocker | Open | The simulator's bots don't aim for ore, so the "maximum haul" mostly measures deal luck: typical bots reach 3 stars on 20–40% of boards. Re-measure after playthroughs (OI-18). |
 
 ### OI-1: What does the Fossil grant past the Forest?
 
@@ -160,10 +163,10 @@ Closed: it's meteorite, a Basalt ore used for Galaxy Alloy tools. It reads 0 unt
 
 | ID | Bug | Repro / expected | Notes | Priority | Status | Release |
 | --- | --- | --- | --- | --- | --- | --- |
-| B-1 | Map unresponsive after the phone sleeps | Game foregrounded, phone sleeps or screen off, then resume: map ignores taps. Quit and relaunch fixes it. | v2.0.1 resets the map and any interrupted drag when the game comes back; its changelog says "probably" fixed. Confirm on a phone before closing. | P0 | In progress | 2.0.1, verify in 2.0.2 |
+| B-1 | Map unresponsive after the phone sleeps | Game foregrounded, phone sleeps or screen off, then resume: map ignores taps. Quit and relaunch fixes it. | v2.0.1 resets the map and any interrupted drag when the game comes back. 2.0.2 adds an automated sleep/resume test and fixes a related freeze: a drawing error could stop the render loop for good. Confirm on a phone (30 minutes with sleep/resume) before closing. | P0 | In progress | 2.0.1, verify on a phone |
 | B-2 | Dealer slots look empty but hold pieces | Slots render blank; tapping one makes its piece appear. | Fixed in v2.0.1. Cause: picking up a second piece while the first was still gliding back. | P0 | Done | 2.0.1 |
-| B-3 | Tutorial stalls on an off-target placement | New game: placing the piece outside the glowing outline is accepted, but the tutorial never advances. Expected: off-target drops snap back during tutorial steps. | A Skip button and Settings \> replay tutorial already exist. Still missing: rejecting off-target drops. | P0 | In progress | 2.0.2 |
-| B-4 | Resource counts overlap their icons | In the resource bar, each count draws over its resource icon. Expected: the count sits below the icon, and any count above 99 shows as "99+". | Fix: move counts below the icons and cap the display at 99+. The real total stays visible where it's spent, e.g. the forge and crafting screens. | P1 | In progress | 2.0.2 |
+| B-3 | Tutorial stalls on an off-target placement | New game: placing the piece outside the glowing outline is accepted, but the tutorial never advances. Expected: off-target drops snap back during tutorial steps. | A Skip button and Settings \> replay tutorial already exist. Off-target drops now glide back with a nudge. | P0 | Done | 2.0.2 |
+| B-4 | Resource counts overlap their icons | In the resource bar, each count draws over its resource icon. Expected: the count sits below the icon, and any count above 99 shows as "99+". | Fix: move counts below the icons and cap the display at 99+. The real total stays visible where it's spent, e.g. the forge and crafting screens. Shipped with a 52pt strip so icons keep full size. | P1 | Done | 2.0.2 |
 
 ## Features
 
@@ -171,7 +174,7 @@ Features list.
 
 | ID | Feature | What the player gets | Scope | Open items | Priority | Status | Release |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| F-1 | Layer maps | Each layer is its own map you can explore sideways without limit. Forge the next tools to drop down; climb back up anytime. | Sideways-scrolling layer map; the next layer's wall at the fixed depth; side tunnels removed; Drop down; Climb back up, with the layer above as the ceiling; a wall reminder hint. | OI-2 | P1 | Scoping | 2.1.0 |
+| F-1 | Layer maps | Each layer is its own map you can explore sideways without limit. Forge the next tools to drop down; climb back up anytime. | Sideways-scrolling layer map; the next layer's wall at the fixed depth; side tunnels removed; Drop down; Climb back up, with the layer above as the ceiling; a wall reminder hint. Side tunnels were already removed in 2.0.2. | OI-2 | P1 | Scoping | 2.1.0 |
 | F-2 | Vein farming | Hidden ore veins in side boards: an endless, one-time board you can Haul Out of with what you mined. | Veins in side boards with a glint reveal and info card; an endless, single-use board with a finite seam and ramping difficulty; Haul Out exit and cave-in payout. | OI-3, OI-4 | P1 | Scoping | 2.2.0 |
 | F-3 | Crafting table | Forging becomes its own screen: arrange materials on a table, risk a break, and sometimes get an enchanted tool. | Crafting table screen with drag-to-arrange recipes and animations; a chance the tool or part of it breaks; a chance of an enchanted tool with a perk and effect, e.g. a fire hammer throwing embers on clears. | — | P1 | Scheduled | 2.3.0 |
 | F-4 | Career mode (monthly) | A fresh map each month: dig from the surface to the Core and place the keystone before the month resets. Beating it unlocks the other modes. | Monthly map generation and reset; mode select screen; pacing target about 3 h average, 2–2.25 h skilled; "Core Conquered" achievement; completion unlocks Peaceful and Master Miner. | OI-19, OI-20, OI-21, OI-33 | P1 | Scoping | — |
@@ -188,13 +191,13 @@ I-1 and I-2 shipped in v2.0.1; the rest are planned in the Roadmap.
 | --- | --- | --- | --- | --- | --- | --- |
 | I-1 | Specials dragged onto the board | Blast Charge breaks the 3×3 patch under your finger; Sledgehammer reshuffles the board. Neither needs a line clear. | — | P1 | Done | 2.0.1 |
 | I-2 | Classic bone art | Bones drawn as an easy-to-read cartoon bone. | — | P1 | Done | 2.0.1 |
-| I-3 | Rarer bones in the Forest | Lower bone drops (now 0.12 with a 1.4× Forest boost) so bone tools (12 bone + 6 wood) take about 6–8 Forest boards without a special, 4–5 with a Fossil. | — | P1 | In progress | 2.0.2 |
+| I-3 | Rarer bones in the Forest | Lower bone drops (now 0.12 with a 1.4× Forest boost) so bone tools (12 bone + 6 wood) take about 6–8 Forest boards without a special, 4–5 with a Fossil. Shipped: bone boost 0.8, about 6.5 boards (see OI-34). | — | P1 | Done | 2.0.2 |
 | I-4 | Scarcity pass for other materials | The same tuning for every other material, so gathering always takes effort. | — | P1 | Scheduled | 2.2.0 |
-| I-5 | Fossil reward and bone potions | Fossils grant 5–8 bone at every depth. Rescue Potion and Luck Tonic each add 4 bone to their recipe. Bone is mined only in the Forest. | — | P1 | In progress | 2.0.2 |
-| I-6 | Remove the Geode special | The Geode (formerly Prism Stone) no longer spawns. Fossil and Buried Treasure keep their current drop rates and contents, so random specials overall turn up about 40% less often. Prism Ore, the normal ore, is unchanged. | — | P1 | In progress | 2.0.2 |
-| I-7 | Retry instead of Keep Mining | When a board's score target is reached, the board ends. KEEP MINING is removed; a Retry button replays the board to earn more stars. | — | P1 | In progress | 2.0.2 |
-| I-8 | Stars from resource efficiency | Stars measure the ore mined against the board's maximum possible haul, combo bonuses included. 3 stars takes about 60% in the Forest, and the bar rises each layer so the last layers need retries and expert combos or specials. Stars already earned stay as they are; the new rules apply from the next play of each board. | — | P1 | In progress | 2.0.2 |
-| I-9 | Zero stars possible; 1 star to progress | A poor or unlucky run can end with no stars. The board then doesn't count as cleared, and the player retries until it earns at least 1 star. | — | P1 | In progress | 2.0.2 |
+| I-5 | Fossil reward and bone potions | Fossils grant 4–8 bone at every depth. Rescue Potion and Luck Tonic each add 4 bone to their recipe; Luck Tonic no longer needs a diamond. Bone is mined only in the Forest. | — | P1 | Done | 2.0.2 |
+| I-6 | Remove the Geode special | The Geode (formerly Prism Stone) no longer spawns. Fossil and Buried Treasure keep their current drop rates and contents, so random specials overall turn up about 40% less often. Prism Ore, the normal ore, is unchanged. Removed from the code entirely. | — | P1 | Done | 2.0.2 |
+| I-7 | Retry instead of Keep Mining | When a board's score target is reached, the board ends. KEEP MINING is removed; a Retry button replays the board to earn more stars. | — | P1 | Done | 2.0.2 |
+| I-8 | Stars from resource efficiency | Stars measure the ore mined against the board's maximum possible haul, combo bonuses included. 3 stars takes about 60% in the Forest, and the bar rises each layer so the last layers need retries and expert combos or specials. Stars already earned stay as they are; the new rules apply from the next play of each board. Board 1-1 counts wood too; the Crust's 1-star line is capped (OI-35). | — | P1 | Done | 2.0.2 |
+| I-9 | Zero stars possible; 1 star to progress | A poor or unlucky run can end with no stars. The board then doesn't count as cleared, and the player retries until it earns at least 1 star. | — | P1 | Done | 2.0.2 |
 | I-10 | Bigger combo yield | Multi-line clears multiply the ore they mine: ×2 for 2 lines, ×3 for 3, ×4 for 4 or more. Replaces today's +25% to +100% line bonus (v1.1.0). From the Game Modes doc's Career skill levers. | — | P1 | Scheduled | 2.2.0 |
 
 ## Change Points
@@ -203,6 +206,17 @@ Every code change is logged here when it ships, linked to the bug, feature or im
 
 | CP | Type | Change | From | Release |
 | --- | --- | --- | --- | --- |
+| CP-15 | Bug fix | A drawing error in one effect no longer stops all effects and animations (found while testing B-1). | B-1 | 2.0.2 |
+| CP-14 | Improvement | Side tunnels removed; gates and the Forge point to replaying cleared boards. | F-1 | 2.0.2 |
+| CP-13 | Improvement | A run below the 1-star line doesn't clear the board: Retry or Map, haul dropped. | I-9 | 2.0.2 |
+| CP-12 | Improvement | Stars measure ore against the board's maximum haul (expert bot, 95th percentile); lines 20/40/60% in the Forest to 35/60/85% in the Crust; board 1-1 counts wood; Crust 1-star capped at 3. | I-8 | 2.0.2 |
+| CP-11 | Improvement | The board ends at its target; results sheet with Continue / Retry (a clean restart); Keep Mining and Finish removed. | I-7 | 2.0.2 |
+| CP-10 | Improvement | Geode removed; Fossil and Buried Treasure keep their rates. | I-6 | 2.0.2 |
+| CP-9 | Improvement | Fossil gives 4–8 bone; Rescue Potion and Luck Tonic need 4 bone; Luck Tonic needs no diamond. | I-5 | 2.0.2 |
+| CP-8 | Improvement | Forest bone boost 1.4 → 0.8: bone tools take about 6.5 boards. | I-3 | 2.0.2 |
+| CP-7 | Bug fix | Resource counts sit below their icons in a 52pt strip and cap at 99+. | B-4 | 2.0.2 |
+| CP-6 | Bug fix | During the tutorial, off-target drops glide back with a nudge. | B-3 | 2.0.2 |
+| CP-5 | Bug fix | Automated sleep/resume test for the map and interrupted drags (phone check still open). | B-1 | 2.0.2 |
 | CP-4 | Improvement | New bone art. | I-2 | 2.0.1 |
 | CP-3 | Improvement | Specials are used by dragging them onto the board. | I-1 | 2.0.1 |
 | CP-2 | Bug fix | The map and any interrupted drag reset when the game resumes after sleep. Not yet confirmed on a phone. | B-1 | 2.0.1 |
@@ -222,10 +236,11 @@ What's planned as coming up next.
 
 ## Version history
 
-Seventeen versions shipped between Oct 4 and Oct 26, 2026, all to [deepcore-blocks](https://github.com/Taylors-Bookshelf/deepcore-blocks) on GitHub Pages. Taken from the project's git log, tags and CHANGELOG.md; newest first.
+Eighteen versions shipped between Oct 4 and Oct 31, 2026, all to [deepcore-blocks](https://github.com/Taylors-Bookshelf/deepcore-blocks) on GitHub Pages. Taken from the project's git log, tags and CHANGELOG.md; newest first.
 
 | Date | Version | What shipped |
 | --- | --- | --- |
+| 2026-10-31 | v2.0.2 | Board ends at its target with Retry / Continue; stars from ore efficiency, 0 stars possible; Geode and side tunnels removed; bone potions and rarer Forest bones; tutorial and resource-strip fixes. |
 | 2026-10-26 | v2.0.1 | Playtest round 4: specials dragged straight onto the board; hidden tray piece fixed; map reset after waking (unconfirmed); new bone art. |
 | 2026-10-16 | v2.0.0, The Descent | Daily map replaced by one long run across days: Forest, Limestone, Slate, Granite, Basalt, Magmastone (30 boards, 2 camps), the Crust, the Ancient Core; 62 boards. Tools replace torches and lanterns. New ores: bone, meteorite, prism ore. Prism Stone renamed Geode. Missed days drop you to the layer start. Core finale with credits and core fragments. |
 | 2026-10-15 | v1.3.1 | Guard against the map ignoring taps after a board on iPhone. |

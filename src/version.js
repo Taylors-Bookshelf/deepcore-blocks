@@ -1,2 +1,2 @@
 // The one place to bump for each release. The page, the analytics and the service worker all read it.
-self.APP_VERSION = '2.0.1';
+self.APP_VERSION = '2.0.2';

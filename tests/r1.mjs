@@ -7,7 +7,7 @@ const { check, fails } = makeChecker();
 
 // ---- data ----
 check(D.ZONES.map(z => z.name).join() === 'The Forest,Limestone Caves,Slate Caverns,Granite Halls,Basalt Depths,Magmastone,The Crust,Ancient Core', 'the descent: seven layers and the Core, in the agreed order');
-check(D.BOARD_COUNT === 62 && D.STRIP_BASE === 62 && D.ZONES.map(z => z.boards).join() === '4,6,6,6,6,30,3,1', '62 boards (4, 6, 6, 6, 6, 30, 3 and the Core); side tunnels are numbered after them');
+check(D.BOARD_COUNT === 62 && D.STRIP_BASE === undefined && D.ZONES.map(z => z.boards).join() === '4,6,6,6,6,30,3,1', '62 boards (4, 6, 6, 6, 6, 30, 3 and the Core); no side tunnels');
 check(D.ZONES[2].rock === 'deep' && D.ZONES[3].rock === 'granite' && D.BASE_MATS.includes('granite') && D.BASE_MATS.includes('crust'), 'slate comes before granite; the crust is a real block');
 { const Z = D.ZONES.filter(z => !z.core); check(Z.every((z, i) => i === 0 || z.d[0] > Z[i - 1].d[0]) && Z.every((z, i) => i === 0 || z.target >= Z[i - 1].target), 'difficulty and targets rise layer by layer'); }
 check(!D.MODES && !D.ORES.cinnabar && D.ORES.ruby && D.DROPS.ruby[0] === 'Ruby' && !D.RECIPES.some(r => r.cost.cinnabar), 'no difficulty modes; cinnabar is now ruby');

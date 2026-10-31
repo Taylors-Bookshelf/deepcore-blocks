@@ -13,7 +13,7 @@ check(a[0] <= 1.1, 'Forest boards are easy (<=1.1 tries)');
 check(a.every((x, i) => i === 0 || x >= a[i - 1] - 0.1), 'difficulty rises layer by layer');
 check(a[D.MAGMA_Z] <= 1.8, `Magmastone, the long layer, stays fair (${a[D.MAGMA_Z].toFixed(2)} tries)`);
 check(a[D.CRUST_Z] >= 1.4 && a[D.CRUST_Z] <= 3, `the Crust is hard but passable (${a[D.CRUST_Z].toFixed(2)} tries)`);
-// each layer should give roughly what the next tools cost: often enough, sometimes needing the side tunnel
+// each layer should give roughly what the next tools cost: often enough, sometimes needing a few replays
 for (let z = 0; z < D.MAGMA_Z; z++) {
   const cost = D.TOOLS[z + 1].cost, got = {}; let runs = 0;
   for (let k = 0; k < 12; k++) { runs++; for (let j = 0; j < D.ZONES[z].boards; j++) { let r, t = 0; do { r = runBoard(z, j, 5000 + z * 777 + k * 31 + j + t * 997); t++; } while (!r.win && t < 8); Object.entries(r.got).forEach(([m, v]) => got[m] = (got[m] || 0) + v); } }

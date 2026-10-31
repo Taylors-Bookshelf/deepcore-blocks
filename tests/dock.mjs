@@ -7,7 +7,7 @@ await page.goto(base + '?debug'); await page.waitForTimeout(500);
 const tt = (f, ...a) => page.evaluate(([f, a]) => window.__deepcore.test[f](...a), [f, a]);
 const st = () => page.evaluate(() => { const s = window.__deepcore.test.state(); return { specials: s.specials, bank: s.bank, over: s.over, pieces: s.pieces, luck: s.luck }; });
 await tt('start', 4); await page.waitForTimeout(2600);
-await tt('give', { coal: 60, iron: 20, copper: 40, ruby: 80, gold: 10, emerald: 3, diamond: 3 });
+await tt('give', { coal: 60, iron: 20, copper: 40, ruby: 80, gold: 10, emerald: 3, diamond: 3, bone: 20 });
 
 // craft in order, duplicates allowed, the fourth is refused
 await page.tap('#anvilBtn'); await page.waitForTimeout(200);
@@ -37,7 +37,7 @@ check([2, 3, 4].every(r => [2, 3, 4].every(c => !grid[r][c])) && grid[7][7], 'it
 check(await page.evaluate(() => document.querySelectorAll('#dockSlots .tool:not(.empty)').length) === 2, 'the dock redraws with two tiles');
 
 // Luck is tapped from its slot; Rescue is automatic
-await tt('give', { ruby: 30, diamond: 2 });
+await tt('give', { ruby: 30, bone: 8 });
 await page.tap('#anvilBtn'); await page.waitForTimeout(200); await craft(3); await page.tap('#anvilClose'); await page.waitForTimeout(200);
 s = await st(); check(s.specials.join() === 'blast,rescue,luck', 'Luck Tonic joins the dock');
 await page.tap('#dockSlots .tool[data-m="luck"]'); await page.waitForTimeout(1500);

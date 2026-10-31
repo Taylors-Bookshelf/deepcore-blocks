@@ -53,21 +53,20 @@ h1,h2,h3{font-family:var(--font-display);font-weight:400;margin:0}
 .ptxt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:6px;font-family:var(--font-display);text-shadow:0 2px 0 rgba(0,0,0,.5)}
 #pscore{font-size:30px;line-height:1;color:var(--text)}
 #pgoal{font-size:20px;line-height:1;color:var(--muted)}
-.stripGoals{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:100%}
-.stripGoals .goal{display:flex;align-items:center;gap:6px;height:36px;padding:0 12px 0 8px;border-radius:6px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--panel-line);font-family:var(--font-display);font-size:22px}
-.stripGoals .goal canvas{width:22px;height:22px;image-rendering:pixelated}
-.stripGoals .goal.done{box-shadow:inset 0 0 0 2px var(--done);color:var(--done)}
-#stash{flex:none;height:38px;border-radius:10px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--panel-line);padding:0 10px;display:flex;align-items:center}
+#stash{flex:none;height:52px;border-radius:10px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--panel-line);padding:0 10px;display:flex;align-items:center}
 #stashItems{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:14px}
-.si{display:flex;align-items:center;gap:3px;min-width:0}
+.si{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
 .si canvas{width:22px;height:22px;image-rendering:pixelated;flex:none}
-.si .t{display:flex;flex-direction:column;justify-content:center;line-height:1;min-width:14px}
-.si .n{font-family:var(--font-display);font-size:18px}
-.si .pl{font-family:var(--font-ui);font-size:10px;font-weight:700;color:#8bf0a0;min-height:10px}
+.si .t{display:flex;align-items:baseline;justify-content:center;gap:2px;line-height:1;white-space:nowrap}
+.si .n{font-family:var(--font-display);font-size:17px}
+.si .pl{font-family:var(--font-ui);font-size:10px;font-weight:700;color:#8bf0a0}
+.si .pl:empty{display:none}
 .si.zero{opacity:.5}
 .si.bump{animation:bump .3s}
-.sdiv{width:1px;height:22px;background:var(--divider);flex:none}
+.sdiv{width:1px;height:36px;background:var(--divider);flex:none}
 @keyframes bump{40%{transform:scale(1.14)}}
+#tutor.nudge{animation:nudge .35s}
+@keyframes nudge{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
 #boardWrap{flex:1 1 0;min-height:0;display:flex;align-items:center;justify-content:center}
 #boardWell{position:relative;padding:4px;border-radius:6px;background:var(--seam);box-shadow:0 0 0 1px var(--panel-line)}
 #board{display:block;image-rendering:pixelated}
@@ -193,8 +192,6 @@ button.tool{cursor:grab;touch-action:none}
 .node.done{background:#4f8a45;color:#e8ffe0;border-color:#1d3d18}
 .node.gate{background:var(--slot);border-color:var(--lamp);color:var(--lamp);animation:nodePulse 1.4s ease-in-out infinite}
 .node.gate canvas{width:30px;height:30px;image-rendering:pixelated}
-.node.strip{background:#5a7a9a;color:#eaf4ff;border-color:#1a2a3a;font-size:22px}
-.node.strip.done{background:#4f8a45}
 .node.progress{box-shadow:0 0 0 3px #9fe8ff,0 3px 0 #000}
 .node.fresh{animation:fresh .8s ease-out}
 @keyframes nodePulse{0%,100%{box-shadow:0 0 0 0 rgba(255,207,92,.7),0 3px 0 #000}50%{box-shadow:0 0 0 9px rgba(255,207,92,0),0 3px 0 #000}}
@@ -213,7 +210,7 @@ button.tool{cursor:grab;touch-action:none}
 .ppanel h2{font-size:44px;color:var(--lamp);text-shadow:0 0 18px rgba(255,207,92,.5)}
 .ppanel p{margin:0}
 #pMedal{width:96px;height:96px;image-rendering:pixelated;animation:fresh 1s ease-out}
-@media (prefers-reduced-motion: reduce){.node.open,.node.gate,.node.fresh,#pMedal,.bob,.swing,.spark,#anvilBtn.afford{animation:none}.bigshake,.shake{animation:none}.slot.special canvas{animation:none;filter:drop-shadow(0 0 6px rgba(255,214,110,.9))}#combo.show{animation-duration:.01s}.slot canvas,#banner{transition:none}}
+@media (prefers-reduced-motion: reduce){.node.open,.node.gate,.node.fresh,#pMedal,.bob,.swing,.spark,#anvilBtn.afford{animation:none}.bigshake,.shake,#tutor.nudge{animation:none}.slot.special canvas{animation:none;filter:drop-shadow(0 0 6px rgba(255,214,110,.9))}#combo.show{animation-duration:.01s}.slot canvas,#banner{transition:none}}
 
 /* ---------- make-room sheet and destroy animation (design/effects.css) ---------- */
 #sheetScrim{position:fixed;inset:0;z-index:40;background:var(--scrim);display:flex;flex-direction:column;justify-content:flex-end}
@@ -269,16 +266,14 @@ button.tool{cursor:grab;touch-action:none}
 .slot.hint{box-shadow:inset 0 0 0 2px var(--lamp);animation:hintPulse .9s ease-in-out infinite}
 @keyframes hintPulse{50%{box-shadow:inset 0 0 0 2px var(--lamp),0 0 14px rgba(255,207,92,.7)}}
 #goalsBar{gap:8px}
-.pbar.over .pfill{background:#7cc06a}
-.pbar .mk{position:absolute;top:3px;transform:translateX(-50%);font-size:11px;line-height:1;color:rgba(255,255,255,.35);text-shadow:0 1px 0 #000;pointer-events:none}
-.pbar .mk.on{color:var(--lamp)}
-.pbar .mkline{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.25)}
-#bankBtn{flex:none;height:36px;min-height:36px;padding:0 14px;border-radius:6px;font-size:14px;letter-spacing:1px}
 .shStars{display:flex;gap:8px}
 .shStar{flex:1;border-radius:6px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--panel-line);padding:6px 4px;text-align:center}
 .shStar b{display:block;color:var(--lamp);font-size:16px;letter-spacing:2px;font-weight:700}
 .shStar span{font-size:12px;color:var(--muted)}
 .shStar.got{box-shadow:inset 0 0 0 2px var(--lamp)}
+.shHaul{display:flex;flex-wrap:wrap;gap:6px 12px;justify-content:center;margin-top:10px;font-family:var(--font-display);font-size:20px}
+.shHaul span{display:flex;align-items:center;gap:4px}
+.shHaul canvas{width:24px;height:24px;image-rendering:pixelated}
 .shBtns .alt{flex:1;background:var(--inset);box-shadow:inset 0 0 0 1px var(--divider),inset 0 -3px 0 var(--seam)}
 #overBar{width:min(260px,80%);height:10px;border-radius:5px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--panel-line);overflow:hidden}
 #overBar div{height:100%;background:var(--fill)}
@@ -286,10 +281,6 @@ button.tool{cursor:grab;touch-action:none}
 
 .hrow{overflow:hidden}
 #todayTxt{overflow:hidden;text-overflow:ellipsis;min-width:0}
-.pbar.over .ptxt{justify-content:flex-start;padding-left:10px}
-.pbar.over #pscore{font-size:26px}
-.pbar.over #pgoal{font-size:15px}
-.pbar .mk{top:auto;bottom:2px;font-size:9px}
 
 /* ---------- release 5: home, profile, settings, feedback, tutorial ---------- */
 .menuRow{display:flex;gap:10px}.menuRow button{flex:1}
@@ -349,6 +340,7 @@ html.large .recipe .nm,html.large .irow .nm{font-size:19px}
 #starChip b{font-size:11px;letter-spacing:1px;color:var(--lamp)}
 #starChip span{font-size:13px;font-weight:700;color:var(--text)}
 #starChip.max span{color:#8bf0a0}
+#starChip.none b{color:var(--muted)}
 
 #todayTxt{display:none}   /* today's total lives on the home screen and map; the play header stays calm */
 #hcWarn{margin:0;color:var(--lamp)}

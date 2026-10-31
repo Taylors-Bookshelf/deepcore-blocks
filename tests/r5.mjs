@@ -20,7 +20,7 @@ check(Meta.resetText(new Date('2026-01-15T07:00:00Z')) === '1h 0m' && Meta.reset
 { const code = Meta.encodeSave({ profile: { bank: { coal: 7 } }, life: { x: 1 }, note: 'ünïcode ✓' }); const back = Meta.decodeSave(code);
   check(/^DC1\./.test(code) && back && back.profile.bank.coal === 7 && back.note === 'ünïcode ✓', 'save codes round-trip, including unicode');
   check(Meta.decodeSave(code.slice(0, -4)) === null && Meta.decodeSave(code.replace(/\.[a-z0-9]+\./, '.zzzz.')) === null && Meta.decodeSave('garbage') === null && Meta.decodeSave('') === null, 'damaged or fake codes are refused'); }
-check(Meta.LOG.length === 8 + 7 + 3 + 5 + 7 + D.ZONES.length + D.MODIFIERS.length && new Set(Meta.LOG.map(e => e.kind + e.id)).size === Meta.LOG.length, `the discovery log has ${Meta.LOG.length} unique entries`);
+check(Meta.LOG.length === 8 + 7 + 3 + 5 + 6 + D.ZONES.length + D.MODIFIERS.length && new Set(Meta.LOG.map(e => e.kind + e.id)).size === Meta.LOG.length, `the discovery log has ${Meta.LOG.length} unique entries`);
 
 // ---- the game ----
 const { page, base, errors, close, ctx, cdp } = await phone();

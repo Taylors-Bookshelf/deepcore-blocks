@@ -47,7 +47,7 @@ The layout is for a 390pt-wide screen; `reference/play-screen.dc.html` shows it 
    - Map and Sound icon buttons, 44×44 each.
    - The old footer Map and Sound buttons are removed.
 3. **Progress bar, 36pt tall.** The score is centered inside the bar, e.g. `640 / 2,520`.
-4. **Resource strip, 38pt tall.** Ore icons and counts, a 1px divider, then gem icons and counts.
+4. **Resource strip, 52pt tall** (38pt until v2.0.2). Ore icons with their counts below (99+ above 99), a 1px divider, then gem icons and counts.
 5. **Board:**
    - 8×8 grid of 42pt cells.
    - 2pt seams, the same width horizontally and vertically.

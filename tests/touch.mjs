@@ -6,6 +6,8 @@ await page.goto(base + '?debug'); await page.waitForTimeout(600);
 check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'page is not wider than the phone screen');
 check(await page.evaluate(() => { const b = document.getElementById('mapBtn').getBoundingClientRect(); return b.left >= 0 && b.right <= innerWidth && b.bottom <= innerHeight; }), 'home buttons are on screen');
 await page.tap('#mapBtn'); await page.waitForTimeout(300); await page.tap('.node.open'); await page.tap('#ncGo'); await page.waitForTimeout(2600);
+// skip the tutorial: its steps only take a drop on the glowing spot (tests/r7.mjs covers that)
+await page.evaluate(() => document.getElementById('tutorSkip').click()); await page.waitForTimeout(100);
 
 // header controls and the score bar
 check(await page.evaluate(() => ['infoBtn', 'homeBtn', 'sound', 'anvilBtn'].every(id => !!document.getElementById(id))), 'header has info, map and sound; the dock has CRAFT');
@@ -55,7 +57,7 @@ const txt = await page.evaluate(() => document.getElementById('infoBody').textCo
 check(/Coal/.test(txt) && /Common/.test(txt) && /Unusual/.test(txt) && /Rare/.test(txt) && /points each/.test(txt), 'resources section lists names, rarity and points');
 await page.tap('#infoTabs button:nth-child(3)');
 const crafting = await page.evaluate(() => document.getElementById('infoBody').textContent);
-check(/Bone tools/.test(crafting) && /Galaxy Alloy/.test(crafting) && /side tunnel/i.test(crafting) && /Luck Tonic/.test(crafting), 'crafting guide covers the tools, side tunnels and the Luck Tonic');
+check(/Bone tools/.test(crafting) && /Galaxy Alloy/.test(crafting) && /[Rr]eplay/.test(crafting) && !/side tunnel/i.test(crafting) && /Luck Tonic/.test(crafting), 'crafting guide covers the tools, replaying for ore (no side tunnels) and the Luck Tonic');
 await page.tap('#infoClose');
 
 // difficulty naming

@@ -7,7 +7,7 @@ const T = (fn, arg) => page.evaluate(fn, arg);
 const tt = (f, ...a) => page.evaluate(([f, a]) => window.__deepcore.test[f](...a), [f, a]);
 const st = () => T(() => { const s = window.__deepcore.test.state(); return { specials: s.specials, bank: s.bank, busy: s.busy }; });
 await tt('start', 4); await page.waitForTimeout(2600);
-await tt('give', { coal: 60, iron: 20, copper: 40, ruby: 80, gold: 10, emerald: 3, diamond: 3 });
+await tt('give', { coal: 60, iron: 20, copper: 40, ruby: 80, gold: 10, emerald: 3, diamond: 3, bone: 20 });
 for (const m of ['blast', 'sledgehammer', 'rescue']) await tt('addSpecial', m);
 
 // ---- the sheet ----
@@ -28,7 +28,7 @@ check(await T(() => document.getElementById('shGo').disabled === false && docume
 
 // ---- the destroy animation ----
 await page.tap('#shGo'); await page.waitForTimeout(150);
-s = await st(); check(s.specials.join() === 'blast,luck,rescue' && s.bank.ruby === bankBefore.ruby - 12 && s.bank.diamond === bankBefore.diamond - 1, `ore is spent and the new special takes the destroyed slot (${s.specials})`);
+s = await st(); check(s.specials.join() === 'blast,luck,rescue' && s.bank.ruby === bankBefore.ruby - 12 && s.bank.bone === bankBefore.bone - 4 && s.bank.diamond === bankBefore.diamond, `ore is spent and the new special takes the destroyed slot (${s.specials})`);
 check(await T(() => document.getElementById('sheetScrim').hidden && document.getElementById('anvil').hidden), 'the sheet and the anvil close');
 check(await T(() => !!document.querySelector('#dockSlots .tool.anim .shake') && !!document.querySelector('#dockSlots .tool.anim .crk')), 'phase 1: the old special cracks and shakes');
 await page.waitForTimeout(600);
@@ -62,7 +62,7 @@ check(await T(() => document.getElementById('ghost').hidden && document.querySel
 
 // ---- tap to skip ----
 await tt('start', 4); await page.waitForTimeout(2600);
-const setup = () => T(() => { const t = window.__deepcore.test; for (let c = 0; c < 8; c++) t.setCell(7, c, null); for (let c = 0; c < 7; c++) t.setCell(7, c, c === 3 ? 'prism' : 'stone');
+const setup = () => T(() => { const t = window.__deepcore.test; for (let c = 0; c < 8; c++) t.setCell(7, c, null); for (let c = 0; c < 7; c++) t.setCell(7, c, c === 3 ? 'fossil' : 'stone');
   t.setPieces([{ cells: [[0, 0]], h: 1, w: 1, mats: ['stone'], sid: 0 }, null, null]); window.__deepcore.test.place(0, 7, 7); });
 const timeBusy = async (skipAt) => { const t0 = Date.now(); await setup(); if (skipAt) { await page.waitForTimeout(skipAt); await page.mouse.click(190, 400); }
   while ((await st()).busy && Date.now() - t0 < 8000) await page.waitForTimeout(40); return Date.now() - t0; };

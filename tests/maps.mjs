@@ -9,10 +9,9 @@ const days = Array.from({ length: 60 }, (_, i) => `2026-${String(1 + Math.floor(
 const maps = days.map(d => Maps.genMap('run-' + d, d));   // a new descent each time: tunnels follow the run, the surface follows the day
 check(JSON.stringify(Maps.genMap('run-' + days[3], days[3])) === JSON.stringify(maps[3]), 'the same run and day always give the same map');
 { const a = Maps.genMap('runA', days[1]), b = Maps.genMap('runA', days[2]); check(JSON.stringify(a.nodes) === JSON.stringify(b.nodes) && JSON.stringify(a.segs) === JSON.stringify(b.segs), 'a run keeps its tunnels from day to day'); }
-check(maps.every(m => m.nodes.length === 62 && m.strip.filter(Boolean).length === 7 && m.camps.length === 2), 'every map has 62 boards, 7 side tunnels and 2 camps');
+check(maps.every(m => m.nodes.length === 62 && !m.strip && m.camps.length === 2), 'every map has 62 boards and 2 camps, and no side tunnels');
 check(maps.every(m => m.nodes.every(n => n.x >= 1.4 && n.x <= 8.6)), 'all boards sit inside the map width');
 check(maps.every(m => m.nodes.every((n, i) => i === 0 || (n.y > m.nodes[i - 1].y && Math.hypot(n.x - m.nodes[i - 1].x, n.y - m.nodes[i - 1].y) >= 1.4))), 'boards descend and are never crowded together');
-check(maps.every(m => m.strip.filter(Boolean).every(s => s.x >= 1 && s.x <= 9 && m.nodes.every((n, i) => Math.hypot(n.x - s.x, n.y - s.y) >= 1.4 || i === s.from))), 'side tunnels keep clear of other boards');
 check(maps.every(m => !m.lake || Math.abs(m.nodes[0].x - (m.lake.x0 + m.lake.x1) / 2) > 1.6), 'a lake never covers the first board');
 const uniq = k => new Set(maps.map(m => typeof k === 'function' ? k(m) : m[k])).size;
 check(uniq('weather') >= 6, `weather varies (${uniq('weather')} kinds in 60 days)`);

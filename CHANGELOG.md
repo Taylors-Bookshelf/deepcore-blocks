@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.2
+- A board now ends when you reach its score target. Its stars measure how much ore and gems you mined by then, against the best haul an expert could get on that board. The star lines start low in the Forest and rise layer by layer.
+- KEEP MINING and FINISH are gone. At the end of a board choose CONTINUE to keep your haul and stars, or RETRY to play it again for more stars. A retry starts over: that run's haul is not kept. Stars you already earned on a board stay.
+- Mine too little for even one star and the board is not cleared: retry it. On the very first board wood counts toward the stars too, so it is a sure first star.
+- The Geode is gone. Fossils and Buried Treasure turn up as often as before, so random specials are rarer overall.
+- Fossils give 4 to 8 bones. Rescue Potion and Luck Tonic now each need 4 bone; Luck Tonic no longer needs a diamond. Bone is mined only in the Forest, so deeper down it comes from Fossils.
+- Bones are rarer in the Forest: bone tools take about 6 to 8 Forest boards.
+- Side tunnels are gone. Short of something for your next tools? Replay boards you have already cleared (replays give ore).
+- The resource strip is taller: counts sit below their icons, and anything over 99 shows as 99+ (the Forge and crafting panels show the real totals).
+- Fixed: during the tutorial a piece dropped outside the glowing spot was accepted and the tutorial stalled. It now glides back with a nudge.
+- Fixed: a rare drawing error could stop all effects and animations until the game was restarted.
+
 ## 2.0.1
 - Specials are used directly: drag a Blast Charge onto the board to blow up the 3×3 patch under it (a glowing square shows where), or a Sledgehammer to shake the board. They no longer have to be set into a piece first.
 - Fixed: a tray piece could look missing until tapped (picking up a second piece while the first was still gliding back).

@@ -1,4 +1,4 @@
-// Soak test: random play through a board of every zone (and strip mines, with a Luck Tonic running), then save/resume across a reload.
+// Soak test: random play through a board of every zone (with a Luck Tonic running), then save/resume across a reload.
 import { phone, makeChecker } from './helpers.mjs';
 const { check, fails } = makeChecker();
 const { page, base, errors, close } = await phone();
@@ -7,7 +7,7 @@ const t = (f, ...a) => page.evaluate(([f, a]) => window.__deepcore.test[f](...a)
 async function play(maxMoves) {
   let moves = 0, end = 'moves';
   for (let k = 0; k < maxMoves * 3; k++) {
-    const r = await page.evaluate(() => { const T = window.__deepcore.test, s = T.state(); if (s.screen !== 'game') return 'map'; if (s.busy) return 'busy'; if (s.over) return 'over';
+    const r = await page.evaluate(() => { const T = window.__deepcore.test, s = T.state(); if (s.screen !== 'game') return 'map'; if (s.reached) return 'target'; if (s.busy) return 'busy'; if (s.over) return 'over';
       for (let i = 0; i < 3; i++) { const pc = s.pieces && s.pieces[i]; if (!pc) continue; const o = []; for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) if (T.fits(pc, r, c)) o.push([r, c]);
         if (o.length) { const q = o[Math.floor(Math.random() * o.length)]; T.place(i, q[0], q[1]); return 'ok'; } } return 'stuck'; });
     if (r === 'busy') { await page.waitForTimeout(200); continue; }
@@ -16,9 +16,9 @@ async function play(maxMoves) {
   return { moves, end };
 }
 for (const idx of [0, 5, 9, 14, 18, 22, 24, 29]) {
-  await t('give', { coal: 20, copper: 10, ruby: 20, diamond: 2, emerald: 2 });
+  await t('give', { coal: 20, copper: 10, ruby: 20, diamond: 2, emerald: 2, bone: 8 });
   await t('start', idx); await page.waitForTimeout(2500);
-  if (idx === 14) { await t('give', { ruby: 12, diamond: 1 }); await page.evaluate(() => { const T = window.__deepcore.test; }); }
+  if (idx === 14) { await t('give', { ruby: 12, bone: 4 }); await page.evaluate(() => { const T = window.__deepcore.test; }); }
   const r = await play(45);
   const state = await page.evaluate(() => { const s = window.__deepcore.test.state(); return { screen: s.screen, over: s.over }; });
   check(r.moves >= 1 && errors.length === 0, `board ${idx}: ${r.moves} random moves, ended "${r.end}" (${errors.join(' | ')})`);

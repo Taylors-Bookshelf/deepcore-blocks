@@ -27,7 +27,7 @@ const near = (a, b, tol = 1) => Math.abs(a - b) <= tol;
   check(m.ibtn.length === 4 && m.ibtn.every(([w, h]) => near(w, 40) && near(h, 44)), 'hint, info, map and sound buttons are 40x44');
   check(near(m.hdr.x, 16) && near(m.vw - m.hdr.r, 16), 'side padding is 16');
   check(near(m.goals.h, 36), `progress bar is 36 tall (${m.goals.h})`);
-  check(near(m.strip.h, 38), `resource strip is 38 tall (${m.strip.h})`);
+  check(near(m.strip.h, 52), `resource strip is 52 tall (${m.strip.h})`);
   check(near(m.board.w, 350, 1.5) && near(m.well.w, 358, 1.5), `board is 8 x 42pt cells with 2pt seams: 350 wide inside a 358 well (${m.board.w}, ${m.well.w})`);
   check(near(m.tool.w, 56) && near(m.tool.h, 56), 'specials dock slots are 56x56');
   check(near(m.dock.h, 72, 1), `dock is 56 plus 8 padding each side (${m.dock.h})`);

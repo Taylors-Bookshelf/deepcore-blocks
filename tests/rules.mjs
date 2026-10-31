@@ -48,9 +48,13 @@ check(lucky >= normal * 1.1, `Luck Tonic sets offer bigger clears (average ${(lu
 
 // ---- recipes and economy tables ----
 const rc = Object.fromEntries(D.RECIPES.map(r => [r.m, r.cost]));
-check(rc.rescue.ruby === 20 && rc.rescue.emerald === 1 && Object.keys(rc.rescue).length === 2, 'Rescue Potion costs 20 ruby + 1 emerald');
-check(rc.luck && rc.luck.ruby === 12, 'Luck Tonic is craftable with 12 ruby');
+check(rc.rescue.ruby === 20 && rc.rescue.emerald === 1 && rc.rescue.bone === 4 && Object.keys(rc.rescue).length === 3, 'Rescue Potion costs 20 ruby + 1 emerald + 4 bone');
+check(rc.luck && rc.luck.ruby === 12 && rc.luck.bone === 4 && Object.keys(rc.luck).length === 2, 'Luck Tonic costs 12 ruby + 4 bone (no diamond)');
+check(D.ZONES.every((z, i) => i === 0 || !z.ores.includes('bone')), 'bone is mined only in the Forest');
+{ const n = new Set(); for (let k = 0; k < 400; k++) { const h = D.specialHaul('fossil', 3); if (h.k !== 'bone' || h.pts !== 600) n.add('bad'); n.add(h.n); } check(!n.has('bad') && [4, 5, 6, 7, 8].every(v => n.has(v)) && n.size === 5, `a Fossil gives 4 to 8 bone and 600 points at any depth (${[...n].sort()})`); }
 check(!D.RECIPES.some(r => r.cost.lapis || r.cost.quartz) && !D.ORES.lapis && !D.ORES.quartz, 'lapis and quartz are gone');
 check(D.STASH_KEYS[0] === 'wood', 'wood is a stash resource');
-check(D.SPECIAL_RATE.Medium === .01 && D.SPECIAL_RATE.Hard === .02 && D.SPECIAL_RATE.Expert === .03, 'special rates are 1% / 2% / 3%');
+check(Object.keys(D.SPECIAL_MIX).join() === 'fossil,treasure', 'the random specials are Fossil and Buried Treasure (the Geode is gone)');
+{ const per = (t, k) => D.SPECIAL_RATE[t] * D.SPECIAL_MIX[k] / Object.values(D.SPECIAL_MIX).reduce((a, b) => a + b, 0);
+  check([['Medium', .01], ['Hard', .02], ['Expert', .03]].every(([t, old]) => Math.abs(per(t, 'fossil') - old * .32) < 1e-9 && Math.abs(per(t, 'treasure') - old * .28) < 1e-9), 'Fossil and Buried Treasure keep their v2.0.1 per-piece rates (random specials 40% rarer overall)'); }
 console.log(fails ? `RULES TESTS FAILED (${fails})` : 'RULES TESTS PASSED'); if (fails) process.exitCode = 1;

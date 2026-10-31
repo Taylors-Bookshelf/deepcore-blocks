@@ -1,4 +1,4 @@
-// Release 4: stars and banking (push your luck), combo meter, near-miss cave-in screen, hint, daily modifiers.
+// Release 4, updated for v2.0.2: the board ends at its target, stars from ore efficiency (0 to 3), RETRY / CONTINUE; combo meter, near-miss cave-in screen, hint, daily modifiers.
 import { createRequire } from 'node:module';
 import { phone, makeChecker } from './helpers.mjs';
 const require = createRequire(import.meta.url);
@@ -6,9 +6,14 @@ const D = require('../src/data.js'), C = require('../src/core.js');
 const { check, fails } = makeChecker();
 
 // ---- data: stars, modifiers, lamp costs ----
-{ const at = [20, 30]; check(D.starsFromYield(0, at) === 1 && D.starsFromYield(19, at) === 1 && D.starsFromYield(20, at) === 2 && D.starsFromYield(30, at) === 3, 'the clear is one star; ore value earns the second and third'); }
+{ const at = [10, 20, 30]; check(D.starsFromYield(0, at) === 0 && D.starsFromYield(9, at) === 0 && D.starsFromYield(10, at) === 1 && D.starsFromYield(20, at) === 2 && D.starsFromYield(30, at) === 3, 'stars run from 0 to 3 on ore value alone'); }
+{ const near = (a, b) => a.every((v, k) => Math.abs(v - b[k]) < 1e-9);
+  check(near(D.STAR_PCT[0], [.2, .4, .6]) && near(D.STAR_PCT[D.CRUST_Z], [.35, .6, .85]) && D.STAR_PCT.slice(0, D.CRUST_Z + 1).every((p, i) => i === 0 || p.every((v, k) => v > D.STAR_PCT[i - 1][k])), 'star lines are 20/40/60% of the maximum haul in the Forest, rising each layer to 35/60/85% in the Crust');
+  check(D.ZONES.every((z, i) => z.core || D.HAUL_MAX[i] > 0) && D.ZONES.every((z, zi) => z.core || Array.from({ length: z.boards }, (_, j) => D.boardParams(zi, j).starAt).every(a => a.length === 3 && a[0] >= 1 && a[0] < a[1] && a[1] < a[2])), 'every board has three rising star lines, the first at least 1');
+  check(D.boardParams(D.ZONES.length - 1, 0).starAt.length === 0, 'the Ancient Core has no stars');
+  check(D.boardParams(D.CRUST_Z, 0).starAt[0] === D.ONE_STAR_CAP[D.CRUST_Z] && D.boardParams(D.CRUST_Z, 0).starAt[1] === Math.round(D.HAUL_MAX[D.CRUST_Z] * .6), 'the Crust caps its 1-star line at a typical player\'s 10th-percentile haul; 2 and 3 stars keep the ramp'); }
 check(D.yieldOf({ coal: 3, iron: 2, emerald: 1, wood: 50, stone: 9 }) === 3 + 4 + 5, 'ore value counts ores and gems, not wood or rock');
-check(D.boardParams(1, 3).starAt[0] > D.boardParams(1, 0).starAt[0] && D.boardParams(1, 0).starAt[1] > D.boardParams(1, 0).starAt[0], 'star thresholds rise within a zone and 3 stars need more than 2');
+check(D.boardParams(1, 3).starAt[0] > D.boardParams(1, 0).starAt[0], 'star lines rise within a layer with the target');
 { check(D.bonusPct(1, 1, false) === 0 && D.bonusPct(2, 1, false) === .25 && D.bonusPct(4, 1, false) === .75, 'bonus rises with the number of lines');
   check(D.bonusPct(1, 5, false) === .25 && D.bonusPct(1, 3, false) === .1 && D.bonusPct(1, 1, true) === 1 && D.bonusPct(5, 9, true) === 1.5, 'long combos and All Clear add more, capped at +150%');
   const b = D.bonusOre({ coal: 3, iron: 2, emerald: 3, wood: 4 }, .5); check(b.coal === 2 && b.iron === 1 && b.emerald === 1 && !b.wood, 'bonus ore is a share of what was mined (at least 1 at +50%), gems capped at +1, wood excluded');
@@ -38,46 +43,41 @@ const clearRow = () => T(() => { const t = window.__deepcore.test; for (let c = 
   t.setPieces([{ cells: [[0, 0], [0, 1]], h: 1, w: 2, mats: ['stone', 'stone'], sid: 1 }, null, null]); window.__deepcore.test.place(0, 7, 6); });
 const board = async (i) => { await tt('start', i); await page.waitForTimeout(2600); };
 
-// 1. reaching the target: cleared, haul banked, prompt
-await board(4); const tg = await target();
-await tt('give', { coal: 10 }); await tt('giveHand', { coal: 4, wood: 2 }); await tt('setScore', tg - 5); await clearRow(); await page.waitForTimeout(2600);
+// 1. too little ore for a star: the board is not cleared, the haul is not banked, RETRY or MAP
+await board(4); const tg = await target(), sa = await T(() => window.__deepcore.test.def().starAt);
+await tt('give', { coal: 10 }); await tt('giveHand', { coal: 4, wood: 2 }); await tt('setCollected', {}); await tt('setScore', tg - 5); await clearRow(); await page.waitForTimeout(2600);
 let s = await st();
-check(s.reached && s.hand.coal === undefined && s.bank.coal === 14 && s.day.done.includes(4), `reaching the target clears the board and banks the haul at once (bank coal ${s.bank.coal})`);
-check(await T(() => !document.getElementById('sheetScrim').hidden && /BOARD CLEARED/.test(document.getElementById('sheet').textContent) && !!document.getElementById('kpGo') && !!document.getElementById('kpBank')), 'a prompt offers BANK IT or KEEP GOING');
-check(s.day.stars[4] === 1 && s.day.scores[4] > tg, 'the clear is recorded with 1 star');
-// 2. keep going: stars, bank button, risk
-await page.tap('#kpGo'); await page.waitForTimeout(300);
-check(await T(() => !!document.getElementById('bankBtn') && document.querySelectorAll('.pbar .mk').length === 3 && !!document.querySelector('.pbar.over')), 'playing on shows star markers and a BANK button');
-const sa = await T(() => window.__deepcore.test.def().starAt); await tt('setCollected', { coal: sa[0] }); await page.waitForTimeout(600);
-check(await T(() => document.getElementById('mk0').classList.contains('on') && document.getElementById('mk1').classList.contains('on') && !document.getElementById('mk2').classList.contains('on') && /\//.test(document.getElementById('pgoal').textContent)), 'two stars light up and the bar shows the next goal');
-await tt('giveHand', { coal: 3 }); const bankBefore = (await st()).bank.coal;
-await tt('gameOver'); await page.waitForTimeout(1500); s = await st();
-check(s.over && s.hand.coal === undefined && s.bank.coal === bankBefore, 'a cave-in while playing on loses only the ore gathered since the clear');
-check(await T(() => /keep your clear/.test(document.getElementById('overWhy').textContent)) && s.day.done.includes(4) && s.day.stars[4] === 1, 'the clear and its single star are kept');
-check(!s.day.fails || !s.day.fails[4], 'that cave-in does not count as a failed attempt');
-
-// 3. banking with 3 stars pays the star bonus
-await page.tap('#again'); await page.waitForTimeout(600); await board(5); const tg5 = await target();
-const sa5 = await T(() => window.__deepcore.test.def().starAt);
-// 2 stars of ore at the moment of the clear: the prompt appears and offers to go for a third
-await tt('setCollected', { coal: sa5[0] }); await tt('setScore', tg5 - 5); await clearRow(); await page.waitForTimeout(2600);
-check(await T(() => document.querySelectorAll('.shStar.got').length) === 2, 'the prompt shows the two stars already earned from ore');
-await page.tap('#kpBank'); await page.waitForTimeout(3200); s = await st();
-check(s.day.stars[5] === 2 && s.screen === 'map', 'banking records the 2 stars');
-// the ore for 3 stars is already in hand at the clear: no prompt at all, it banks itself
-await board(5); await tt('setCollected', { coal: sa5[1] }); await tt('setScore', tg5 - 5); await clearRow(); await page.waitForTimeout(1500);
-check(await T(() => document.getElementById('sheetScrim').hidden), 'already at three stars when the board clears: no question is asked');
-await page.waitForTimeout(3000); s = await st();
-const expectBonus = D.starBonus(3, tg5);
-check(s.day.stars[5] === 3 && s.screen === 'map', `the board banks itself with 3 stars (bonus ${expectBonus})`);
-check(s.day.scores[5] > tg5 + expectBonus, 'the star bonus is part of the board score');
-// 4. auto-bank at three stars while playing on
-await board(6); const tg6 = await target(); await tt('setScore', tg6 - 5); await clearRow(); await page.waitForTimeout(2600); await page.tap('#kpGo'); await page.waitForTimeout(300);
-await tt('setCollected', { coal: (await T(() => window.__deepcore.test.def().starAt))[1] }); await clearRow(); await page.waitForTimeout(4200); s = await st();
-check(s.screen === 'map' && s.day.stars[6] === 3, 'reaching three stars while playing on banks the board automatically');
-// 5. practice replays can still raise your stars
-await board(6); check(!(await tt('practice')), 'a replay is an ordinary board now (it gives ore)'); await tt('setScore', (await target()) - 5); await clearRow(); await page.waitForTimeout(2600); await page.tap('#kpBank'); await page.waitForTimeout(3200);
-check((await st()).day.stars[6] === 3, 'a worse replay never lowers the stars you already have');
+check(s.reached && s.busy && s.bank.coal === 10 && !s.day.done.includes(4), `reaching the target with no ore ends the board without clearing it or banking (bank coal ${s.bank.coal})`);
+check(await T(() => /NOT ENOUGH ORE/.test(document.getElementById('sheet').textContent) && !!document.getElementById('resRetry') && !!document.getElementById('resMap') && !document.getElementById('resGo')), 'a 0-star result offers RETRY or MAP, never CONTINUE');
+await page.tap('#resMap'); await page.waitForTimeout(800); s = await st();
+check(s.screen === 'map' && s.bank.coal === 10 && !s.day.done.includes(4) && !(s.day.stars || {})[4] && !Object.keys(s.hand).length, 'leaving a 0-star board drops the haul and leaves it uncleared');
+// 2. RETRY is a clean restart: nothing from the run is kept
+await board(4); await tt('giveHand', { coal: 4 }); await tt('setCollected', { coal: sa[1] }); await tt('setScore', tg - 5); await clearRow(); await page.waitForTimeout(2600);
+check(await T(() => /BOARD CLEARED/.test(document.getElementById('sheet').textContent) && document.querySelectorAll('.shStar.got').length === 2 && !!document.getElementById('resRetry') && !!document.getElementById('resGo')), 'with 2 stars of ore the results sheet shows them and offers RETRY or CONTINUE');
+await page.tap('#resRetry'); await page.waitForTimeout(2600); s = await st();
+check(s.screen === 'game' && !s.reached && s.score < 50 && !Object.keys(s.hand).length && s.bank.coal === 10 && !s.day.done.includes(4) && !(s.day.stars || {})[4], 'RETRY restarts the board and discards that run (ore, points, stars)');
+// 3. CONTINUE banks the haul and records the stars and the star bonus
+await tt('giveHand', { coal: 4 }); await tt('setCollected', { coal: sa[1] }); await tt('setScore', tg - 5); await clearRow(); await page.waitForTimeout(2600);
+await page.tap('#resGo'); await page.waitForTimeout(3200); s = await st();
+check(s.screen === 'map' && s.day.done.includes(4) && s.day.stars[4] === 2 && s.bank.coal === 14, `CONTINUE clears the board with 2 stars and banks the haul (bank coal ${s.bank.coal})`);
+check(s.day.scores[4] >= tg + D.starBonus(2, tg), 'the star bonus is part of the board score');
+// 4. three stars: still the same choice, and the bonus is paid
+await board(5); const tg5 = await target(), sa5 = await T(() => window.__deepcore.test.def().starAt);
+await tt('setCollected', { coal: sa5[2] }); await tt('setScore', tg5 - 5); await clearRow(); await page.waitForTimeout(2600);
+check(await T(() => document.querySelectorAll('.shStar.got').length === 3 && !!document.getElementById('resGo')), 'three stars show on the results sheet');
+await page.tap('#resGo'); await page.waitForTimeout(3200); s = await st();
+check(s.day.stars[5] === 3 && s.day.scores[5] > tg5 + D.starBonus(3, tg5) - 1, `the board is banked with 3 stars (bonus ${D.starBonus(3, tg5)})`);
+// 5. a worse replay never lowers the stars you already have
+await board(5); check(!(await tt('practice')), 'a replay is an ordinary board (it gives ore)'); await tt('setCollected', { coal: sa5[0] }); await tt('setScore', tg5 - 5); await clearRow(); await page.waitForTimeout(2600); await page.tap('#resGo'); await page.waitForTimeout(3200);
+check((await st()).day.stars[5] === 3, 'a 1-star replay keeps the 3 stars');
+// 6. the board ends at the target: a cave-in after it is impossible, and the results sheet comes back after a reload
+await board(6); const tg6 = await target(); await tt('setScore', tg6 - 5); await tt('setCollected', { coal: (await T(() => window.__deepcore.test.def().starAt))[0] }); await clearRow(); await page.waitForTimeout(2600);
+await tt('gameOver'); await page.waitForTimeout(800); s = await st();
+check(!s.over && s.reached, 'after the target the board cannot cave in');
+await page.reload(); await page.waitForTimeout(900); await page.tap('#mapBtn'); await page.waitForTimeout(500);
+await T(() => document.querySelector('.node.progress').click()); await page.waitForTimeout(250); await page.tap('#ncGo'); await page.waitForTimeout(1200);
+check(await T(() => !document.getElementById('sheetScrim').hidden && !!document.getElementById('resGo')), 'a board left on its results sheet reopens on it');
+await page.tap('#resGo'); await page.waitForTimeout(3200);
 
 // 5b. bonus ore: a two-line clear pays +25% of the ore mined in that play
 { const sq = C.SHAPES.findIndex(sh => sh.w === 2 && sh.h === 2 && sh.cells.length === 4);
