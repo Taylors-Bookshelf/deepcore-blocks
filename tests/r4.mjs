@@ -6,13 +6,13 @@ const D = require('../src/data.js'), C = require('../src/core.js');
 const { check, fails } = makeChecker();
 
 // ---- data: stars, modifiers, lamp costs ----
-{ const at = [10, 20, 30]; check(D.starsFromYield(0, at) === 0 && D.starsFromYield(9, at) === 0 && D.starsFromYield(10, at) === 1 && D.starsFromYield(20, at) === 2 && D.starsFromYield(30, at) === 3, 'stars run from 0 to 3 on ore value alone'); }
+{ const at = [10, 20, 30]; check(D.starsFromYield(0, at) === 0 && D.starsFromYield(9, at) === 0 && D.starsFromYield(10, at) === 1 && D.starsFromYield(20, at) === 2 && D.starsFromYield(30, at) === 3, 'stars run from 0 to 3 on ore mined alone'); }
 { const near = (a, b) => a.every((v, k) => Math.abs(v - b[k]) < 1e-9);
   check(near(D.STAR_PCT[0], [.2, .4, .6]) && near(D.STAR_PCT[D.CRUST_Z], [.35, .6, .85]) && D.STAR_PCT.slice(0, D.CRUST_Z + 1).every((p, i) => i === 0 || p.every((v, k) => v > D.STAR_PCT[i - 1][k])), 'star lines are 20/40/60% of the maximum haul in the Forest, rising each layer to 35/60/85% in the Crust');
   check(D.ZONES.every((z, i) => z.core || D.HAUL_MAX[i] > 0) && D.ZONES.every((z, zi) => z.core || Array.from({ length: z.boards }, (_, j) => D.boardParams(zi, j).starAt).every(a => a.length === 3 && a[0] >= 1 && a[0] < a[1] && a[1] < a[2])), 'every board has three rising star lines, the first at least 1');
   check(D.boardParams(D.ZONES.length - 1, 0).starAt.length === 0, 'the Ancient Core has no stars');
   check(D.boardParams(D.CRUST_Z, 0).starAt[0] === D.ONE_STAR_CAP[D.CRUST_Z] && D.boardParams(D.CRUST_Z, 0).starAt[1] === Math.round(D.HAUL_MAX[D.CRUST_Z] * .6), 'the Crust caps its 1-star line at a typical player\'s 10th-percentile haul; 2 and 3 stars keep the ramp'); }
-check(D.yieldOf({ coal: 3, iron: 2, emerald: 1, wood: 50, stone: 9 }) === 3 + 4 + 5, 'ore value counts ores and gems, not wood or rock');
+check(D.yieldOf({ coal: 3, iron: 2, emerald: 1, wood: 50, stone: 9 }) === 3 + 2 + 1, 'the star count is one per ore or gem mined, not wood or rock');
 check(D.boardParams(1, 3).starAt[0] > D.boardParams(1, 0).starAt[0], 'star lines rise within a layer with the target');
 { check(D.bonusPct(1, 1, false) === 0 && D.bonusPct(2, 1, false) === .25 && D.bonusPct(4, 1, false) === .75, 'bonus rises with the number of lines');
   check(D.bonusPct(1, 5, false) === .25 && D.bonusPct(1, 3, false) === .1 && D.bonusPct(1, 1, true) === 1 && D.bonusPct(5, 9, true) === 1.5, 'long combos and All Clear add more, capped at +150%');
@@ -62,7 +62,8 @@ await page.tap('#resGo'); await page.waitForTimeout(3200); s = await st();
 check(s.screen === 'map' && s.day.done.includes(4) && s.day.stars[4] === 2 && s.bank.coal === 14, `CONTINUE clears the board with 2 stars and banks the haul (bank coal ${s.bank.coal})`);
 check(s.day.scores[4] >= tg + D.starBonus(2, tg), 'the star bonus is part of the board score');
 // 4. three stars: still the same choice, and the bonus is paid
-await board(5); const tg5 = await target(), sa5 = await T(() => window.__deepcore.test.def().starAt);
+await board(5); check(await T(() => document.getElementById('zoneStars').textContent === '★ 2/18'), 'the board header shows the stars earned in the layer (2 of 18 in the Limestone Caves)');
+const tg5 = await target(), sa5 = await T(() => window.__deepcore.test.def().starAt);
 await tt('setCollected', { coal: sa5[2] }); await tt('setScore', tg5 - 5); await clearRow(); await page.waitForTimeout(2600);
 check(await T(() => document.querySelectorAll('.shStar.got').length === 3 && !!document.getElementById('resGo')), 'three stars show on the results sheet');
 await page.tap('#resGo'); await page.waitForTimeout(3200); s = await st();

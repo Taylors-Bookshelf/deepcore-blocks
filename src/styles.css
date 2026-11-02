@@ -6,7 +6,7 @@
 @font-face{font-family:'Chakra Petch';font-weight:700;font-style:normal;font-display:swap;src:url(../fonts/chakra-petch-latin-700-normal.woff2) format('woff2')}
 :root{
   --ground:#46494f; --panel:#3d4045; --panel-line:#55585f; --divider:#5b5e65; --inset:#2f3136; --slot:#35383d; --seam:#232428;
-  --scrim:rgba(12,13,16,.62); --handle:#6a6d74; --text:#fff; --muted:#d6d8dd; --lamp:#ffcf5c; --fill:#d9982b; --on-lamp:#2b1505;
+  --scrim:rgba(12,13,16,.62); --handle:#6a6d74; --text:#fff; --muted:#d6d8dd; --lamp:#ffcf5c; --lamp-dim:#b08a3c; --star-empty:#4a4d55; --fill:#d9982b; --on-lamp:#2b1505;
   --easy:#9ad38c; --medium:#ffcf5c; --hard:#ffa766; --expert:#ff8a7a; --done:#7cc06a;
   --danger:#b8392a; --danger-shadow:#7d2219; --danger-bg:#4a2b27; --danger-ring:#ff6b57; --danger-text:#ff8a7a;
   --font-display:'Jersey 10','Courier New',monospace; --font-ui:'Chakra Petch',system-ui,-apple-system,'Segoe UI',sans-serif;
@@ -257,7 +257,7 @@ button.tool{cursor:grab;touch-action:none}
 .land{animation:land .5s cubic-bezier(.3,1.6,.5,1)}
 @keyframes land{from{transform:translateY(-70px) scale(.8);opacity:0}to{transform:none;opacity:1}}
 #skipHint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:3;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);background:rgba(12,13,16,.6);border-radius:12px;padding:3px 10px;pointer-events:none}
-@media (prefers-reduced-motion: reduce){.sheet,.shake,.cracks,.land,.shard,.dust{animation-duration:.01s}}
+@media (prefers-reduced-motion: reduce){#starChip i.gain,.shStar.got{animation:none}.sheet,.shake,.cracks,.land,.shard,.dust{animation-duration:.01s}}
 
 /* ---------- release 4: stars and banking, combo meter, hint, cave-in details ---------- */
 @keyframes cmPulse{40%{transform:scale(1.15)}}
@@ -270,7 +270,13 @@ button.tool{cursor:grab;touch-action:none}
 .shStar{flex:1;border-radius:6px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--panel-line);padding:6px 4px;text-align:center}
 .shStar b{display:block;color:var(--lamp);font-size:16px;letter-spacing:2px;font-weight:700}
 .shStar span{font-size:12px;color:var(--muted)}
-.shStar.got{box-shadow:inset 0 0 0 2px var(--lamp)}
+.shTitleStars .on{color:var(--lamp);text-shadow:0 0 12px rgba(255,207,92,.5)}
+.shTitleStars .off{color:var(--star-empty)}
+.shStar:not(.got){opacity:.45}
+.shStar:not(.got) b{color:var(--star-empty)}
+.shStar.got{box-shadow:inset 0 0 0 2px var(--lamp),0 0 12px rgba(255,207,92,.35);transform:scale(1.06);animation:starEarn .45s ease-out both}
+.shStar.got b{font-size:19px;text-shadow:0 0 10px rgba(255,207,92,.6)}
+@keyframes starEarn{0%{transform:scale(.7);opacity:0}60%{transform:scale(1.14);opacity:1}100%{transform:scale(1.06)}}
 .shHaul{display:flex;flex-wrap:wrap;gap:6px 12px;justify-content:center;margin-top:10px;font-family:var(--font-display);font-size:20px}
 .shHaul span{display:flex;align-items:center;gap:4px}
 .shHaul canvas{width:24px;height:24px;image-rendering:pixelated}
@@ -336,11 +342,14 @@ html.large .recipe .nm,html.large .irow .nm{font-size:19px}
 #bootError{position:fixed;inset:0;z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--ground);color:var(--text);text-align:center;padding:24px}
 #bootError p{margin:0;font-size:18px}
 
-#starChip{flex:none;height:36px;min-width:70px;padding:0 8px;border-radius:6px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--panel-line);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05}
-#starChip b{font-size:11px;letter-spacing:1px;color:var(--lamp)}
-#starChip span{font-size:13px;font-weight:700;color:var(--text)}
-#starChip.max span{color:#8bf0a0}
-#starChip.none b{color:var(--muted)}
+#starChip{flex:none;height:36px;padding:0 8px;border-radius:6px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--panel-line);display:flex;align-items:center;gap:1px}
+/* each star fills left to right (--f) toward its line, then lights up */
+#starChip i{font-style:normal;font-size:24px;line-height:1;background:linear-gradient(90deg,var(--lamp-dim) var(--f,0%),var(--star-empty) 0);-webkit-background-clip:text;background-clip:text;color:transparent}
+#starChip i.lit{background:var(--lamp);-webkit-background-clip:text;background-clip:text;text-shadow:0 0 8px rgba(255,207,92,.45)}
+#starChip i.gain{animation:starGain .5s ease-out}
+@keyframes starGain{40%{transform:scale(1.45)}}
+#zoneStars{font-size:11px;font-weight:700;color:var(--lamp);white-space:nowrap}
+#zoneStars:empty{display:none}
 
 #todayTxt{display:none}   /* today's total lives on the home screen and map; the play header stays calm */
 #hcWarn{margin:0;color:var(--lamp)}

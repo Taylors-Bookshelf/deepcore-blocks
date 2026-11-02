@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.3
+- Stars now count the ore and gems you mine, one each, the same numbers you see in your haul (they used to weigh rarer ore more, so the numbers never matched). Star lines recalibrated for every layer.
+- Three stars next to the score bar fill up as you mine and light up as you earn them. They replace the "17/31" chip.
+- The results sheet lights your earned stars in amber and grays out the rest.
+- Each layer's star total ("★ 7/18") shows on the board header and on the map.
+- Fossils and Buried Treasure can turn up in the Forest now, rarer than deeper down. A Treasure holds the same iron, gold or gems as anywhere else.
+- Fossils and Buried Treasure pay points worth a share of the board's score target (a quarter and 8%), so one can't end a shallow board on the spot.
+
 ## 2.0.2
 - A board now ends when you reach its score target. Its stars measure how much ore and gems you mined by then, against the best haul an expert could get on that board. The star lines start low in the Forest and rise layer by layer.
 - KEEP MINING and FINISH are gone. At the end of a board choose CONTINUE to keep your haul and stars, or RETRY to play it again for more stars. A retry starts over: that run's haul is not kept. Stars you already earned on a board stay.

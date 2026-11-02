@@ -1,7 +1,7 @@
 (function(){
 const N = 8, T = 16;
 const A = window.DCA || { track(){}, attempt(){}, setScreen(){}, setBoard(){}, isOn:()=>false, canConfigure:()=>false, setOptOut(){} };
-const {FOSSIL_BONE,specialHaul,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS,GEM_KEYS,lineScore,lineName,YIELD_W,yieldOf,starsFromYield,starBonus,bonusPct,bonusOre,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf}=DeepcoreData;
+const {FOSSIL_BONE,SPECIAL_PTS,specialHaul,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS,GEM_KEYS,lineScore,lineName,STAR_ORES,yieldOf,starsFromYield,starBonus,bonusPct,bonusOre,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf}=DeepcoreData;
 const M=DeepcoreMaps, Meta=DeepcoreMeta;
 const {SHAPES,SHAPE_STRS,SHAPE_BY_KEY,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,getBit,bitOf,chooseSet,BIG_IDS,pickWeighted,rankMoves}=DeepcoreCore;
 const FONT_D = '"Jersey 10", "Courier New", monospace';
@@ -51,7 +51,7 @@ const MATS = {
   emerald: {kind:'gem', cut:'step', ore:'#22c25a', hi:'#b6ffc9', facets:{X:'#05301a',L:'#c8ffd6',H:'#4fe07f',M:'#17a64a',D:'#0a6a2c'}, drop:'emerald'},
   // special blocks — ultra-rare, Medium and up; trigger when their line clears
   blast:   {kind:'special', gen:'blast',    drop:null, name:'Blast Charge',    pts:250},
-  fossil:  {kind:'special', gen:'fossil',   drop:null, name:'Fossil',          pts:600},
+  fossil:  {kind:'special', gen:'fossil',   drop:null, name:'Fossil',          pts:0},   // pays specialPts (a share of the target)
   treasure:{kind:'special', gen:'treasure', drop:null, name:'Buried treasure', pts:0},
   sledgehammer:{kind:'special', gen:'sledgehammer', drop:null, name:'Sledgehammer', pts:300},
   rescue:{kind:'potion', gen:'rescue', drop:null, name:'Rescue Potion', pts:0},
@@ -407,12 +407,12 @@ window.addEventListener('resize',layout);
 if(window.ResizeObserver) new ResizeObserver(()=>{ if(!$('app').clientHeight) return; layout(); }).observe($('app'));
 
 function buildGoals(){
-  $('goalsBar').innerHTML='<div class="pbar" role="progressbar" aria-label="Board score"><div class="pfill" id="pfill"></div><div class="ptxt"><span id="pscore">0</span><span id="pgoal"></span></div></div><div id="starChip" aria-label="Ore value toward the next star"><b id="scStars">★★</b><span id="scTxt">0/0</span></div>';
+  $('goalsBar').innerHTML='<div class="pbar" role="progressbar" aria-label="Board score"><div class="pfill" id="pfill"></div><div class="ptxt"><span id="pscore">0</span><span id="pgoal"></span></div></div><div id="starChip" role="img" aria-label="Stars"><i>★</i><i>★</i><i>★</i></div>';
   updateBar();
 }
 function updateGoals(){}
 const starAt=()=>levelDef(level).starAt;
-const yUnit=()=>levelDef(level).starWood?'ore and wood':'ore value';
+const yUnit=()=>levelDef(level).starWood?'ore and wood':'ore';
 const yieldNow=()=>yieldOf(collected,levelDef(level).starWood);
 const starsNow=()=>starsFromYield(yieldNow(),starAt());
 function updateBar(){
@@ -420,12 +420,20 @@ function updateBar(){
   const f=Math.min(1,shown/tg);
   el.style.width=(f*100)+'%'; $('pscore').textContent=shown.toLocaleString(); $('pgoal').textContent='/ '+tg.toLocaleString(); el.parentElement.classList.toggle('full',f>=1);
   el.parentElement.setAttribute('aria-valuenow',shown); el.parentElement.setAttribute('aria-valuemax',tg);
-  const chip=$('starChip'); if(chip&&at.length){ const k=starsFromYield(y,at), need=k<3?at[k]:0; $('scStars').textContent='★'.repeat(Math.min(3,k+1)); $('scTxt').textContent=need?`${y}/${need}`:'MAX'; chip.classList.toggle('max',!need); chip.classList.toggle('none',k===0);
-    chip.title=`${levelDef(level).starWood?'Ore and wood':'Ore value'} ${y}. The board ends at its score target; by then ${at[0]} earns one star, ${at[1]} two and ${at[2]} three.`; }
+  const chip=$('starChip'); if(chip&&at.length){ chip.hidden=false; updateStarMeter(chip,y,at); } else if(chip) chip.hidden=true;
 }
 let shown=0;
+// the star meter: each star fills as the ore mined climbs from the previous star line to its own, and lights up once reached
+let meterLit=0;
+function updateStarMeter(chip,y,at){
+  const k=starsFromYield(y,at), unit=yUnit();
+  [...chip.children].forEach((st,i)=>{ const lo=i?at[i-1]:0, f=Math.max(0,Math.min(1,(y-lo)/Math.max(1,at[i]-lo)));
+    st.style.setProperty('--f',(f*100).toFixed(0)+'%'); st.classList.toggle('lit',i<k); if(i<k&&i>=meterLit) { st.classList.remove('gain'); void st.offsetWidth; st.classList.add('gain'); } });
+  meterLit=k;
+  const txt=`${y} ${unit} mined. ${at[0]} earns one star, ${at[1]} two, ${at[2]} three.`; chip.setAttribute('aria-label',`${k} of 3 stars. ${txt}`); chip.title=txt;
+}
 function updateComboMeter(){}   // the multiplier is shown with the points when lines clear, not as a permanent badge
-function updateHUD(){ $('best').textContent=(Object.values(dayState.scores).reduce((a,b)=>a+b,0)+(dayState.bonus||0)).toLocaleString(); $('zoneName').textContent=levelDef(level).zoneName; $('bestPlus').textContent=screen==='game'&&shown>0&&!reached?'+'+shown.toLocaleString():''; $('level').textContent=boardLabel(level-1); updateDur(); const t=tierOf(difficulty()); $('tier').textContent=t; $('tier').dataset.t=t; }
+function updateHUD(){ $('best').textContent=(Object.values(dayState.scores).reduce((a,b)=>a+b,0)+(dayState.bonus||0)).toLocaleString(); $('zoneName').textContent=levelDef(level).zoneName; $('bestPlus').textContent=screen==='game'&&shown>0&&!reached?'+'+shown.toLocaleString():''; $('level').textContent=boardLabel(level-1); $('zoneStars').textContent=level?zoneStarText(zoneOfIdx(level-1)):''; updateDur(); const t=tierOf(difficulty()); $('tier').textContent=t; $('tier').dataset.t=t; }
 function tickScore(){ if(shown<score){ shown+=Math.max(1,Math.ceil((score-shown)/8)); if(shown>score) shown=score; } else if(shown>score) shown=score; updateBar(); const bp=$('bestPlus'), t=screen==='game'&&shown>0&&!reached?'+'+shown.toLocaleString():''; if(bp.textContent!==t) bp.textContent=t; }
 
 // pitch = distance between blocks, size = block size (a seam shows between them when size < pitch)
@@ -742,7 +750,7 @@ function startBoard(idx){
   practice=false; reached=false; reachScore=0; clearBonus=0; decided=true; clearHint(); closeSheet();   // replays give ore again: the stash is kept for the whole descent
   life.zones[boardDef(idx).zone]=true;
   const att=dayState.attempts=dayState.attempts||{}; att[idx]=(att[idx]||0)+1; saveDay();
-  undo=null; hand={}; dealt={}; level=idx+1; score=0; shown=0; collected={}; shownCol={}; since={}; bigNext=false; grid=emptyGrid(); pieces=null; combo=0; sinceClear=0; over=false; moves=0; busy=false;
+  undo=null; hand={}; dealt={}; meterLit=0; level=idx+1; score=0; shown=0; collected={}; shownCol={}; since={}; bigNext=false; grid=emptyGrid(); pieces=null; combo=0; sinceClear=0; over=false; moves=0; busy=false;
   prefill();
   updateStash(); $('over').hidden=true; buildGoals(); updateHUD(); dealSet(); drawTray(); showBanner(); saveBoard();
   if(tut.active) setTimeout(()=>{ if(tut.active&&screen==='game') tutorStart(); },2300);
@@ -790,7 +798,7 @@ function flushCtx(ctx){ updateGoals(ctx.instant); updateStash(ctx.stash);
 function specialHit(m,r,c,ctx){
   life.seen[m]=true;
   const M=MATS[m], goals=levelDef(level).goals, sp={m,r,c,title:M.name,sub:'',pts:0};
-  if(m==='treasure'||m==='fossil'){ const h=specialHaul(m,levelDef(level).zone); credit(ctx,h.k,h.n); if(!practice) hand[h.k]=(hand[h.k]||0)+h.n;
+  if(m==='treasure'||m==='fossil'){ const h=specialHaul(m,levelDef(level).zone,undefined,levelDef(level).target); credit(ctx,h.k,h.n); if(!practice) hand[h.k]=(hand[h.k]||0)+h.n;
     sp.res=practice?null:h.k; sp.n=h.n; sp.pts=h.pts; sp.sub=`+${h.n} ${DROPS[h.k][0]} · +${h.pts}`; }
   if(m==='sledgehammer'){ sp.pts=M.pts; sp.sub=`Board shaken up · +${M.pts}`; }
   score+=sp.pts; burst(r,c,m,18); grid[r][c]=null;
@@ -885,7 +893,7 @@ async function place(i,r0,c0){
       if(m==='blast'){ blasts.push([r,c]); return; }
       if(MATS[m].kind==='special'){ hit.push(specialHit(m,r,c,ctx)); return; }
       mineCell(r,c,ctx); });
-    const woodStars=levelDef(level).starWood, lineOre={}; [...Object.keys(YIELD_W),...(woodStars?['wood']:[])].forEach(k=>{ const d=(collected[k]||0)-(oreBefore[k]||0); if(d>0) lineOre[k]=d; });
+    const woodStars=levelDef(level).starWood, lineOre={}; [...STAR_ORES,...(woodStars?['wood']:[])].forEach(k=>{ const d=(collected[k]||0)-(oreBefore[k]||0); if(d>0) lineOre[k]=d; });
     score+=lineScore(n,combo);
     flushCtx(ctx);
     { const B=boardC.getBoundingClientRect(); const cr=rows.length?rows.reduce((a,b)=>a+b,0)/rows.length:3.5, cc=cols.length?cols.reduce((a,b)=>a+b,0)/cols.length:3.5;
@@ -939,11 +947,12 @@ function showResult(){
   const sh=$('sheet'); sh.innerHTML=''; sheetMode='result'; busy=true;
   const el=(tag,cls,txt)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!==undefined) e.textContent=txt; return e; };
   const at=starAt(), y=yieldNow(), stars=starsFromYield(y,at), unit=yUnit();
-  sh.append(el('div','shHandle'),el('div','shLabel',stars?'BOARD CLEARED':'NOT ENOUGH ORE'),el('div','shTitle',stars?`${'★'.repeat(stars)}${'☆'.repeat(3-stars)}`:`${score.toLocaleString()} points`));
+  sh.append(el('div','shHandle'),el('div','shLabel',stars?'BOARD CLEARED':'NOT ENOUGH ORE'),el('div','shTitle',stars?undefined:`${score.toLocaleString()} points`));
+  if(stars){ const t=sh.lastChild; t.classList.add('shTitleStars'); t.setAttribute('aria-label',`${stars} of 3 stars`); t.append(el('span','on','★'.repeat(stars)),el('span','off','★'.repeat(3-stars))); }
   sh.append(el('div','shBody',stars
     ?`${score.toLocaleString()} points. Stars measure the ${unit} you mined against this board's best haul. Continue to keep your haul and stars, or retry for more stars: a retry starts over and this run's haul is not kept.`
-    :`You reached the target but mined too little ${unit} for a star, so the board is not cleared. Retry it: lines with ore and gems count most. This run's haul is not kept.`));
-  const row=el('div','shStars'); at.forEach((x,k)=>{ const b=el('div','shStar'+(y>=x?' got':'')); b.append(el('b',undefined,'★'.repeat(k+1)),el('span',undefined,`${Math.min(y,x)}/${x} ${unit}`)); row.append(b); }); sh.append(row);
+    :`You reached the target but mined too little ${unit} for a star, so the board is not cleared. Retry it and clear lines that hold ore and gems. This run's haul is not kept.`));
+  const row=el('div','shStars'); at.forEach((x,k)=>{ const b=el('div','shStar'+(y>=x?' got':'')); b.style.animationDelay=(.15+.18*k)+'s'; b.append(el('b',undefined,'★'.repeat(k+1)),el('span',undefined,`${Math.min(y,x)}/${x} ${unit}`)); row.append(b); }); sh.append(row);
   const got=Object.entries(hand).filter(([,v])=>v>0);
   if(got.length){ const hr=el('div','shHaul'); hr.setAttribute('aria-label','Haul from this run'); got.forEach(([k,v])=>{ const c=el('span'); c.title=DROPS[k][0]; c.append(iconOf(ITEM[k]),document.createTextNode(` ${v}`)); hr.append(c); }); sh.append(hr); }
   const btns=el('div','shBtns'), retry=el('button',stars?'alt':'go','RETRY'), other=stars?el('button','go','CONTINUE'):el('button','alt','MAP');
@@ -1294,7 +1303,7 @@ const INFO_TABS={
     b.append(infoEl('h3','CAVE-IN'),infoEl('p',`If none of your three pieces can fit anywhere, the cave collapses and the board ends. Ore you hauled on that attempt is lost, so keep your options open.`));
     b.append(infoEl('h3','HAULING ORE'),infoList([`Ore, gems and wood you mine on a board show up in the stash strip as a green +number. That's your haul for this attempt.`,`Clear the board and the haul joins your stash, which you keep for the whole descent. Cave in without a Rescue Potion and that haul is lost.`,`Replaying a board you've already cleared gives ore too, so you can always gather more.`]));
     b.append(infoEl('h3','SCORING'),infoList([`Every block you place scores a point, and every block you mine scores its value (see Resources).`,`Clearing several lines at once, or clearing on back-to-back turns, multiplies the bonus.`,`"Perfect!" (+50) means yours was the only placement that kept the whole tray playable. "Great fit!" (+25) means one of two or three.`,`Clearing 2, 3 or 4 lines at once pays a Double, Triple or Quad bonus on top.`,`All Clear (an empty board) pays a bonus worth 15% of the board's target, then deals a big easy set.`,`If you cave in twice on the same board, the dealer starts to go easier on you.`]));
-    b.append(infoEl('h3','STARS'),infoList([`Reaching the score target ends the board. Its stars measure how much ore and gems you mined by then, against the most an expert could haul on that board.`,`Ore value counts coal, copper and bone 1, iron and ruby 2, gold and meteorite 3, prism ore 4, emerald 5, diamond 6. On the very first board, wood counts too. The chip next to the score bar shows how close the next star is.`,`At the end, CONTINUE banks your haul and stars, or RETRY plays the board again for more stars. A retry starts over: that run's haul is not kept. Stars you already earned on a board stay.`,`Mine too little for one star and the board is not cleared: retry it. The deeper you go, the higher the star lines.`,`Multi-line clears, long combos and All Clears pay bonus ore: a share of the ore mined in that move. Each star after the first adds bonus points.`]));
+    b.append(infoEl('h3','STARS'),infoList([`Reaching the score target ends the board. Its stars measure how much ore and gems you mined by then, against the most an expert could haul on that board.`,`Every ore and gem counts as one, the same numbers you see in your haul. On the very first board, wood counts too. The three stars next to the score bar fill up as you mine and light up as you earn them.`,`At the end, CONTINUE banks your haul and stars, or RETRY plays the board again for more stars. A retry starts over: that run's haul is not kept. Stars you already earned on a board stay.`,`Mine too little for one star and the board is not cleared: retry it. The deeper you go, the higher the star lines.`,`Multi-line clears, long combos and All Clears pay bonus ore: a share of the ore mined in that move. Each star after the first adds bonus points.`]));
     b.append(infoEl('h3','HINT AND DAILY TWIST'),infoList([`The bulb with a question mark in the top bar spends 3 coal to show a good move.`,`Every day has one twist, such as Gold Rush or Forge Day. It's shown on the map and the home screen.`]));
     b.append(infoEl('h3','HOW TO GET BETTER'),infoList([`Look at all three pieces before you place any. Plan the order.`,`Keep one row and one column mostly open so long bars still fit.`,`Avoid sealing off single empty cells or tiny pockets; they can only be filled by a matching piece, if one ever comes.`,`Build rows and columns up to one piece away from full, then finish several at once for a combo.`,`Gold glow under your piece means the drop will clear a line.`,`Save Blast Charges and Jackhammers for tight spots, not to pad your score.`]));
     b.append(infoEl('h3','EVERY DAY COUNTS'),infoList([`Clear at least one board each day (Pacific time) to keep your depth.`,`Miss a whole day and the cave settles: you drop back to the start of the layer you're in. In Magmastone you only drop back to the last camp. Your tools and stash are always kept.`,`Each day also brings a new twist.`]));
@@ -1318,7 +1327,7 @@ const INFO_TABS={
   },
   Specials(b){
     b.append(infoEl('p',`These appear on their own inside pieces, now and then, more often the deeper you go (never on the easiest boards). You can't craft them. When the line they sit in clears, they trigger.`));
-    [['fossil','Fossil',`A big find: ${FOSSIL_BONE[0]} to ${FOSSIL_BONE[1]} bones and ${MATS.fossil.pts} points. Below the Forest, Fossils are the only source of bone for potions.`],['treasure','Buried Treasure',`A haul of ore or gems, with a better chance of gems the deeper you are, plus 200 points.`]].forEach(([m,name,desc])=>{
+    [['fossil','Fossil',`A big find: ${FOSSIL_BONE[0]} to ${FOSSIL_BONE[1]} bones, and points worth ${Math.round(SPECIAL_PTS.fossil*100)}% of the board's score target. Below the Forest, Fossils are the only source of bone for potions.`],['treasure','Buried Treasure',`A haul of ore or gems, with a better chance of gems the deeper you are, plus points worth ${Math.round(SPECIAL_PTS.treasure*100)}% of the board's score target.`]].forEach(([m,name,desc])=>{
       const row=infoEl('div',undefined,'irow'); row.append(iconOf(TEX[m])); const d=infoEl('div'); d.append(infoEl('div',name,'nm'),infoEl('div',desc,'meta')); d.firstChild.append(infoEl('span','Special','rar Special')); row.append(d); b.append(row); });
     b.append(infoEl('p',`Specials glow so you can spot them. Try to clear their line quickly.`));
   },
@@ -1615,6 +1624,9 @@ $('profClose').onclick=()=>{ $('profile').hidden=true; };
 // One map per descent (see maps.js): the tunnels are fixed for the run, the surface weather changes every day.
 // Boards open one after another; the first board of every layer also needs the right tools.
 const isDone=i=>dayState.done.includes(i);
+// stars earned in a layer, out of 3 per board (the Ancient Core has none)
+function zoneStars(z){ const st=dayState.stars||{}; let got=0; for(let j=0;j<ZONES[z].boards;j++) got+=st[idxOf(z,j)]||0; return {got,max:ZONES[z].core?0:3*ZONES[z].boards}; }
+const zoneStarText=z=>{ const s=zoneStars(z); return s.max?`★ ${s.got}/${s.max}`:''; };
 const toolOk=i=>tool()>=toolNeeded(zoneOfIdx(i));
 const unlocked=i=> i===0 || isDone(i) || (isDone(i-1) && (jOfIdx(i)!==0 || toolOk(i)));
 const gateWaiting=i=> i>0 && jOfIdx(i)===0 && !isDone(i) && isDone(i-1) && !toolOk(i);
@@ -1626,14 +1638,14 @@ function mapState(){
 const MOD=()=>modifierFor(dayState.day);
 const curZone=()=>Math.min(ZONES.length-1,zoneOfIdx(Math.min(frontier(),BOARD_COUNT-1)));
 function updateMapDate(){ if(!dayState) return; $('mapDate').textContent=MOD().name; $('mapDate').title=MOD().desc; }
-function depthText(){ const f=frontier(); if(f>=BOARD_COUNT) return 'The Ancient Core'; const z=zoneOfIdx(f); return ZONES[z].core?'The Ancient Core':`${ZONES[z].name} · ${jOfIdx(f)}/${ZONES[z].boards}`; }
+function depthText(){ const f=frontier(); if(f>=BOARD_COUNT) return 'The Ancient Core'; const z=zoneOfIdx(f); return ZONES[z].core?'The Ancient Core':`${ZONES[z].name} · ${jOfIdx(f)}/${ZONES[z].boards} · ${zoneStarText(z)}`; }
 function buildMap(){
   const key=dayState.seed+'|'+dayState.day; if(!MAP||mapKey!==key){ MAP=M.genMap(dayState.seed,dayState.day); mapKey=key; }
   const W=Math.min(window.innerWidth,520), ts=W/10;
   $('mapInner').style.width=W+'px'; $('mapInner').style.height=M.ROWS*ts+'px';
   M.drawMap($('mapCanvas'),ts,MAP,mapState(),TEX,Math.min(dpr,2));   // the map is tall: capped at 2x so phones can hold the canvas
   const nodes=$('mapNodes'); nodes.innerHTML='';
-  ZONES.forEach((z,zi)=>{ if(zi>0&&!unlocked(Z_START[zi])&&!gateWaiting(Z_START[zi])) return; const lab=document.createElement('div'); lab.className='zlabel'; lab.textContent=z.name; lab.style.top=(M.ZONE_TOP[zi]+(zi===0?.4:.3))*ts+'px'; nodes.append(lab); });
+  ZONES.forEach((z,zi)=>{ if(zi>0&&!unlocked(Z_START[zi])&&!gateWaiting(Z_START[zi])) return; const lab=document.createElement('div'); lab.className='zlabel'; lab.textContent=z.name+(zoneStarText(zi)?'  '+zoneStarText(zi):''); lab.style.top=(M.ZONE_TOP[zi]+(zi===0?.4:.3))*ts+'px'; nodes.append(lab); });
   const sb=savedBoard(); let current=-1;
   const addNode=(i,pos)=>{ const b=document.createElement('button'); b.type='button'; b.className='node'; b.style.left=pos.x*ts+'px'; b.style.top=pos.y*ts+'px';
     if(i===CORE_IDX){ b.classList.add('core'); if(!isDone(i)&&current<0) current=i; b.append(iconOf(ITEM.portal)); b.setAttribute('aria-label','The Ancient Core'); }
@@ -1747,7 +1759,7 @@ function placePortal(){
   const step=()=>{ coreFlash=Math.min(1,(performance.now()-t0)/(REDUCE?400:3600)); if(coreFlash<1) requestAnimationFrame(step); else setTimeout(showTally,REDUCE?100:500); }; requestAnimationFrame(step);
 }
 function runTally(){
-  const res=Object.entries(dayState.mined||{}).filter(([k])=>YIELD_W[k]||k==='log'), resPts=res.reduce((a,[k,v])=>a+v*(VAL[k]||0),0);
+  const res=Object.entries(dayState.mined||{}).filter(([k])=>STAR_ORES.includes(k)||k==='log'), resPts=res.reduce((a,[k,v])=>a+v*(VAL[k]||0),0);
   const stars=Object.values(dayState.stars||{}).reduce((a,b)=>a+b,0), boards=runScore();
   return {boards,resPts,stars,days:Math.max(1,dayState.days||1),total:boards+resPts};
 }

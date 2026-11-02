@@ -33,6 +33,23 @@ Item types:
 
 Every code change is logged as a **change point** (CP) when it ships, typed by the item it came from.
 
+## Queued from 2.0.2 playtest (not yet in the online doc)
+
+From the 2.0.2 playtest. B-6 and I-11 to I-14 were released in 2.0.3 (2026-11-02); B-5 and I-15 are open. Move these into the tables below, and into the online doc.
+
+| Proposed ID | Type | Item | Notes |
+| --- | --- | --- | --- |
+| B-5 | Bug | Retry takes several taps | Not reproduced: both Retry buttons (results sheet and cave-in) open on one tap in Chrome and in WebKit with iPhone touch emulation, and nothing covers either button. Needs details: which Retry, and where on the button. PostHog `ui_click` repeats on `resRetry` / `retry` would show it. Still open. |
+| B-6 | Bug | Star numbers don't match the resources mined | Done in 2.0.3: stars count each ore and gem as one (`STAR_ORES`), the same numbers the player sees. Star lines recalibrated (`HAUL_MAX` 12/21/26/27/22/19/10, Crust 1-star line 1 ore). |
+| I-11 | Improvement | Results sheet star display | Done in 2.0.3: unearned stars grayed out; earned stars amber, glowing, slightly bigger, popping in one by one. |
+| I-12 | Improvement | Live 3-star meter on the board | Done in 2.0.3: three stars next to the score bar fill as ore is mined and light up when earned. Replaces the "17/31" chip. |
+| I-13 | Improvement | Zone star totals | Done in 2.0.3: "★ 7/18" for the layer on the board header, the map's top bar and each layer label on the map. There is no pause menu; the header stands in for it. |
+| I-14 | Improvement | Random specials in the Forest, at a lower rate | Done in 2.0.3: Easy-tier rate 0.3% per piece; Buried Treasure contents unchanged. Fossil and Treasure points are now 25% / 8% of the board's target instead of a flat 600 / 200, so a Fossil can't end a Forest board on the spot (deep down about the same as before). Closes OI-34. |
+| I-15 | Improvement | 2★ and 3★ reachable through skill on every layer | "A skilled player using good piece placement and planning two piece placements ahead to try to get 2x and 3x combos." Must not depend on luck. Modelled so far: count-based stars, ore multiplier from multi-line clears + streaks + All Clear (capped ×5), points only decide pass/fail, a small point per placement, fixed-length boards. Result: skill earns 10–33% more ore, but luck still spreads results ~3×, and deep layers deal too little countable ore. Direction under review. Relates to I-8, I-10, F-8. |
+| — | Docs | Backlog fixes | Local copy: mark B-1 Done (closed 2026-11-01, already Done online). Close OI-34 with I-14. Fix I-3's "4–5 with a Fossil" wording. |
+
+Simulation scripts for I-14 and I-15 are in `tools/experiments/` (`rate.mjs`, `skill.mjs`, `model.mjs`). They are uncommitted and not yet reviewed.
+
 ## Open items
 
 Twenty-one items are open. Each lists the bug, feature or improvement it blocks, or "Non-blocker" for a question to follow up later. Anything with an open item stays in Scoping. Closed items keep their resolution; proposals for the open ones follow the table.

@@ -23,12 +23,12 @@ check(!/\bbank(ed)?\b/i.test(body), 'no "bank" wording on screen');
 await page.tap('#resGo'); await page.waitForTimeout(2600);
 check(await T(() => window.__deepcore.test.state().screen === 'map'), 'CONTINUE finishes the board and returns to the map');
 
-// 2. the first Forest board has bones; its stars count ore value plus wood (so its first star is near certain)
+// 2. the first Forest board has bones; its stars count ore plus wood (so its first star is near certain)
 await tt('start', 0); await page.waitForTimeout(2600);
 const d0 = await T(() => window.__deepcore.test.def());
 check(d0.starWood && d0.ores.includes('bone') && d0.starAt[0] < d0.starAt[1], `board 1-1 has bones to mine, and wood counts toward its stars too (${d0.starAt})`);
 await tt('setCollected', { bone: d0.starAt[0] }); await page.waitForTimeout(400);
-check(await T(() => document.getElementById('scStars').textContent === '★★' && /\//.test(document.getElementById('scTxt').textContent)), 'with 1-star ore value the chip points at the second star');
+check(await T(() => { const st = [...document.querySelectorAll('#starChip i')]; return st.length === 3 && st[0].classList.contains('lit') && !st[1].classList.contains('lit') && /^1 of 3 stars/.test(document.getElementById('starChip').getAttribute('aria-label')); }), 'with 1 star of ore the meter lights the first star and fills toward the second');
 
 // 2b. picking up a second piece while the first is still gliding back must not leave the first slot looking empty
 await tt('start', 1); await page.waitForTimeout(2600);

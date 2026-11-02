@@ -14,7 +14,7 @@ const ORES = {
 const VAL = { grass:2, log:2, dirt:2, sand:2, stone:4, deep:5, granite:6, obsidian:8, ember:10, crust:12,
   coal:15, bone:15, copper:20, iron:30, ruby:30, gold:50, meteorite:60, prismore:80, emerald:150, diamond:200 };
 // Specials: per-piece chance by difficulty tier, and how often each type is picked
-const SPECIAL_RATE = {Easy:0, Medium:.006, Hard:.012, Expert:.018};
+const SPECIAL_RATE = {Easy:.003, Medium:.006, Hard:.012, Expert:.018};   // Easy is the Forest: rarer there, same contents
 const SPECIAL_MIX = {fossil:.32, treasure:.28}; // random-only specials; blast, sledgehammer, rescue and luck are craft-only
 
 const DROPS = {
@@ -68,14 +68,18 @@ const WEAR={ember:.04, crust:.62}, PRISM_MEND=7, STASH_MEND=12, DUR_MAX=100, DUR
 const FOSSIL_BONE=[4,8];
 // Buried Treasure: [resource, least, most, weight above Granite, weight from Granite down]; deep down gems lean high
 const TREASURE=[['iron',5,9,.35,.22],['gold',4,7,.30,.24],['emerald',2,4,.20,.29],['diamond',1,3,.15,.25]];
+// Points for mining a random special, as a share of the board's score target (like the All Clear bonus), so a special never ends
+// a shallow board on the spot: a Fossil pays a quarter of the target (about the old flat 600 deep down), a Buried Treasure 8%.
+const SPECIAL_PTS={fossil:.25,treasure:.08};
+const specialPts=(m,target)=>Math.max(10,Math.round(target*SPECIAL_PTS[m]/10)*10);
 // what a random special pays when it is mined: {k: resource, n: how many, pts}
-function specialHaul(m,zi,rnd){
-  rnd=rnd||Math.random;
-  if(m==='fossil') return {k:'bone', n:FOSSIL_BONE[0]+Math.floor(rnd()*(FOSSIL_BONE[1]-FOSSIL_BONE[0]+1)), pts:600};
+function specialHaul(m,zi,rnd,target){
+  rnd=rnd||Math.random; const pts=specialPts(m,target);
+  if(m==='fossil') return {k:'bone', n:FOSSIL_BONE[0]+Math.floor(rnd()*(FOSSIL_BONE[1]-FOSSIL_BONE[0]+1)), pts};
   const deep=zi>=3, rows=TREASURE.map(([k,lo,hi,a,b])=>({k,lo,hi,w:deep?b:a})), tot=rows.reduce((t,r)=>t+r.w,0);
   let u=rnd()*tot, pick=rows[rows.length-1]; for(const r of rows){ if((u-=r.w)<0){ pick=r; break; } }
   let v=rnd(); if(deep&&(pick.k==='emerald'||pick.k==='diamond')) v=Math.pow(v,.55);
-  return {k:pick.k, n:pick.lo+Math.min(pick.hi-pick.lo,Math.floor(v*(pick.hi-pick.lo+1))), pts:200};
+  return {k:pick.k, n:pick.lo+Math.min(pick.hi-pick.lo,Math.floor(v*(pick.hi-pick.lo+1))), pts};
 }
 const RECIPES=[
   {m:'blast',      cost:{coal:12, iron:3},                                  desc:'Drag it onto the board: it blows up a 3×3 patch and mines everything in it.'},
@@ -95,20 +99,20 @@ const MODIFIERS=[
 const modifierFor=day=>MODIFIERS[hashStr('mod:'+day)%MODIFIERS.length];
 // what forging a tool costs on a given day
 const toolCost=(tier,mod)=>{ const m=(mod&&mod.toolMul)||1; return Object.fromEntries(Object.entries(TOOLS[tier].cost).map(([k,v])=>[k,Math.ceil(v*m)])); };
-// Stars (v2.0.2): a board ends when its score target is reached, and its stars measure how much ore and gems were mined by then
-// ("yield", weighted by YIELD_W) against the board's maximum haul. A run below the 1-star line earns no stars and does not clear.
+// Stars: a board ends when its score target is reached, and its stars count the ore and gems mined by then ("yield", one per
+// resource, the same numbers the player sees) against the board's maximum haul. A run below the 1-star line earns no stars and does not clear.
 // Each star after the first is worth 10% of the target in bonus points.
-const YIELD_W={coal:1,bone:1,copper:1,iron:2,ruby:2,gold:3,meteorite:3,prismore:4,emerald:5,diamond:6};            // wood does not count: it is not mined ore
+const STAR_ORES=['coal','bone','copper','iron','ruby','gold','meteorite','prismore','emerald','diamond'];            // wood does not count: it is not mined ore
 // on a starWood board (see boardParams) wood counts too
-const yieldOf=(got,wood)=>Object.entries(YIELD_W).reduce((t,[k,w])=>t+w*((got&&got[k])||0),0)+(wood?((got&&got.wood)||0):0);
+const yieldOf=(got,wood)=>STAR_ORES.reduce((t,k)=>t+((got&&got[k])||0),0)+(wood?((got&&got.wood)||0):0);
 // Maximum haul on the first board of each layer (later boards scale with their target): the 95th percentile of an expert bot
 // at the clear, set with tools/stars.mjs. WOOD_MAX is the same for the starWood boards (board 1-1), ore plus wood.
-const WOOD_MAX=50, HAUL_MAX=[12,26,32,42,39,37,25,0];
+const WOOD_MAX=46, HAUL_MAX=[12,21,26,27,22,19,10,0];
 // star lines as a share of the maximum: 20/40/60% in the Forest, rising layer by layer to 35/60/85% in the Crust
 const STAR_PCT=ZONES.map((z,i)=>{ const f=Math.min(1,i/CRUST_Z); return [.2+.15*f,.4+.2*f,.6+.25*f]; });
 // 1 star is what it takes to progress, so its line never sits above a typical player's 10th-percentile haul (tools/stars.mjs --check mid).
-// Only the Crust needs the cap: its ore comes in a few big lumps (gold, prism ore), and 35% of the maximum blocked almost half of all runs.
-const ONE_STAR_CAP=[,,,,,,3];
+// Only the Crust needs the cap: it deals very little ore (a typical run mines about 4, and 1 in 8 runs none at all), so one ore earns its first star.
+const ONE_STAR_CAP=[,,,,,,1];
 const starLines=(max,zi,sc=1)=>STAR_PCT[zi].map((p,k)=>Math.max(k+1,Math.round(k===0&&ONE_STAR_CAP[zi]?Math.min(max*p,ONE_STAR_CAP[zi]*sc):max*p)));
 const starsFromYield=(y,at)=>at.reduce((n,v)=>n+(y>=v?1:0),0);
 const starBonus=(stars,target)=>Math.max(0,stars-1)*Math.round(target*.1/10)*10;
@@ -118,7 +122,7 @@ const bonusPct=(lines,combo,allClear)=>Math.min(1.5,BONUS_LINES[Math.min(lines,5
 const RARE_GEMS=['emerald','diamond'];
 function bonusOre(counts,pct,wood){
   const out={}; if(pct<=0) return out;
-  [...Object.keys(YIELD_W),...(wood?['wood']:[])].forEach(k=>{ const v=(counts&&counts[k])||0; if(!v) return;
+  [...STAR_ORES,...(wood?['wood']:[])].forEach(k=>{ const v=(counts&&counts[k])||0; if(!v) return;
     let b=Math.round(v*pct); if(pct>=.5&&b<1) b=1; if(RARE_GEMS.includes(k)) b=Math.min(b,1); if(b>0) out[k]=b; });
   return out;
 }
@@ -143,6 +147,6 @@ function boardParams(zi,j,mod){
 // Points for clearing n lines at once with a combo of c. Doubles and better pay extra (called Double / Triple / Quad / Mega).
 const lineScore=(n,c)=> n*10*n*c + (n>=2 ? 25*n*(n-1) : 0);
 const lineName=n=> n>=5?'Mega!' : n===4?'Quad!' : n===3?'Triple!' : n===2?'Double!' : '';
-const api={FOSSIL_BONE,TREASURE,specialHaul,MODIFIERS,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf,YIELD_W,yieldOf,WOOD_MAX,HAUL_MAX,STAR_PCT,ONE_STAR_CAP,starLines,starsFromYield,starBonus,BONUS_LINES,bonusPct,bonusOre,lineScore,lineName,GEM_KEYS,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS};
+const api={FOSSIL_BONE,TREASURE,SPECIAL_PTS,specialPts,specialHaul,MODIFIERS,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf,STAR_ORES,yieldOf,WOOD_MAX,HAUL_MAX,STAR_PCT,ONE_STAR_CAP,starLines,starsFromYield,starBonus,BONUS_LINES,bonusPct,bonusOre,lineScore,lineName,GEM_KEYS,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.DeepcoreData=api;
 })(typeof self!=='undefined'?self:globalThis);
