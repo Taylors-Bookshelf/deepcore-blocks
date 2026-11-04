@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.4 — new scoring (playtest build)
+- A board is now a set number of deals: 4 in the Forest, rising to 7 in Magmastone and the Crust. Place every piece and the board is done; stars come from its points.
+- Points come from play, not from what you mine: 10 for every block placed, 100 for every line, +250 / +600 / +1200 for a Double / Triple / Quad, and a streak bonus for clearing on back-to-back moves (+50 per clear in a row, up to +500). An All Clear adds +250.
+- Star lines rise and spread out the deeper you go. Deep down, the blocks and lines you have to clear anyway are not enough: stars come from combos, streaks and specials.
+- Mining ore and gems gives resources only. Each board deals a fixed amount of ore and gems (where it lands is random), so a lucky deal no longer decides your stars. Bonus ore from combos is gone.
+- Blast Charge +200 points, Sledgehammer +350. A Luck Tonic costs 150 points, a Rescue Potion 250. What a Blast Charge breaks is lost, not mined. Fossils and Buried Treasure give resources, no points.
+- "Perfect!" and "Great fit!" still show, without points.
+- The score bar shows the deal you're on and fills toward 3 stars.
+
 ## 2.0.3
 - Stars now count the ore and gems you mine, one each, the same numbers you see in your haul (they used to weigh rarer ore more, so the numbers never matched). Star lines recalibrated for every layer.
 - Three stars next to the score bar fill up as you mine and light up as you earn them. They replace the "17/31" chip.

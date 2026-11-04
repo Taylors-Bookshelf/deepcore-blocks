@@ -27,9 +27,9 @@ for (let run = 0; run < RUNS; run++) {
       S.moves[z] += r.moves;
       if (z === D.CRUST_Z) S.crustTries++;
       if (broke) return 'broke';
-      // the board ends at its target; below the 1-star line it is not cleared and the haul is dropped (a retry)
-      const bp = D.boardParams(z, j), stars = r.win ? D.starsFromYield(D.yieldOf(r.got, bp.starWood), bp.starAt) : 0;
-      if (r.win && !stars) S.zero[z]++;
+      // every deal placed: below the 1-star line the board is not cleared and the haul is dropped (a retry)
+      const stars = r.stars;
+      if (r.completed && !stars) S.zero[z]++;
       if (r.win && stars) { S.boards[z]++; S.stars[z] += stars; add(bank, r.got); return 'ok'; }
       // a cave-in loses that board's haul (no Rescue Potion in the sim)
     }

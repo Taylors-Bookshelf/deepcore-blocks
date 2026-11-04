@@ -9,10 +9,10 @@ const { check, fails } = makeChecker();
 check(D.ZONES.map(z => z.name).join() === 'The Forest,Limestone Caves,Slate Caverns,Granite Halls,Basalt Depths,Magmastone,The Crust,Ancient Core', 'the descent: seven layers and the Core, in the agreed order');
 check(D.BOARD_COUNT === 62 && D.STRIP_BASE === undefined && D.ZONES.map(z => z.boards).join() === '4,6,6,6,6,30,3,1', '62 boards (4, 6, 6, 6, 6, 30, 3 and the Core); no side tunnels');
 check(D.ZONES[2].rock === 'deep' && D.ZONES[3].rock === 'granite' && D.BASE_MATS.includes('granite') && D.BASE_MATS.includes('crust'), 'slate comes before granite; the crust is a real block');
-{ const Z = D.ZONES.filter(z => !z.core); check(Z.every((z, i) => i === 0 || z.d[0] > Z[i - 1].d[0]) && Z.every((z, i) => i === 0 || z.target >= Z[i - 1].target), 'difficulty and targets rise layer by layer'); }
+{ const Z = D.ZONES.filter(z => !z.core); check(Z.every((z, i) => i === 0 || z.d[0] > Z[i - 1].d[0]) && Z.every((z, i) => i === 0 || D.boardParams(i, 0).starAt[2] >= D.boardParams(i - 1, 1).starAt[2]), 'difficulty and star lines rise layer by layer'); }
 check(!D.MODES && !D.ORES.cinnabar && D.ORES.ruby && D.DROPS.ruby[0] === 'Ruby' && !D.RECIPES.some(r => r.cost.cinnabar), 'no difficulty modes; cinnabar is now ruby');
 check(D.STASH_KEYS.includes('ruby') && D.GEM_KEYS.join() === 'ruby,emerald,diamond', 'ruby sits with the gems');
-check(D.lineScore(1, 1) === 10 && D.lineScore(2, 1) > 2 * D.lineScore(1, 1) + 25 && D.lineScore(3, 1) > D.lineScore(2, 1) * 2 && D.lineName(2) === 'Double!' && D.lineName(3) === 'Triple!' && D.lineName(4) === 'Quad!', 'doubles, triples and quads pay extra and are named');
+check(D.placePoints(0, 1, 1, false).total === 100 && D.placePoints(0, 2, 1, false).total === 450 && D.placePoints(0, 3, 1, false).total === 900 && D.placePoints(0, 4, 1, false).total === 1600 && D.lineName(2) === 'Double!' && D.lineName(3) === 'Triple!' && D.lineName(4) === 'Quad!', 'doubles, triples and quads pay extra and are named');
 for (const z of D.ZONES) check(Object.keys(z.mixes[0]).every(k => D.BASE_MATS.includes(k)), `${z.name}: every block in its mix exists`);
 
 // ---- dealer: all-clear hunting and mercy tilt ----

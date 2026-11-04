@@ -35,7 +35,7 @@ Every code change is logged as a **change point** (CP) when it ships, typed by t
 
 ## Queued from 2.0.2 playtest (not yet in the online doc)
 
-From the 2.0.2 playtest. B-6 and I-11 to I-14 were released in 2.0.3 (2026-11-02); B-5 and I-15 are open. Move these into the tables below, and into the online doc.
+From the 2.0.2 playtest. B-6 and I-11 to I-14 were released in 2.0.3 (2026-11-02); B-5 is open; I-15 is in playtest (2.0.4). Move these into the tables below, and into the online doc.
 
 | Proposed ID | Type | Item | Notes |
 | --- | --- | --- | --- |
@@ -45,10 +45,10 @@ From the 2.0.2 playtest. B-6 and I-11 to I-14 were released in 2.0.3 (2026-11-02
 | I-12 | Improvement | Live 3-star meter on the board | Done in 2.0.3: three stars next to the score bar fill as ore is mined and light up when earned. Replaces the "17/31" chip. |
 | I-13 | Improvement | Zone star totals | Done in 2.0.3: "★ 7/18" for the layer on the board header, the map's top bar and each layer label on the map. There is no pause menu; the header stands in for it. |
 | I-14 | Improvement | Random specials in the Forest, at a lower rate | Done in 2.0.3: Easy-tier rate 0.3% per piece; Buried Treasure contents unchanged. Fossil and Treasure points are now 25% / 8% of the board's target instead of a flat 600 / 200, so a Fossil can't end a Forest board on the spot (deep down about the same as before). Closes OI-34. |
-| I-15 | Improvement | 2★ and 3★ reachable through skill on every layer | "A skilled player using good piece placement and planning two piece placements ahead to try to get 2x and 3x combos." Must not depend on luck. Modelled so far: count-based stars, ore multiplier from multi-line clears + streaks + All Clear (capped ×5), points only decide pass/fail, a small point per placement, fixed-length boards. Result: skill earns 10–33% more ore, but luck still spreads results ~3×, and deep layers deal too little countable ore. Direction under review. Relates to I-8, I-10, F-8. |
+| I-15 | Improvement | 2★ and 3★ reachable through skill on every layer | Built as a playtest build in 2.0.4: points from play (blocks, lines, combos, streaks, All Clears, crafted specials), fixed deals per board, stars from points, a fixed ore budget per board, no bonus ore. Numbers in DECISIONS.md (v2.0.4). Waiting on play feedback. Supersedes I-10. |
 | — | Docs | Backlog fixes | Local copy: mark B-1 Done (closed 2026-11-01, already Done online). Close OI-34 with I-14. Fix I-3's "4–5 with a Fossil" wording. |
 
-Simulation scripts for I-14 and I-15 are in `tools/experiments/` (`rate.mjs`, `skill.mjs`, `model.mjs`). They are uncommitted and not yet reviewed.
+Simulation scripts for I-14 and I-15 are in `tools/experiments/` (see its README).
 
 ## Open items
 

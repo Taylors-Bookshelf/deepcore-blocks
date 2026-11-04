@@ -53,13 +53,13 @@ const full = await page.$$eval('.recipe button.go', e => e.map(b => !b.disabled 
 if (!full.every(Boolean)) fail('with three specials in the dock every affordable craft button should say Make room');
 await page.click('#anvilClose');
 
-// retired ores are gone, all-clear is capped at 15% of the target, the day key is Pacific, analytics fire
+// retired ores are gone, the All Clear bonus is SCORE.allClear, the day key is Pacific, analytics fire
 const extra = await T(() => { const t = window.__deepcore.test; const m = window.__deepcore.MATS; t.start(0);
   const pac = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
   return { retired: ['lapis', 'quartz'].filter(k => m[k]), bonus: t.allClearBonus(), target: t.def().target, day: t.state().dayState.day, pac,
     events: [...new Set(window.DCA.buffer.map(e => e.event))] }; });
 if (extra.retired.length) fail('retired blocks still present: ' + extra.retired);
-if (extra.bonus > extra.target * 0.2) fail(`all-clear bonus ${extra.bonus} too large for target ${extra.target}`);
+if (extra.bonus !== 250) fail(`all-clear bonus ${extra.bonus} should be 250`);
 if (extra.day !== extra.pac) fail(`day key ${extra.day} is not Pacific ${extra.pac}`);
 for (const e of ['session_start', 'board_start', 'piece_place']) if (!extra.events.includes(e)) fail('missing analytics event ' + e);
 // the debug hooks must not exist when the same page is served from a real hostname

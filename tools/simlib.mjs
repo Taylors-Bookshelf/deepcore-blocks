@@ -6,10 +6,8 @@ export const D = require('../src/data.js'), C = require('../src/core.js');
 export const args = Object.fromEntries(process.argv.slice(2).reduce((a, x, i, arr) => x.startsWith('--') ? [...a, [x.slice(2), arr[i + 1] && !arr[i + 1].startsWith('--') ? arr[i + 1] : true]] : a, []));
 export const cfg = { bot: args.bot || 'greedy', luck: +(args.luck || 0), fails: +(args.fails || 0) };
 const N = 8;
-// try different zone tuning without editing data.js: --zd "1:.28,.46;2:.5,.68"  --zt "1:900;2:1500"  --zg "1:.2"
+// try different zone tuning without editing data.js: --zd "1:.28,.46;2:.5,.68"
 if (args.zd) args.zd.split(';').forEach(x => { const [i, v] = x.split(':'); D.ZONES[+i].d = v.split(',').map(Number); });
-if (args.zt) args.zt.split(';').forEach(x => { const [i, v] = x.split(':'); D.ZONES[+i].target = +v; });
-if (args.zg) args.zg.split(';').forEach(x => { const [i, v] = x.split(':'); D.ZONES[+i].growth = +v; });
 if (args.old) Object.assign(C.TUNE, { waysFloor: 1, waysExp: 1, assistExp: 1.8 });   // the dealer as shipped in v0.3.0
 for (const k of ['waysFloor', 'waysExp', 'assistExp', 'mercy', 'mercyStart']) if (args[k] !== undefined) C.TUNE[k] = +args[k];
 
@@ -20,12 +18,11 @@ function makeRun(seed) {
 }
 export function prefill(def, rnd) {
   const grid = Array(64).fill(null); if (!def.pre) return grid;
-  const commonOres = def.ores.filter(k => D.ORES[k].p >= .1);
   for (let attempt = 0; attempt < 80; attempt++) {
     const g = Array(64).fill(null); let count = def.pre + Math.round(rnd() * 2 - 1); const rowN = Array(8).fill(0), colN = Array(8).fill(0); let guard = 0;
     const ok = (r, c) => r >= 0 && c >= 0 && r < 8 && c < 8 && !g[r * 8 + c] && rowN[r] < 4 && colN[c] < 4;
     while (count > 0 && guard++ < 200) { let r = Math.floor(rnd() * 8), c = Math.floor(rnd() * 8); const clump = 1 + Math.floor(rnd() * 3);
-      for (let k = 0; k < clump && count > 0; k++) { if (!ok(r, c)) break; g[r * 8 + c] = (commonOres.length && rnd() < .18) ? commonOres[Math.floor(rnd() * commonOres.length)] : C.pickBase(def, rnd);
+      for (let k = 0; k < clump && count > 0; k++) { if (!ok(r, c)) break; g[r * 8 + c] = C.pickBase(def, rnd);   // plain rock, as in the game: ore comes from the board's budget
         rowN[r]++; colN[c]++; count--; if (rnd() < .5) r += rnd() < .5 ? 1 : -1; else c += rnd() < .5 ? 1 : -1; } }
     let lo = 0, hi = 0; for (let k = 0; k < 64; k++) if (g[k]) { const [a, b] = C.bitOf(k >> 3, k & 7); lo |= a; hi |= b; }
     if (C.hasLockedHole(lo >>> 0, hi >>> 0)) continue;
@@ -58,40 +55,41 @@ function botMove(lo, hi, pcs, rnd) {
   return opts[0];   // planner: same one-step search, no slips
 }
 
-export function runBoard(zi, bj, seed, fails = 0, cont = null, onMine = null) {
-  const def = { ...D.boardParams(zi, bj) }, rnd = makeRun(seed), VAL = D.VAL;
+// One board under the v2.0.4 rules: a fixed number of deals, a fixed ore budget, points from play (D.placePoints), stars from points.
+// win = every deal placed and at least 1 star. fails: earlier cave-ins on this board (the dealer's mercy tilt). onMine(mats) may
+// return 'break' to stop the board (tools/run.mjs: the Galaxy Alloy tools breaking in the Crust).
+export function runBoard(zi, bj, seed, fails = 0, _unused = null, onMine = null) {
+  const def = { ...D.boardParams(zi, bj) }, rnd = makeRun(seed);
   const mats = prefill(def, rnd); let [lo, hi] = bitsOf(mats);
-  let score = 0, combo = 0, since = 0, moves = 0, bigNext = false, deals = 0, allClears = 0, multi = 0, clearMoves = 0; const dealt = {}, got = {}; let atClear = null; const trace = [];
+  let score = 0, streak = 0, moves = 0, bigNext = false, deals = 0, allClears = 0, multi = 0, clearMoves = 0; const dealt = {}, got = {}, left = C.rollBudget(def.budget, rnd);
   const tilt = Math.min(.75, Math.max(0, fails - 1) * .35);
-  while (true) {
+  const end = died => { const stars = died ? 0 : D.starsFromScore(score, def.starAt); return { win: !died && stars > 0, completed: !died, stars, score, moves, deals, got, target: def.target, allClears, multi, clearMoves, died }; };
+  while (deals < def.deals) {
     deals++; let set;
     if (bigNext && lo === 0 && hi === 0) { set = C.BIG_IDS.map(ids => C.SHAPES[ids[Math.floor(rnd() * ids.length)]]); bigNext = false; }
     else set = C.chooseSet(lo, hi, def.d, { rnd, luck: cfg.luck, tilt });
-    const out = []; set.forEach(s => out.push(C.dressPiece(s, def, { rnd, dealt, specialBlocked: out.some(p => p.mats.some(m => D.SPECIAL_MIX[m])) })));
+    const out = []; set.forEach(s => out.push(C.dressPiece(s, def, { rnd, dealt, budgeted: true, specialBlocked: out.some(p => p.mats.some(m => D.SPECIAL_MIX[m])) })));
+    C.spreadOre(out, left, Math.max(1, def.deals - deals), rnd);   // used up one deal early, as in the game
     let pcs = out.slice();
     while (pcs.some(Boolean)) {
       const mv = botMove(lo, hi, pcs, rnd);
-      if (!mv) return { win: !!atClear, score, moves, deals, got, target: def.target, allClears, multi, clearMoves, atClear, trace, died: true };
-      const p = pcs[mv.i]; pcs[mv.i] = null; moves++; score += p.cells.length;
+      if (!mv) return end(true);
+      const p = pcs[mv.i]; pcs[mv.i] = null; moves++; score += D.SCORE.block * p.cells.length;
       p.cells.forEach(([r, c], k) => { mats[(mv.pl.r0 + r) * 8 + mv.pl.c0 + c] = p.mats[k]; });
-      const kill = new Set(); for (let r = 0; r < 8; r++) { let f = true; for (let c = 0; c < 8; c++) if (!mats[r * 8 + c]) f = false; if (f) for (let c = 0; c < 8; c++) kill.add(r * 8 + c); }
-      for (let c = 0; c < 8; c++) { let f = true; for (let r = 0; r < 8; r++) if (!mats[r * 8 + c]) f = false; if (f) for (let r = 0; r < 8; r++) kill.add(r * 8 + c); }
-      const playGot = {}; kill.forEach(k => { const m = mats[k]; if (m && D.STAR_ORES.includes(m)) playGot[m] = (playGot[m] || 0) + 1; else if (m === 'log') playGot.wood = (playGot.wood || 0) + 1; });
-      let n = 0; for (let r = 0; r < 8; r++) { let f = true; for (let c = 0; c < 8; c++) if (!mats[r * 8 + c]) f = false; if (f) n++; } for (let c = 0; c < 8; c++) { let f = true; for (let r = 0; r < 8; r++) if (!mats[r * 8 + c]) f = false; if (f) n++; }
-      if (n && onMine && onMine(kill.map ? kill : [...kill].map(k => mats[k]).filter(Boolean)) === 'break') return { win: false, broke: true, score, moves, deals, got, target: def.target, allClears, multi, clearMoves };
-      if (n) { combo++; since = 0; clearMoves++; if (n > 1) multi++; kill.forEach(k => { const m = mats[k]; if (m && D.SPECIAL_MIX[m]) { const sp = D.specialHaul(m, zi, rnd, def.target); got[sp.k] = (got[sp.k] || 0) + sp.n; score += sp.pts; mats[k] = null; return; } if (m) { score += VAL[m] || 0; const res = m === 'log' ? 'wood' : (m === 'grass' ? 'dirt' : m); got[res] = (got[res] || 0) + 1; mats[k] = null; } }); score += D.lineScore(n, combo); }
-      else { since++; if (since >= 3) combo = 0; }
+      const kill = new Set(); let n = 0;
+      for (let r = 0; r < 8; r++) { let f = true; for (let c = 0; c < 8; c++) if (!mats[r * 8 + c]) f = false; if (f) { n++; for (let c = 0; c < 8; c++) kill.add(r * 8 + c); } }
+      for (let c = 0; c < 8; c++) { let f = true; for (let r = 0; r < 8; r++) if (!mats[r * 8 + c]) f = false; if (f) { n++; for (let r = 0; r < 8; r++) kill.add(r * 8 + c); } }
+      if (n && onMine && onMine([...kill].map(k => mats[k]).filter(Boolean)) === 'break') return { ...end(true), broke: true };
+      if (n) { streak++; clearMoves++; if (n > 1) multi++;
+        kill.forEach(k => { const m = mats[k]; if (!m) return; if (D.SPECIAL_MIX[m]) { const sp = D.specialHaul(m, zi, rnd); got[sp.k] = (got[sp.k] || 0) + sp.n; }
+          else { const res = m === 'log' ? 'wood' : (m === 'grass' ? 'dirt' : m); got[res] = (got[res] || 0) + 1; } mats[k] = null; }); }
+      else streak = 0;
       [lo, hi] = bitsOf(mats);
-      if (n && lo === 0 && hi === 0) { score += Math.max(10, Math.round(def.target * .15 / 10) * 10); allClears++; bigNext = true; }
-      if (n) { const acNow = lo === 0 && hi === 0; Object.entries(D.bonusOre(playGot, D.bonusPct(n, combo, acNow), def.starWood)).forEach(([k, v]) => { got[k] = (got[k] || 0) + v; }); }
-      if (cont) {
-        if (!atClear && score >= def.target) atClear = { y: D.yieldOf(got, def.starWood), moves, score };
-        if (atClear) { const y = D.yieldOf(got, def.starWood); trace.push([moves, y]); if (y >= cont.cap || moves > 700) return { win: true, score, moves, deals, got, target: def.target, allClears, multi, clearMoves, atClear, trace, died: false }; }
-      } else
-      if (score >= def.target) return { win: true, score, moves, deals, got, target: def.target, allClears, multi, clearMoves };
-      if (pcs.every((q, i) => !q) ) break;
-      if (pcs.every(q => !q || !C.SHAPES[q.sid].pl.some(pl => !(lo & pl.lo) && !(hi & pl.hi)))) return { win: !!atClear, score, moves, deals, got, target: def.target, allClears, multi, clearMoves, atClear, trace, died: true };
+      const ac = n > 0 && lo === 0 && hi === 0; score += D.placePoints(0, n, streak, ac).total; if (ac) { allClears++; bigNext = true; }
+      if (pcs.every(q => !q)) break;
+      if (pcs.every(q => !q || !C.SHAPES[q.sid].pl.some(pl => !(lo & pl.lo) && !(hi & pl.hi)))) return end(true);
     }
   }
+  return end(false);
 }
 

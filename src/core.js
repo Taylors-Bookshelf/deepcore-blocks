@@ -208,11 +208,11 @@ function veinCells(s,mats,count,rnd=Math.random){
 function dressPiece(s,def,o={}){
   const rnd=o.rnd||Math.random, dealt=o.dealt||{}, boost=o.oreBoost||def.oreBoost||{};
   const base=pickBase(def,rnd), mats=s.cells.map(()=>base);
-  for(const ore of def.ores){
+  if(!o.budgeted) for(const ore of def.ores){
     const {p,vein}=D.ORES[ore];
     if(rnd()<Math.min(.9,p*(boost[ore]||1))){ const count=vein[0]+Math.floor(rnd()*(vein[1]-vein[0]+1)); veinCells(s,mats,Math.min(count,s.n),rnd).forEach(i=>mats[i]=ore); }
   }
-  for(const [g,{p,cap}] of Object.entries(def.gems||{})){
+  if(!o.budgeted) for(const [g,{p,cap}] of Object.entries(def.gems||{})){
     if((dealt[g]||0)>=cap || rnd()>=p) continue;
     const c=veinCells(s,mats,1,rnd); if(c.length){ mats[c[0]]=g; dealt[g]=(dealt[g]||0)+1; }
   }
@@ -221,6 +221,23 @@ function dressPiece(s,def,o={}){
     mats[Math.floor(rnd()*s.n)]=pickWeighted(Object.entries(D.SPECIAL_MIX).map(([k,w])=>({k,w})),rnd).k;
   }
   return {cells:s.cells,h:s.h,w:s.w,mats,sid:s.id};
+}
+// ---------- the board's ore budget (v2.0.4): a fixed amount of each ore and gem, spread over the deals at random ----------
+// rollBudget: whole numbers from the board's budget (the fraction of each is a chance). Returns {ore: count} to hand out.
+function rollBudget(budget,rnd=Math.random){ const out={}; Object.entries(budget||{}).forEach(([k,v])=>{ const n=Math.floor(v)+(rnd()<v-Math.floor(v)?1:0); if(n>0) out[k]=n; }); return out; }
+// spreadOre: put this deal's share of what is left (left / deals still to come, the last of them gets the rest) into the set's plain
+// blocks, in veins of the ore's usual size. Mutates the pieces' mats and `left`.
+function spreadOre(pieces,left,dealsToCome,rnd=Math.random){
+  const total=Object.values(left).reduce((a,b)=>a+b,0); if(!total) return;
+  let want=dealsToCome<=1?total:Math.min(total,Math.floor(total/dealsToCome+rnd()));
+  for(let guard=0;want>0&&guard<40;guard++){
+    const k=pickWeighted(Object.entries(left).filter(([,v])=>v>0).map(([k,v])=>({k,w:v})),rnd); if(!k) break;
+    const open=pieces.filter(p=>p.mats.some(m=>D.BASE_MATS.includes(m))); if(!open.length) break;
+    const p=open[Math.floor(rnd()*open.length)], vein=(D.ORES[k.k]&&D.ORES[k.k].vein)||[1,1];
+    const n=Math.min(want,left[k.k],vein[0]+Math.floor(rnd()*(vein[1]-vein[0]+1)));
+    const cells=veinCells(SHAPES[p.sid],p.mats,n,rnd); if(!cells.length) continue;
+    cells.forEach(i=>p.mats[i]=k.k); left[k.k]-=cells.length; want-=cells.length;
+  }
 }
 // ---------- move evaluation (used by the Hint button and by tools/sim.mjs) ----------
 function evalBoard(lo,hi){
@@ -243,7 +260,7 @@ function rankMoves(lo,hi,shapes){
   }
   return opts.sort((a,b)=>b.v-a.v);
 }
-const api={evalBoard,rankMoves,TUNE,pickWeighted,pickBase,veinCells,dressPiece,N:8,NB,SHAPE_STRS,SHAPES,SHAPE_BY_KEY,CHECK3,FAMSIZE,FAMW,pc,ROWM,COLM,bitOf,getBit,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,
+const api={rollBudget,spreadOre,evalBoard,rankMoves,TUNE,pickWeighted,pickBase,veinCells,dressPiece,N:8,NB,SHAPE_STRS,SHAPES,SHAPE_BY_KEY,CHECK3,FAMSIZE,FAMW,pc,ROWM,COLM,bitOf,getBit,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,
   sizeWeight,pickIdx,targetWays,assistOf,BIG_SET,BIG_IDS,chooseSet};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.DeepcoreCore=api;
 })(typeof self!=='undefined'?self:globalThis);
