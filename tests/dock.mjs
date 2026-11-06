@@ -39,9 +39,9 @@ check(await page.evaluate(() => document.querySelectorAll('#dockSlots .tool:not(
 // Luck is tapped from its slot; Rescue is automatic
 await tt('give', { ruby: 30, bone: 8 });
 await page.tap('#anvilBtn'); await page.waitForTimeout(200); await craft(3); await page.tap('#anvilClose'); await page.waitForTimeout(200);
-s = await st(); check(s.specials.join() === 'blast,rescue,luck', 'Luck Tonic joins the dock');
+s = await st(); check(s.specials.join() === 'blast,rescue,luck', 'Luck Potion joins the dock');
 await page.tap('#dockSlots .tool[data-m="luck"]'); await page.waitForTimeout(1500);
-s = await st(); check(s.luck === 7 && s.specials.join() === 'blast,rescue', 'tapping the Luck Tonic drinks it and frees its slot');
+s = await st(); check(s.luck === 7 && s.specials.join() === 'blast,rescue', 'tapping the Luck Potion drinks it and frees its slot');
 const before = (await st()).specials.length;
 await tt('gameOver'); await page.waitForTimeout(1500); s = await st();
 check(s.specials.join() === 'blast' && !s.over, `a cave-in uses the Rescue Potion automatically (${s.specials})`);

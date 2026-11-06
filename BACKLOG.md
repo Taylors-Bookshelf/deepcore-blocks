@@ -50,6 +50,59 @@ From the 2.0.2 playtest. B-6 and I-11 to I-14 were released in 2.0.3 (2026-11-02
 
 Simulation scripts for I-14 and I-15 are in `tools/experiments/` (see its README).
 
+## From the 2.0.4 playtest (2026-11-06)
+
+Goal: **v1**, the build shared with family and friends. Version numbers keep counting from 2.x; "v1" is a milestone name. 2.1.0 is the first step toward it, and the roadmap below slides back one slot. I-16 to I-29 and B-7 were released in 2.1.0 (2026-11-06).
+
+### Done in 2.1.0 (toward v1)
+
+| Proposed ID | Type | Item | Notes |
+| --- | --- | --- | --- |
+| I-16 | Improvement | Simpler home screen | Small icons at the top: a podium (profile), a gear (settings), sound. The quick-glance stats card is removed. |
+| I-17 | Improvement | Visual profile | Rank badge, big numbers and cards instead of a spreadsheet of stats. |
+| I-18 | Improvement | One-screen settings | Short labels, no scrolling. |
+| I-19 | Improvement | Sound popover on every screen | The sound button opens a small drop-down: music and sound-effect sliders, each with a mute. Home, map and board. |
+| I-20 | Improvement | Cleaner board header and a pause sheet | Remove the difficulty label (there is no difficulty setting), the layer star count and the tool %. A pause button on the left opens a sheet with the board name, the layer's stars ("Limestone: 7 of 18 stars"), Resume, Restart and Quit to map. The hint bulb reads "Hint · 3 coal"; (i) becomes "How to play". |
+| I-21 | Improvement | Score as a number, stars as the progress | The bar goes; the score counts up and the three stars fill. A small "Deal 3/5". The confusing "Board mined! +900" popup goes; any day bonus is shown on the results sheet. |
+| I-22 | Improvement | One-tap play | Tapping the next board on the map starts it. Cleared and locked boards still open their card. |
+| I-23 | Improvement | 8 boards in every layer | Forest to Crust 8 each, plus the Core: 57 boards (was 62, with Magmastone at 30). Matches F-11's 8-deep zones. |
+| I-24 | Improvement | Camps at every layer | Magmastone's two mid-layer camps go. Each layer's first board is its camp (a tent on the map); a missed day sends you back to your layer's camp. No camp at the Core. |
+| I-25 | Improvement | No tool wear until F-9 | Galaxy Alloy no longer wears or breaks. The rule could wipe out hours of progress and nothing taught it. |
+| I-26 | Improvement | Simpler map | Remove the lamps, ladders, rails, lava, crystals and other decorations; keep the rock, tunnels and boards. |
+| I-27 | Improvement | First-time tips and a "next tools" goal | Short tips the first time you haul ore, meet a locked layer ("Forge bone tools: 12 bone + 6 wood"), open the Forge and craft a special. A visible readout of progress toward the next tools. |
+| I-28 | Improvement | Iron no longer a bottleneck | Re-measure the stash over a whole descent; raise iron where it runs short, trim what piles up. |
+| I-29 | Improvement | Luck Tonic renamed Luck Potion | Both potions are potions. |
+| B-7 | Bug | Tools broke without warning in the Crust and sent the run back 30 boards | Fixed by I-25 for now; F-9 is the real answer. |
+
+### Backlog features from this round
+
+**F-9 Tool durability and repair** (replaces today's Galaxy-Alloy-only wear)
+- Tools wear in every layer, shown by a clear tool icon with a colour state, not a percentage chip.
+- Repair happens on the board, from the craft menu, as you play; forging new tools stays on the map, where you break into the next layer.
+- Broken tools lock you out of that depth: climb back to where your older tools still work, gather resources and reforge, then return. No progress is lost.
+- No automatic repair (prism ore no longer mends on its own); repair costs resources so it's a real decision.
+- Taught by F-12 from the start.
+
+**F-10 Workshop and brewing** (bundles with F-3 Crafting table)
+- Two kinds of specials, two kinds of slots. Equipment (Blast Charge, Sledgehammer) on the left with the anvil; potions (Rescue, Luck) on the right with the brewing table. Not interchangeable.
+- Equipment: one slot to start; a second slot crafted for a very large cost that only a thrifty player reaches near the end of a descent.
+- Brewing table: crafted from the equipment menu for ruby, emerald, bone, iron and wood, affordable around 30% of a descent. It unlocks potion crafting and one potion slot; a second potion slot costs a late-game amount like the second equipment slot.
+- Both potions are drunk on purpose and last 3 deals. Rescue keeps today's effect during that window (a cave-in undoes your last move and deals fresh pieces, and the protection carries on), with a clear "saved you" animation. Luck favours easy-to-place and gap-filling pieces and doubles the chance of random specials.
+- Potions need bone, so Fossils stay useful the whole way down.
+
+**F-11 Zone grid maps** (supersedes F-1 Layer maps and F-2 Vein farming; their proposals OI-2, OI-3, OI-4 are replaced)
+- Each zone is a grid 9 wide and 8 deep. Straight down is the fastest way through, but it rarely gathers enough for the next tools, so you dig sideways for more. Deeper zones need more side digging.
+- Blocks stay dark until a board next to them is mined; mining one reveals its neighbours: a plain block, or a vein of one resource. Mined blocks become the path (no dotted lines or check marks).
+- A vein board deals mostly that one resource; plain boards deal base blocks (random specials can still appear anywhere).
+- Wood comes only from trees in the Forest's first row, so it is finite for the whole run.
+- Veins by zone (common / uncommon / rare): Forest: trees (first row), bone. Limestone: copper; bone; ruby. Slate: iron; copper, ruby; bone, emerald. Granite: gold; iron, emerald; meteorite, copper, ruby, diamond. Basalt: meteorite, prism ore; gold, diamond; iron, emerald. Magmastone: prism ore, diamond; gold. Crust: to define. Core: a 3×3 area of prism ore veins (2–4), no new tool, no camp; then the final single board where the keystone is placed in the glowing square between the walls.
+- A resource floor per zone, well above the true minimum, so no player is ever blocked or forced to dig every last block.
+- Finite boards per zone (72); replay and farming rules to define with F-11.
+
+**F-12 Onboarding tutorial**: a fuller first-run tutorial that teaches resources, the stash, forging tools, repairs (F-9) and the workshop and brewing table (F-10). Ships with them.
+
+**I-30 Resource curve** (replaces I-4 Scarcity pass): each zone's main ore covers most of the next tools, so the main path never forces you back up; earlier ores still turn up as rarer veins deeper down, so going back is an option, never a chore; every resource keeps a late-game use (repairs, slot unlocks, brewing) so nothing piles up uselessly. Tuned on F-11's grids.
+
 ## Open items
 
 Twenty-one items are open. Each lists the bug, feature or improvement it blocks, or "Non-blocker" for a question to follow up later. Anything with an open item stays in Scoping. Closed items keep their resolution; proposals for the open ones follow the table.

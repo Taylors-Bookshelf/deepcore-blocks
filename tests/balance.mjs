@@ -13,7 +13,7 @@ check(a[0] <= 1.1, 'Forest boards are easy (<=1.1 tries)');
 check(a.every((x, i) => i === 0 || x >= a[i - 1] - 0.1), 'difficulty rises layer by layer');
 check(a[D.MAGMA_Z] <= 1.8, `Magmastone, the long layer, stays fair (${a[D.MAGMA_Z].toFixed(2)} tries)`);
 check(a[D.CRUST_Z] >= 1.4 && a[D.CRUST_Z] <= 3, `the Crust is hard but passable (${a[D.CRUST_Z].toFixed(2)} tries)`);
-// each layer should give roughly what the next tools cost: often enough, sometimes needing a few replays
+// each layer gives part of what the next tools cost on its own boards; replays make up the rest
 for (let z = 0; z < D.MAGMA_Z; z++) {
   const cost = D.TOOLS[z + 1].cost, got = {}; let runs = 0;
   for (let k = 0; k < 12; k++) { runs++; for (let j = 0; j < D.ZONES[z].boards; j++) { let r, t = 0; do { r = runBoard(z, j, 5000 + z * 777 + k * 31 + j + t * 997); t++; } while (!r.win && t < 8); Object.entries(r.got).forEach(([m, v]) => got[m] = (got[m] || 0) + v); } }
@@ -21,7 +21,8 @@ for (let z = 0; z < D.MAGMA_Z; z++) {
   const ratio = Math.min(...Object.entries(cost).filter(([m]) => m !== 'wood' || z === 0).map(([m, v]) => (got[m] || 0) / runs / v));
   if (z === 0) forestWood = (got.wood || 0) / runs;
   console.log(`${D.ZONES[z].name}: haul vs ${D.TOOLS[z + 1].name} = ${ratio.toFixed(2)}x  (${Object.entries(cost).map(([m, v]) => `${m} ${((got[m] || 0) / runs).toFixed(1)}/${v}`).join(', ')})`);
-  check(ratio >= .55 && ratio <= 2.6, `${D.ZONES[z].name} gives about what ${D.TOOLS[z + 1].name} cost (${ratio.toFixed(2)}x)`);
+  // since v2.1.0 a layer's 8 boards cover roughly half to most of the next tools: a few replays make up the rest
+  check(ratio >= .45 && ratio <= 1.2, `${D.ZONES[z].name}'s 8 boards give part of what ${D.TOOLS[z + 1].name} cost, the rest from replays (${ratio.toFixed(2)}x)`);
 }
 { const need = D.TOOLS.reduce((a, t) => a + (t.cost.wood || 0), 0); check(forestWood >= need * 1.3, `the Forest gives enough wood for every tool handle (${forestWood.toFixed(0)} for ${need})`); }
 console.log(fails ? `BALANCE TESTS FAILED (${fails})` : 'BALANCE TESTS PASSED'); if (fails) process.exitCode = 1;

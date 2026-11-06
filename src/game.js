@@ -1,7 +1,7 @@
 (function(){
 const N = 8, T = 16;
 const A = window.DCA || { track(){}, attempt(){}, setScreen(){}, setBoard(){}, isOn:()=>false, canConfigure:()=>false, setOptOut(){} };
-const {FOSSIL_BONE,specialHaul,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS,GEM_KEYS,lineName,STAR_ORES,SCORE,placePoints,starsFromScore,starBonus,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf}=DeepcoreData;
+const {TOOL_WEAR,FOSSIL_BONE,specialHaul,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS,GEM_KEYS,lineName,STAR_ORES,SCORE,placePoints,starsFromScore,starBonus,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf}=DeepcoreData;
 const M=DeepcoreMaps, Meta=DeepcoreMeta;
 const {SHAPES,SHAPE_STRS,SHAPE_BY_KEY,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,getBit,bitOf,chooseSet,BIG_IDS,pickWeighted,rankMoves,rollBudget,spreadOre}=DeepcoreCore;
 const FONT_D = '"Jersey 10", "Courier New", monospace';
@@ -55,7 +55,7 @@ const MATS = {
   treasure:{kind:'special', gen:'treasure', drop:null, name:'Buried treasure', pts:0},
   sledgehammer:{kind:'special', gen:'sledgehammer', drop:null, name:'Sledgehammer', pts:0},   // points: SCORE.special
   rescue:{kind:'potion', gen:'rescue', drop:null, name:'Rescue Potion', pts:0},
-  luck:{kind:'potion', gen:'luck', drop:null, name:'Luck Tonic', pts:0},
+  luck:{kind:'potion', gen:'luck', drop:null, name:'Luck Potion', pts:0},
 };
 const FX = {
   grass:['#5e9c37','#6a4b35'], dirt:['#79573d','#5b402d'], sand:['#ddd2a3','#cbbf8d'], log:['#5a4427','#3b2b17'],
@@ -301,7 +301,7 @@ let practice=false, bank={}, hand={}, luck=0, luckLive=false, moves=0, fragments
 
 // ---------- the descent: one run from the Forest to the Ancient Core, kept from day to day ----------
 // Days are Pacific-time days (the daily twist follows them). Clear at least one board a day to keep
-// your progress; miss a whole day and you drop back to the start of the layer you're in (or the last camp in Magmastone).
+// your progress; miss a whole day and you drop back to the start of the layer you're in, or to its camp (its first board).
 const PACIFIC=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit',day:'2-digit'});
 function todayKey(){ return PACIFIC.format(new Date()); }
 const freshRun=day=>({v:2, seed:day+'#'+Math.floor(Math.random()*1e9).toString(36), started:day, day, lastClear:'', days:0, done:[], scores:{}, stars:{}, attempts:{}, fails:{}, tool:0, dur:DUR_MAX, camp:0, notice:null, mined:{}});
@@ -341,7 +341,7 @@ function drinkLuck(){
   const li=specials.indexOf('luck'); if(busy||over||uiOpen()||li<0||luck>0) return;
   dockRemove(li); luck=7; score=Math.max(0,score+SCORE.special.luck); shown=score; updateBar(); renderDock(); updateLuckUI(); updateAnvilGlow(); saveProfile(); saveBoard();
   A.track('luck_drunk',{idx:level-1,score,moves}); life.seen.luck=true;
-  busy=true; const d=playSplash('Luck Tonic',`The next 7 sets favour you · ${SCORE.special.luck}`,'luck'); setTimeout(()=>{ busy=false; },d);
+  busy=true; const d=playSplash('Luck Potion',`The next 7 sets favour you · ${SCORE.special.luck}`,'luck'); setTimeout(()=>{ busy=false; },d);
 }
 let bigNext=false;
 // after 2 cave-ins on the same board today the dealer starts leaning your way (0, 0, .35, .7, then .75)
@@ -351,7 +351,7 @@ function dealSet(){
   if(tut.active&&tut.stage===0){ set=TUT_SET.map(str=>SHAPES[SHAPE_STRS.indexOf(str)]); tut.stage=1; }
   else if(bigNext && lo===0 && hi===0){ set=BIG_IDS.map(ids=>SHAPES[ids[Math.floor(Math.random()*ids.length)]]).sort(()=>Math.random()-.5); bigNext=false; }
   else set=chooseSet(lo,hi,difficulty(),{luck:luck>0?1:0,tilt:mercyTilt()});
-  if(luck>0){ luck--; luckLive=true; } else if(luckLive){ luckLive=false; showCombo('Luck Tonic wore off'); blip(330,.2,'sine',.05); }
+  if(luck>0){ luck--; luckLive=true; } else if(luckLive){ luckLive=false; showCombo('Luck Potion wore off'); blip(330,.2,'sine',.05); }
   updateLuckUI();
   const out=[]; set.forEach(s=>out.push(dressPiece(s,out)));
   // the board's ore budget: this deal's share of what is left goes into the plain blocks
@@ -412,19 +412,17 @@ window.addEventListener('resize',layout);
 if(window.ResizeObserver) new ResizeObserver(()=>{ if(!$('app').clientHeight) return; layout(); }).observe($('app'));
 
 function buildGoals(){
-  $('goalsBar').innerHTML='<div class="pbar" role="progressbar" aria-label="Board score"><div class="pfill" id="pfill"></div><div class="ptxt"><span id="pscore">0</span><span id="pgoal"></span></div></div><div id="starChip" role="img" aria-label="Stars"><i>★</i><i>★</i><i>★</i></div>';
+  $('goalsBar').innerHTML='<div id="scoreBox" aria-label="Board points"><b id="pscore">0</b><span id="pgoal"></span></div><div id="starChip" role="img" aria-label="Stars"><i>★</i><i>★</i><i>★</i></div>';
   updateBar();
 }
 function updateGoals(){}
 const starAt=()=>levelDef(level).starAt;
-// v2.0.4: stars come from the board's points (starsFromScore against its star lines); the bar fills toward the 3-star line
+// v2.0.4: stars come from the board's points (starsFromScore against its star lines); since v2.1.0 the stars are the progress meter
 const yieldNow=()=>score;
 const starsNow=()=>starsFromScore(score,starAt());
 function updateBar(){
-  const el=$('pfill'); if(!el) return; const dd=levelDef(level), at=starAt(), top=at[2]||dd.target||1;
-  const f=Math.min(1,shown/top);
-  el.style.width=(f*100)+'%'; $('pscore').textContent=shown.toLocaleString(); $('pgoal').textContent=dd.deals?`· deal ${Math.min(dealsDone,dd.deals)}/${dd.deals}`:''; el.parentElement.classList.toggle('full',f>=1);
-  el.parentElement.setAttribute('aria-valuenow',shown); el.parentElement.setAttribute('aria-valuemax',top);
+  const el=$('pscore'); if(!el) return; const dd=levelDef(level), at=starAt();
+  el.textContent=shown.toLocaleString(); $('pgoal').textContent=dd.deals?`Deal ${Math.min(dealsDone,dd.deals)} of ${dd.deals}`:'';
   const chip=$('starChip'); if(chip&&at.length){ chip.hidden=false; updateStarMeter(chip,shown,at); } else if(chip) chip.hidden=true;
 }
 let shown=0;
@@ -438,8 +436,8 @@ function updateStarMeter(chip,y,at){
   const txt=`${y.toLocaleString()} points. ${at[0].toLocaleString()} earns one star, ${at[1].toLocaleString()} two, ${at[2].toLocaleString()} three.`; chip.setAttribute('aria-label',`${k} of 3 stars. ${txt}`); chip.title=txt;
 }
 function updateComboMeter(){}   // the multiplier is shown with the points when lines clear, not as a permanent badge
-function updateHUD(){ $('best').textContent=(Object.values(dayState.scores).reduce((a,b)=>a+b,0)+(dayState.bonus||0)).toLocaleString(); $('zoneName').textContent=levelDef(level).zoneName; $('bestPlus').textContent=screen==='game'&&shown>0&&!reached?'+'+shown.toLocaleString():''; $('level').textContent=boardLabel(level-1); $('zoneStars').textContent=level?zoneStarText(zoneOfIdx(level-1)):''; updateDur(); const t=tierOf(difficulty()); $('tier').textContent=t; $('tier').dataset.t=t; }
-function tickScore(){ if(shown<score){ shown+=Math.max(1,Math.ceil((score-shown)/8)); if(shown>score) shown=score; } else if(shown>score) shown=score; updateBar(); const bp=$('bestPlus'), t=screen==='game'&&shown>0&&!reached?'+'+shown.toLocaleString():''; if(bp.textContent!==t) bp.textContent=t; }
+function updateHUD(){ $('zoneName').textContent=level?levelDef(level).name:''; updateDur(); }   // the board header stays calm: details live in the pause sheet
+function tickScore(){ if(shown<score){ shown+=Math.max(1,Math.ceil((score-shown)/8)); if(shown>score) shown=score; } else if(shown>score) shown=score; updateBar(); }
 
 // pitch = distance between blocks, size = block size (a seam shows between them when size < pitch)
 function drawPiece(ctx,p,pitch,ox=0,oy=0,alpha=1,size=pitch){
@@ -501,7 +499,6 @@ const ITEM={};
     WP(i,j, d>5.6?'#140e0a' : d>4.6?'#5a3d20' : d>3.3?'#b88a52' : d>2.4?'#8f6838' : d>1.4?'#c79a62' : '#8f6838'); }
   WP(5,5,'#e8c892'); WP(6,5,'#e8c892'); WP(5,6,'#e8c892');
   ITEM.wood=w;
-  ['torch','lantern'].forEach(k=>{ const cc=document.createElement('canvas'); cc.width=cc.height=T; const cx=cc.getContext('2d'); (k==='torch'?M.drawTorch:M.drawLantern)(cx,0,0,T); ITEM[k]=cc; });
   // tools: a pickaxe whose head (and for the first one, handle) shows the material
   const HEADS={branch:['#6b4a24','#8a6234','#4a3218'],bone:['#efe6cf','#ffffff','#b8a888'],copper:['#e0803a','#ffc08a','#9a4a1a'],iron:['#b8bcc4','#eef0f4','#6e737c'],steel:['#8fb0d0','#e8f4ff','#4a6a8a'],galaxy:['#9a7aff','#d8f4ff','#3a2a7a']};
   TOOLS.forEach(t0=>{ const cc=document.createElement('canvas'); cc.width=cc.height=T; const cx=cc.getContext('2d'); const P=(i,j,col)=>{ cx.fillStyle=col; cx.fillRect(i,j,1,1); };
@@ -688,17 +685,19 @@ function renderFx(now){
 
 // ---------- settings and the lifetime profile (rank, streaks, records, discovery log) ----------
 const K_SET='deepcore-settings', K_LIFE='deepcore-life', K_INST='deepcore-install';
-let settings={volume:70,music:false,reduce:false,large:false}, life=Meta.newLife();
+let settings={sfxVol:70,musicVol:50,music:false,reduce:false,large:false}, life=Meta.newLife();
 function saveSettings(){ lsSet(K_SET,settings); }
-function loadSettings(){ const v=lsGet(K_SET); if(v) Object.assign(settings,v); }
+function loadSettings(){ const v=lsGet(K_SET); if(v){ Object.assign(settings,v); if(v.volume!==undefined&&v.sfxVol===undefined){ settings.sfxVol=v.volume; delete settings.volume; } } }   // one volume became two in v2.1.0
 function saveLife(){ lsSet(K_LIFE,life); }
 function loadLife(){ const v=lsGet(K_LIFE), base=Meta.newLife(); if(v&&v.v===1) life=Object.assign(base,v,{streak:{...base.streak,...v.streak},records:{...base.records,...v.records}}); else life=base; }
 const runScore=()=>Object.values(dayState.scores).reduce((a,b)=>a+b,0)+(dayState.bonus||0);   // this descent's points so far
 function applyDisplaySettings(){ REDUCE=MEDIA_REDUCE||settings.reduce; document.documentElement.classList.toggle('reduce',!!settings.reduce); document.documentElement.classList.toggle('large',!!settings.large); }
-const masterLevel=()=>2.2*(settings.volume/70);
-function applyAudioSettings(){ if(master) master.gain.value=masterLevel(); if(settings.music&&soundMusicWanted()) startMusic(); else stopMusic(); }
+// two buses into the master: sound effects and music, each with its own volume (70 = the old default level)
+const busLevel=v=>2.2*(v/70);
+let sfxBus=null, musicBus=null;
+function applyAudioSettings(){ if(sfxBus) sfxBus.gain.value=busLevel(settings.sfxVol); if(musicBus) musicBus.gain.value=busLevel(settings.musicVol); if(settings.music&&soundMusicWanted()) startMusic(); else stopMusic(); }
 let music=null; const soundMusicWanted=()=>!!settings.music;
-function startMusic(){ const c=audioCtx(); if(!c||!master) return; if(c.state!=='running'){ c.resume().catch(()=>{}); } if(!music) music=Meta.createMusic(c,master); music.start(); }
+function startMusic(){ const c=audioCtx(); if(!c||!master) return; if(c.state!=='running'){ c.resume().catch(()=>{}); } if(!music) music=Meta.createMusic(c,musicBus); music.start(); }
 function stopMusic(){ if(music) music.stop(); }
 
 // ---------- sound ----------
@@ -709,7 +708,8 @@ function nextCombo(){ const t=comboQueue.shift(); if(!t){ comboBusy=false; retur
 let ac=null, master=null, soundOn=true;
 try{ if(localStorage.getItem('deepcore-sound')==='off') soundOn=false; }catch(e){}
 function audioCtx(){
-  if(!ac){ try{ ac=new (window.AudioContext||window.webkitAudioContext)(); master=ac.createGain(); master.gain.value=masterLevel();
+  if(!ac){ try{ ac=new (window.AudioContext||window.webkitAudioContext)(); master=ac.createGain(); master.gain.value=1;
+    sfxBus=ac.createGain(); musicBus=ac.createGain(); sfxBus.connect(master); musicBus.connect(master); applyAudioSettings();
     const comp=ac.createDynamicsCompressor(); master.connect(comp); comp.connect(ac.destination); }catch(e){ ac=null; } }
   return ac;
 }
@@ -728,11 +728,26 @@ function blip(freq,dur=.08,type='square',vol=.05,when=0){
     const t=c.currentTime+when, o=c.createOscillator(), g=c.createGain();
     o.type=type; o.frequency.setValueAtTime(freq,t); o.frequency.exponentialRampToValueAtTime(freq*.6,t+dur);
     g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
-    o.connect(g).connect(master); o.start(t); o.stop(t+dur); }catch(e){}
+    o.connect(g).connect(sfxBus); o.start(t); o.stop(t+dur); }catch(e){}
 }
-function setSoundUI(){ const b=$('sound'); b.setAttribute('aria-pressed',soundOn); b.title=soundOn?'Sound on':'Sound off'; const x=$('sfxOn'); if(x) x.checked=soundOn; }
-setSoundUI();
-$('sound').onclick=()=>{ soundOn=!soundOn; try{ localStorage.setItem('deepcore-sound',soundOn?'on':'off'); }catch(e){} setSoundUI(); A.track('setting_change',{setting:'sound',value:soundOn}); if(soundOn){ unlockAudio(); blip(660,.08,'triangle',.08); blip(990,.1,'triangle',.08,.08); } };
+// every speaker button (home, map, board) shows the same state: crossed out when both music and effects are off
+function setSoundUI(){ const on=soundOn||!!settings.music;
+  document.querySelectorAll('.soundBtn').forEach(b=>{ b.setAttribute('aria-pressed',on); b.title=on?'Sound':'Sound off'; });
+  $('sfxOn').checked=soundOn; $('musicOn').checked=!!settings.music; $('sfxVol').value=settings.sfxVol; $('musicVol').value=settings.musicVol;
+  $('sfxVol').disabled=!soundOn; $('musicVol').disabled=!settings.music; }
+// the speaker opens a small drop-down under it: music and effects, each with a switch and a volume slider
+function toggleSoundPop(btn){
+  const pop=$('soundPop'); if(!pop.hidden){ pop.hidden=true; return; }
+  setSoundUI(); const r=btn.getBoundingClientRect(); pop.style.top=(r.bottom+6)+'px'; pop.style.left=Math.max(8,Math.min(innerWidth-248,r.right-240))+'px'; pop.hidden=false; A.track('sound_open',{screen});
+}
+document.querySelectorAll('.soundBtn').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); unlockAudio(); toggleSoundPop(b); }));
+document.addEventListener('pointerdown',e=>{ const pop=$('soundPop'); if(!pop.hidden&&!pop.contains(e.target)&&!e.target.closest('.soundBtn')) pop.hidden=true; },true);
+$('sfxOn').addEventListener('change',e=>{ soundOn=e.target.checked; try{ localStorage.setItem('deepcore-sound',soundOn?'on':'off'); }catch(err){} setSoundUI(); A.track('setting_change',{setting:'sound',value:soundOn}); if(soundOn){ unlockAudio(); blip(660,.08,'triangle',.08); } });
+$('musicOn').addEventListener('change',e=>{ settings.music=e.target.checked; saveSettings(); unlockAudio(); applyAudioSettings(); setSoundUI(); A.track('setting_change',{setting:'music',value:settings.music}); });
+$('sfxVol').addEventListener('input',e=>{ settings.sfxVol=+e.target.value; saveSettings(); applyAudioSettings(); });
+$('sfxVol').addEventListener('change',()=>{ A.track('setting_change',{setting:'sfx_volume',value:settings.sfxVol}); unlockAudio(); blip(660,.08,'triangle',.08); });
+$('musicVol').addEventListener('input',e=>{ settings.musicVol=+e.target.value; saveSettings(); applyAudioSettings(); });
+$('musicVol').addEventListener('change',()=>A.track('setting_change',{setting:'music_volume',value:settings.musicVol}));
 function shake(big){ if(REDUCE) return; const w=$('boardWell'); w.classList.remove('shake','bigshake'); void w.offsetWidth; w.classList.add(big?'bigshake':'shake'); }
 
 function showBanner(ms=2200){
@@ -788,6 +803,7 @@ function mineCell(r,c,ctx){
     credit(ctx,res,1,true);
     if(item){
       hand[res]=(hand[res]||0)+1;
+      if(M.kind!=='base'&&!tut.active) tipOnce('haul',()=>toast('Ore and gems go to your haul (the green +numbers). Finish the board to keep them: they forge your next tools.',5200));
       if(ctx.flyers<16){ const [x,y]=cellScreen(r,c);
         flyItem(ITEM[res==='wood'?'wood':m],res,x,y,ctx.flyers*35,FX[m][1]||'#fff',()=>{ updateStash([res]); blip(880+Math.random()*300,.05,'sine',.035); },true);
         ctx.flyers++; }
@@ -955,6 +971,28 @@ function showResult(){
   retry.onclick=retryBoard; other.onclick=stars?()=>{ closeSheet(); bankBoard(); }:leaveBoard;
   $('sheetScrim').hidden=false;
 }
+// ---- pause: the board's details, Resume, Restart and Quit to map (the board is saved and one tap on the map resumes it) ----
+function openPause(){
+  if(screen!=='game'||sheetMode||busy&&!over||!$('anvil').hidden||!$('info').hidden) return;
+  const sh=$('sheet'); sh.innerHTML=''; sheetMode='pause'; A.track('pause_open',{idx:level-1});
+  const el=(tag,cls,txt)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!==undefined) e.textContent=txt; return e; };
+  const dd=levelDef(level), z=zoneOfIdx(level-1), zs=zoneStars(z), best=(dayState.stars||{})[level-1]||0;
+  sh.append(el('div','shHandle'),el('div','shLabel','PAUSED'),el('div','shTitle',dd.name));
+  const info=el('div','pauseInfo');
+  const line=(k,v)=>{ const p=el('div'); p.append(document.createTextNode(k+' '),el('b',undefined,v)); info.append(p); };
+  line(dd.zoneName+',',`board ${jOfIdx(level-1)+1} of ${ZONES[z].boards}`);
+  if(dd.starAt.length) line('Star lines:',dd.starAt.map(v=>v.toLocaleString()).join(' / ')+' points');
+  if(zs.max) line('Stars in this layer:',`${zs.got} of ${zs.max}`);
+  if(best) line('Your best here:','★'.repeat(best));
+  sh.append(info);
+  const btns=el('div','shBtns col'), res=el('button','go','Resume'), rst=el('button','alt','Restart board'), quit=el('button','alt','Quit to map');
+  res.id='pauseResume'; rst.id='pauseRestart'; quit.id='pauseQuit'; [res,rst,quit].forEach(b=>b.type='button'); btns.append(res,rst,quit); sh.append(btns);
+  res.onclick=closeSheet;
+  rst.onclick=()=>{ closeSheet(); A.track('board_restart',{idx:level-1,score,moves}); startBoard(level-1); };
+  quit.onclick=()=>{ closeSheet(); showMap({}); };
+  $('sheetScrim').hidden=false;
+}
+$('pauseBtn').onclick=openPause;
 // RETRY: a clean restart, nothing from this run is kept
 function retryBoard(){ if(!reached||decided) return; decided=true; closeSheet(); A.track('board_retry',{idx:level-1,stars:starsNow(),score,yield:yieldNow()}); hand={}; startBoard(level-1); }
 // 0 stars, back to the map: the board stays uncleared and the haul is dropped
@@ -967,8 +1005,8 @@ function recordClear(stars,pts){
   { const prev=dayState.stars[idx]||0; if(stars>prev){ life.stars+=stars-prev; dayState.stars[idx]=stars; } }   // stars already earned stay
   { const before=dayState.scores[idx]||0; if(pts>before){ life.points+=pts-before; dayState.scores[idx]=pts; } }
   life.records.deepest=Math.max(life.records.deepest||0,zoneOfIdx(idx)); life.records.bestBoard=Math.max(life.records.bestBoard,pts);
-  // camps in Magmastone: a missed day only sends you back to the last one you reached
-  const z=zoneOfIdx(idx), j=jOfIdx(idx); if(z===MAGMA_Z&&(ZONES[z].camps||[]).includes(j+1)&&dayState.camp<j+1){ dayState.camp=j+1; campReached=j+1; }
+  // the first board of every layer below the Forest is its camp: a missed day never sends you back past it
+  const z=zoneOfIdx(idx), j=jOfIdx(idx), camps=dayState.campsMade=dayState.campsMade||[]; if(j===0&&z>0&&!ZONES[z].core&&!camps.includes(z)){ camps.push(z); campReached=z; }
 }
 let campReached=0;
 function bankHand(){ const haul={...hand}; Object.entries(hand).forEach(([k,v])=>{ bank[k]=(bank[k]||0)+v; }); hand={}; updateStash(Object.keys(haul)); return haul; }
@@ -980,7 +1018,7 @@ function bankBoard(){
   clearBonus=150+100*zoneOfIdx(idx); const sb=starBonus(stars,dd.target), pts=score+clearBonus+sb, haul=bankHand();
   recordClear(stars,pts);
   A.track('board_complete',{stars,star_bonus:sb,haul:Object.values(haul).reduce((a,b)=>a+b,0),yield:yieldNow(),idx,label:boardLabel(idx),score,target:dd.target,moves,duration_ms:Math.round(performance.now()-boardT0),attempt:(dayState.attempts||{})[idx]||1});
-  showCombo(`${'★'.repeat(stars)} Board mined! +${clearBonus+sb}`);
+  showCombo(`${'★'.repeat(stars)} Board cleared!`);
   [523,659,784,1047].forEach((f,j)=>blip(f,.18,'triangle',.07,.1+j*.1));
   saveDay(); saveProfile(); clearBoardSave();
   setTimeout(()=>{
@@ -1168,7 +1206,7 @@ function openMakeRoom(rc){
   go.onclick=()=>{ if(sel>=0) destroyAndCraft(rc,sel); };
   $('sheetScrim').hidden=false;
 }
-$('sheetScrim').addEventListener('pointerdown',e=>{ if(e.target.id==='sheetScrim'&&sheetMode==='room') closeSheet(); });
+$('sheetScrim').addEventListener('pointerdown',e=>{ if(e.target.id==='sheetScrim'&&(sheetMode==='room'||sheetMode==='pause')) closeSheet(); });
 function destroyAndCraft(rc,idx){
   closeSheet();
   if(!dockFull()||!canAfford(rc)) return;
@@ -1220,7 +1258,7 @@ const costChips=(cost)=>{ const c=document.createElement('div'); c.className='co
 function refreshCraft(){ if(!$('anvil').hidden) renderAnvil(); if(!$('craftPanel').hidden) renderCraft(); }
 // the map's Forge: the next set of tools, and (with Galaxy Alloy) mending them with prism ore from the stash
 const tool=()=>dayState.tool||0;
-const toolBreakable=()=>tool()>=TOOLS.length-1;
+const toolBreakable=()=>TOOL_WEAR&&tool()>=TOOLS.length-1;   // wear is off until backlog F-9 (see TOOL_WEAR)
 function forgeRow(tier){
   const T0=TOOLS[tier], cost=tcost(tier), can=canAfford({cost});
   const row=document.createElement('div'); row.className='recipe'; const big=document.createElement('canvas'); big.className='big'; big.width=big.height=T; big.getContext('2d').drawImage(ITEM['tool_'+T0.id],0,0);
@@ -1233,12 +1271,12 @@ function renderCraft(){
   const h3=x=>{ const e=document.createElement('h3'); e.textContent=x; return e; }, note=x=>{ const e=document.createElement('p'); e.className='note'; e.textContent=x; return e; };
   body.append(h3('YOUR TOOLS'));
   const cur=document.createElement('div'); cur.className='recipe'; const ic=document.createElement('canvas'); ic.className='big'; ic.width=ic.height=T; ic.getContext('2d').drawImage(ITEM['tool_'+TOOLS[t].id],0,0);
-  const cm=document.createElement('div'); cm.innerHTML=`<div class="nm">${TOOLS[t].name}</div><div class="ds">${t<TOOLS.length-1?`Good down to the end of ${ZONES[t].name}.`:'Strong enough for anything, but the deepest rock wears them down.'}</div>`;
+  const cm=document.createElement('div'); cm.innerHTML=`<div class="nm">${TOOLS[t].name}</div><div class="ds">${t<TOOLS.length-1?`Good down to the end of ${ZONES[t].name}.`:'Strong enough for every layer down to the Ancient Core.'}</div>`;
   if(toolBreakable()){ const bar=document.createElement('div'); bar.className='durbar'; bar.innerHTML=`<i style="width:${Math.max(0,Math.min(100,dayState.dur))}%"></i><span>${Math.round(dayState.dur)}%</span>`; cm.append(bar); }
   cur.append(ic,cm); body.append(cur);
   if(t<TOOLS.length-1){ body.append(h3('FORGE NEXT')); body.append(forgeRow(t+1));
     body.append(note(`Gather it in ${ZONES[t].name}. Replaying boards you have cleared gives ore too.`));
-  } else {
+  } else if(toolBreakable()){
     const have=bank.prismore||0, need=Math.ceil((DUR_MAX-dayState.dur)/STASH_MEND);
     body.append(h3('MEND WITH PRISM ORE'),note(`Each prism ore in your stash mends ${STASH_MEND}%. In Magmastone, mining one mends your tools completely; in the Crust each one mends ${PRISM_MEND}%.`));
     const r2=document.createElement('div'); r2.className='row2'; const mb=document.createElement('button'); mb.type='button'; mb.className='go'; mb.id='mendBtn';
@@ -1296,11 +1334,11 @@ const INFO_TABS={
     b.append(infoEl('h3','THE GOAL'),infoEl('p',`Drag the three pieces onto the 8×8 board. Fill a whole row or column and it clears, mining every block in it. Each board deals a set number of sets of pieces: place them all, scoring enough points for at least one star, and the board is cleared. Board by board you dig down through seven layers to the Ancient Core at the heart of the world. It takes a couple of weeks of daily play.`));
     b.append(infoEl('h3','CAVE-IN'),infoEl('p',`If none of your three pieces can fit anywhere before the last deal is placed, the cave collapses and the board ends. Ore you hauled on that attempt is lost, so keep your options open.`));
     b.append(infoEl('h3','HAULING ORE'),infoList([`Ore, gems and wood you mine on a board show up in the stash strip as a green +number. That's your haul for this attempt.`,`Clear the board and the haul joins your stash, which you keep for the whole descent. Cave in without a Rescue Potion and that haul is lost.`,`Replaying a board you've already cleared gives ore too, so you can always gather more.`]));
-    b.append(infoEl('h3','SCORING'),infoList([`Every block you place scores ${SCORE.block}. Every line you clear scores ${SCORE.line}. Mining ore and gems gives resources, not points.`,`Clear 2, 3 or 4 lines with one piece for a Double (+${SCORE.combo[2]}), Triple (+${SCORE.combo[3]}) or Quad (+${SCORE.combo[4]}).`,`Streak: clear on back-to-back placements. Each clear in a row after the first adds +${SCORE.streakStep}, up to +${SCORE.streakMax}. A placement that clears nothing ends the streak.`,`All Clear (an empty board) adds +${SCORE.allClear}, then deals a big easy set.`,`Blast Charge +${SCORE.special.blast}, Sledgehammer +${SCORE.special.sledgehammer}. A Luck Tonic costs ${-SCORE.special.luck} points and a Rescue Potion ${-SCORE.special.rescue}.`,`"Perfect!" means yours was the only placement that kept the whole tray playable; "Great fit!" one of two or three.`,`If you cave in twice on the same board, the dealer starts to go easier on you.`]));
+    b.append(infoEl('h3','SCORING'),infoList([`Every block you place scores ${SCORE.block}. Every line you clear scores ${SCORE.line}. Mining ore and gems gives resources, not points.`,`Clear 2, 3 or 4 lines with one piece for a Double (+${SCORE.combo[2]}), Triple (+${SCORE.combo[3]}) or Quad (+${SCORE.combo[4]}).`,`Streak: clear on back-to-back placements. Each clear in a row after the first adds +${SCORE.streakStep}, up to +${SCORE.streakMax}. A placement that clears nothing ends the streak.`,`All Clear (an empty board) adds +${SCORE.allClear}, then deals a big easy set.`,`Blast Charge +${SCORE.special.blast}, Sledgehammer +${SCORE.special.sledgehammer}. A Luck Potion costs ${-SCORE.special.luck} points and a Rescue Potion ${-SCORE.special.rescue}.`,`"Perfect!" means yours was the only placement that kept the whole tray playable; "Great fit!" one of two or three.`,`If you cave in twice on the same board, the dealer starts to go easier on you.`]));
     b.append(infoEl('h3','STARS'),infoList([`A board is a fixed number of deals. Place every piece and its points earn 0 to 3 stars; the star lines rise layer by layer.`,`The three stars next to the score bar fill up as you score and light up as you earn them.`,`Deep down, stars come from combos and streaks: the blocks and the lines you have to clear anyway are not enough.`,`At the end, CONTINUE banks your haul and stars, or RETRY plays the board again for more stars. A retry starts over: that run's haul is not kept. Stars you already earned on a board stay.`,`Score too little for one star and the board is not cleared: retry it. Each star after the first adds bonus points to your day.`]));
     b.append(infoEl('h3','HINT AND DAILY TWIST'),infoList([`The bulb with a question mark in the top bar spends 3 coal to show a good move.`,`Every day has one twist, such as Gold Rush or Forge Day. It's shown on the map and the home screen.`]));
     b.append(infoEl('h3','HOW TO GET BETTER'),infoList([`Look at all three pieces before you place any. Plan the order.`,`Keep one row and one column mostly open so long bars still fit.`,`Avoid sealing off single empty cells or tiny pockets; they can only be filled by a matching piece, if one ever comes.`,`Build rows and columns up to one piece away from full, then finish several at once for a combo.`,`Gold glow under your piece means the drop will clear a line.`,`Save Blast Charges and Jackhammers for tight spots, not to pad your score.`]));
-    b.append(infoEl('h3','EVERY DAY COUNTS'),infoList([`Clear at least one board each day (Pacific time) to keep your depth.`,`Miss a whole day and the cave settles: you drop back to the start of the layer you're in. In Magmastone you only drop back to the last camp. Your tools and stash are always kept.`,`Each day also brings a new twist.`]));
+    b.append(infoEl('h3','EVERY DAY COUNTS'),infoList([`Clear at least one board each day (Pacific time) to keep your depth.`,`Miss a whole day and the cave settles: you drop back to your layer's camp (its first board, once you've cleared it). Your tools and stash are always kept.`,`Each day also brings a new twist.`]));
   },
   Resources(b){
     b.append(infoEl('p',`Everything you mine counts toward your score. Ore and gems also go into your stash, which pays for crafting.`));
@@ -1311,13 +1349,13 @@ const INFO_TABS={
   },
   Crafting(b){
     b.append(infoEl('h3','TWO KINDS OF CRAFTING'),infoEl('p',`Tools are forged on the map (the Craft button at the top). Specials are crafted during a board, from the CRAFT button next to your dock, which holds three specials in any mix.`));
-    b.append(infoEl('h3','HOW'),infoList([`Tap CRAFT, then tap Craft on anything you can afford. Your specials dock holds three at a time (any mix).`,`Drag a Blast Charge onto the board to blow up the 3×3 patch under it, or a Sledgehammer to shake the blocks into a fresh layout. Tap a Luck Tonic to drink it.`]));
+    b.append(infoEl('h3','HOW'),infoList([`Tap CRAFT, then tap Craft on anything you can afford. Your specials dock holds three at a time (any mix).`,`Drag a Blast Charge onto the board to blow up the 3×3 patch under it, or a Sledgehammer to shake the blocks into a fresh layout. Tap a Luck Potion to drink it.`]));
     b.append(infoEl('h3','WHAT YOU CAN CRAFT'));
     craftList().forEach(c=>{ const row=infoEl('div',undefined,'irow'); row.append(iconOf(c.item?ITEM[c.item]:(SPR[c.mat]||TEX[c.mat]))); const d=infoEl('div'); d.append(infoEl('div',c.name,'nm'),infoEl('div',c.desc,'meta'),
       infoEl('div','Costs: '+Object.entries(c.cost).map(([k,v])=>`${v} ${DROPS[k][0]}`).join(', '),'meta')); row.append(d); b.append(row); });
-    b.append(infoEl('h3','TOOLS'),infoList([`Each layer is harder rock and needs better tools: branch tools for the Forest, then bone (from bones in the dirt), copper (Limestone), iron (Slate), steel (iron and coal from Granite) and Galaxy Alloy (meteorite from Basalt).`,`Short of something? Replay boards you have already cleared: replays give ore too.`,`Galaxy Alloy wears down in the deepest rock. Prism ore from Magmastone mends it. In the Crust the wear is fierce: if the tools break, you go back to the start of Magmastone.`]));
+    b.append(infoEl('h3','TOOLS'),infoList([`Each layer is harder rock and needs better tools: branch tools for the Forest, then bone (from bones in the dirt), copper (Limestone), iron (Slate), steel (iron and coal from Granite) and Galaxy Alloy (meteorite from Basalt).`,`Short of something? Replay boards you have already cleared: replays give ore too.`,`Each layer's 8 boards rarely give quite enough for the next tools on their own: replay a few cleared boards to make up the rest.`]));
     b.append(infoEl('h3','THE ANCIENT CORE'),infoList([`Below the Crust lies the Core: one piece, one spot. What happens next is for you to find out.`]));
-    b.append(infoEl('h3','WHY IT HELPS'),infoList([`Blast Charge and Sledgehammer rescue a crowded board and score points. What a Blast Charge breaks is lost, not mined.`,`A Rescue Potion saves you from one cave-in: it undoes your last move and deals fresh pieces, and keeps your haul. It costs ${-SCORE.special.rescue} points.`,`A Luck Tonic: tap it in the dock to drink (it costs ${-SCORE.special.luck} points). For the next 7 sets of pieces the dealer favours sets that clear rows and columns. A row of green dots shows how many are left.`]));
+    b.append(infoEl('h3','WHY IT HELPS'),infoList([`Blast Charge and Sledgehammer rescue a crowded board and score points. What a Blast Charge breaks is lost, not mined.`,`A Rescue Potion saves you from one cave-in: it undoes your last move and deals fresh pieces, and keeps your haul. It costs ${-SCORE.special.rescue} points.`,`A Luck Potion: tap it in the dock to drink (it costs ${-SCORE.special.luck} points). For the next 7 sets of pieces the dealer favours sets that clear rows and columns. A row of green dots shows how many are left.`]));
   },
   Specials(b){
     b.append(infoEl('p',`These appear on their own inside pieces, now and then, more often the deeper you go. You can't craft them. When the line they sit in clears, they pay out resources (no points).`));
@@ -1334,7 +1372,7 @@ function renderInfo(tab){
 $('infoBtn').onclick=()=>{ if(busy) return; renderInfo('Play'); $('info').hidden=false; A.track('info_open'); };
 $('infoClose').onclick=()=>{ $('info').hidden=true; };
 $('info').addEventListener('pointerdown',e=>{ if(e.target.id==='info') $('info').hidden=true; });
-$('anvilBtn').onclick=()=>{ if(busy||over) return; renderAnvil(); $('anvil').hidden=false; };
+$('anvilBtn').onclick=()=>{ if(busy||over) return; renderAnvil(); $('anvil').hidden=false; tipOnce('anvil',()=>toast(`Specials cost ore. Drag a Blast Charge (+${SCORE.special.blast}) or Sledgehammer (+${SCORE.special.sledgehammer}) onto the board; tap a potion to drink it.`,5200)); };
 $('anvilClose').onclick=()=>{ $('anvil').hidden=true; };
 $('anvil').addEventListener('pointerdown',e=>{ if(e.target.id==='anvil') $('anvil').hidden=true; });
 const uiOpen=()=>screen!=='game' || !$('anvil').hidden || !$('info').hidden || !$('sheetScrim').hidden;
@@ -1398,14 +1436,14 @@ function saveDay(){ lsSet(K_DAY,dayState); }
 // the furthest board you can reach: the first one of the descent you have not cleared yet
 const frontier=()=>{ for(let i=0;i<BOARD_COUNT;i++) if(!dayState.done.includes(i)) return i; return BOARD_COUNT; };
 // Miss a whole Pacific day (no board cleared yesterday or today) and the cave settles: you drop back to the start of the layer
-// you are in, or to the last camp you reached in Magmastone. Tools and stash are kept.
+// you are in, or to its camp (the layer's first board, once cleared). Tools and stash are kept.
 function settle(today){
   const f=frontier(); if(f>=BOARD_COUNT) return;
-  const z=zoneOfIdx(f), start=z===MAGMA_Z?idxOf(z,dayState.camp||0):Z_START[z];
+  const z=zoneOfIdx(f), camp=z>0&&dayState.done.includes(Z_START[z]), start=Z_START[z]+(camp?1:0);
   const lost=dayState.done.filter(i=>i>=start); if(!lost.length) return;
   dayState.done=dayState.done.filter(i=>i<start);
-  dayState.notice={kind:'missed',zone:z,lost:lost.length,camp:z===MAGMA_Z?dayState.camp||0:0};
-  A.track('run_setback',{zone:z,lost:lost.length,camp:dayState.camp||0});
+  dayState.notice={kind:'missed',zone:z,lost:lost.length,camp};
+  A.track('run_setback',{zone:z,lost:lost.length,camp});
 }
 function checkDay(){
   const s=lsGet(K_DAY), today=todayKey();
@@ -1468,15 +1506,9 @@ function showHome(){
 }
 const sbStr=sb=>sb?`Continue ${boardLabel(sb.idx)}`:'';
 function fillHome(){
-  const sb=savedBoard(), cont=$('contBtn'); cont.hidden=!sb; cont.textContent=sbStr(sb); $('mapBtn').classList.toggle('go',!sb);
-  const m=MOD(), n=Meta.streakNow(life,dayState.day), f=frontier(), z=curZone();
-  $('hcToday').textContent=ZONES[z].core?'The Core':ZONES[z].name; $('hcSub').textContent=ZONES[z].core?'the end of the descent':`board ${Math.min(ZONES[z].boards,jOfIdx(Math.min(f,BOARD_COUNT-1))+1)} of ${ZONES[z].boards}`;
-  $('hcPts').textContent=`${runScore().toLocaleString()} pts`;
-  $('hcTool').textContent=TOOLS[tool()].name+(toolBreakable()?` · ${Math.round(dayState.dur)}%`:'');
-  $('hcTwist').textContent=m.name; $('hcTwist').title=m.desc;
-  $('hcStreak').hidden=n<2; $('hcStreak').textContent=`${n}-day streak`;
-  $('hcWarn').hidden=!(dayState.lastClear&&dayState.lastClear!==dayState.day); $('hcWarn').textContent='Clear a board today to keep your depth.';
-  $('shareBtn').hidden=dayState.done.length===0;
+  const sb=savedBoard(), cont=$('contBtn'); cont.hidden=!sb; cont.textContent=sb?`Continue board ${boardLabel(sb.idx)}`:'';
+  $('mapBtn').textContent=sb?'World map':'Play'; $('mapBtn').classList.toggle('go',!sb);
+  $('hcWarn').hidden=!(dayState.lastClear&&dayState.lastClear!==dayState.day);
   $('homeFrag').textContent='✦'.repeat(fragments); $('homeFrag').hidden=!fragments; $('homeFrag').title=fragments>=5?'Legendary':'';
 }
 // the Pacific day can end while the app sits open on the home or map screen: refresh into the new day
@@ -1497,7 +1529,6 @@ function onResume(){
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') onResume(); });
 window.addEventListener('pageshow',e=>{ if(e.persisted) onResume(); });
 window.addEventListener('focus',()=>{ if(screen==='map') onResume(); });
-$('homeBtn').onclick=()=>showMap({});
 $('mapBtn').onclick=()=>showMap({});
 $('contBtn').onclick=()=>{ const sb=savedBoard(); if(!sb){ showMap({}); return; } show('game'); restoreBoard(sb); A.track('continue_board',{idx:sb.idx}); };
 $('settingsBtn').onclick=()=>{ homeView('homeSettings'); syncSettingsUI(); A.setScreen('settings'); };
@@ -1505,17 +1536,18 @@ $('settingsBack').onclick=()=>showHome();
 $('privacyRow').hidden=!A.canConfigure(); $('shareData').checked=A.isOn(); $('verLine').textContent='Version '+(self.APP_VERSION||'dev');
 $('shareData').addEventListener('change',e=>{ if(e.target.checked){ A.setOptOut(false); A.track('analytics_opt',{on:true}); } else { A.track('analytics_opt',{on:false}); A.setOptOut(true); } });
 
+// ---- first-time tips: each one shows once per player (life.tips), the first time its moment comes up ----
+function tipOnce(key,show){ if(!life.tips) life.tips={}; if(life.tips[key]) return false; life.tips[key]=true; saveLife(); A.track('tip_shown',{tip:key}); show(); return true; }
+// what the next tools still need, for the map's top bar: "Copper tools · copper 12/20 · wood 10/10"
+function nextToolsText(){ const t=tool(); if(t>=TOOLS.length-1) return depthText(); const c=tcost(t+1);
+  return `${TOOLS[t+1].name} · `+Object.entries(c).map(([k,v])=>`${DROPS[k][0].toLowerCase()} ${Math.min(bank[k]||0,v)}/${v}`).join(' · '); }
 // ---- toast ----
 let toastTimer=0;
 function toast(msg,ms=2200){ let t=document.getElementById('toast'); if(!t){ t=document.createElement('div'); t.id='toast'; t.style.cssText='position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 30px);transform:translateX(-50%);z-index:60;background:#2f3136;color:#fff;box-shadow:inset 0 0 0 1px #ffcf5c;border-radius:10px;padding:10px 16px;font-size:15px;font-weight:600;max-width:90%;text-align:center;pointer-events:none'; document.body.append(t); }
   t.textContent=msg; t.hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ t.hidden=true; },ms); }
 
 // ---- settings screen ----
-function syncSettingsUI(){ $('sfxOn').checked=soundOn; $('musicOn').checked=!!settings.music; $('volRange').value=settings.volume; $('reduceOn').checked=!!settings.reduce; $('largeOn').checked=!!settings.large; $('codeBox').hidden=true; resetArmed=false; $('resetBtn').textContent='Reset all progress'; }
-$('sfxOn').addEventListener('change',e=>{ soundOn=e.target.checked; try{ localStorage.setItem('deepcore-sound',soundOn?'on':'off'); }catch(err){} setSoundUI(); A.track('setting_change',{setting:'sound',value:soundOn}); if(soundOn){ unlockAudio(); blip(660,.08,'triangle',.08); } });
-$('musicOn').addEventListener('change',e=>{ settings.music=e.target.checked; saveSettings(); unlockAudio(); applyAudioSettings(); A.track('setting_change',{setting:'music',value:settings.music}); });
-$('volRange').addEventListener('input',e=>{ settings.volume=+e.target.value; saveSettings(); applyAudioSettings(); });
-$('volRange').addEventListener('change',e=>{ A.track('setting_change',{setting:'volume',value:settings.volume}); unlockAudio(); blip(660,.08,'triangle',.08); });
+function syncSettingsUI(){ $('reduceOn').checked=!!settings.reduce; $('largeOn').checked=!!settings.large; $('codeBox').hidden=true; resetArmed=false; $('resetBtn').textContent='Reset all progress'; }
 $('reduceOn').addEventListener('change',e=>{ settings.reduce=e.target.checked; saveSettings(); applyDisplaySettings(); A.track('setting_change',{setting:'reduce_motion',value:settings.reduce}); });
 $('largeOn').addEventListener('change',e=>{ settings.large=e.target.checked; saveSettings(); applyDisplaySettings(); A.track('setting_change',{setting:'large_text',value:settings.large}); });
 $('tutorBtn').onclick=()=>{ life.tutorialDone=false; saveLife(); toast('Start board 1-1 to replay the tutorial'); A.track('tutorial_replay'); };
@@ -1576,21 +1608,22 @@ function logIcon(e){
   const cv=document.createElement('canvas'); cv.width=cv.height=T; const x=cv.getContext('2d'); x.imageSmoothingEnabled=false;
   let src=null;
   if(e.kind==='mined') src=ITEM[e.id]||TEX[e.id]; else if(e.kind==='seen') src=SPR[e.id]||TEX[e.id]; else if(e.kind==='zones') src=TEX[ZONES[+e.id].rock==='stone'&&+e.id===0?'grass':ZONES[+e.id].rock];
-  else { const m={gold_rush:'gold',ruby_rain:'ruby',gem_fever:'emerald',coal_seams:'coal',bright_lamps:'lantern'}[e.id]; src=m?ITEM[m]:TEX.treasure; }
+  else { const m={gold_rush:'gold',ruby_rain:'ruby',gem_fever:'emerald',coal_seams:'coal'}[e.id]; src=m?ITEM[m]:TEX.treasure; }
   if(src) x.drawImage(src,0,0); return cv;
 }
 const PROF_TABS={
   Stats(b){
-    const pts=life.points, rk=Meta.rankFor(pts), st=Meta.streakNow(life,dayState.day);
+    const pts=life.points, rk=Meta.rankFor(pts), st=Meta.streakNow(life,dayState.day), deep=Math.max(life.records.deepest||0,curZone());
     const box=infoEl('div',undefined,'rankBox'); box.append(infoEl('div','Your rank','label'),infoEl('div',rk.name,'rankName'));
     const bar=infoEl('div',undefined,'rankBar'); bar.append(infoEl('div')); bar.firstChild.style.width=Math.round(rk.progress*100)+'%'; box.append(bar,infoEl('div',rk.next?`${rk.toNext.toLocaleString()} points to ${rk.next}`:'The highest rank',"fine")); b.append(box);
-    const grid=infoEl('div',undefined,'stats');
-    const days=life.days, deep=Math.max(life.records.deepest||0,curZone());
-    [[pts.toLocaleString(),'Lifetime points'],[(life.cleared).toLocaleString(),'Boards cleared'],[life.stars.toLocaleString(),'Stars earned'],[days,'Days played'],
-     [st+(life.streak.best?` / ${Math.max(st,life.streak.best)}`:''),'Streak / best'],[ZONES[deep].name.replace('The ',''),'Deepest layer'],
-     [life.records.bestBoard.toLocaleString(),'Best board'],['×'+life.records.bestCombo,'Best combo'],[life.records.bestLines,'Most lines at once'],
-     [fragments,'Core fragments'],[life.specialsCrafted,'Specials crafted'],[life.caveIns,'Cave-ins survived']].forEach(([v,k])=>{ const d=infoEl('div',undefined,'stat'); d.append(infoEl('b',String(v)),infoEl('span',k)); grid.append(d); });
-    b.append(grid);
+    const hero=infoEl('div',undefined,'heroTiles');
+    [[pts.toLocaleString(),'Points'],[life.stars.toLocaleString(),'Stars'],[st,'Day streak']].forEach(([v,k])=>{ const d=infoEl('div',undefined,'stat'); d.append(infoEl('b',String(v)),infoEl('span',k)); hero.append(d); });
+    b.append(hero,infoEl('h3','RECORDS'));
+    const recs=infoEl('div',undefined,'recs'), icon=src=>{ const cv=document.createElement('canvas'); cv.width=cv.height=T; const x=cv.getContext('2d'); x.imageSmoothingEnabled=false; if(src) x.drawImage(src,0,0); return cv; };
+    [[TEX[ZONES[deep].rock==='dirt'?'grass':ZONES[deep].rock],'Deepest layer',ZONES[deep].name.replace('The ','')],[ITEM.gold,'Best board',life.records.bestBoard.toLocaleString()],
+     [ITEM.coal,'Longest streak of clears',life.records.bestCombo],[ITEM.iron,'Most lines at once',life.records.bestLines],[ITEM.wood,'Boards cleared',life.cleared.toLocaleString()],
+     [ITEM.prismore,'Core fragments',fragments]].forEach(([src,k,v])=>{ const r=infoEl('div',undefined,'recRow'); r.append(icon(src),infoEl('span',k),infoEl('b',String(v))); recs.append(r); });
+    b.append(recs);
   },
   Log(b){
     const total=Meta.LOG.length, got=Meta.LOG.filter(e=>Meta.discovered(life,e)).length;
@@ -1648,7 +1681,7 @@ function buildMap(){
   let opts_=buildMap.opts||{};
   MAP.nodes.forEach((p,i)=>{ if(unlocked(i)||gateWaiting(i)) addNode(i,p); });
   updateMapDate();
-  $('mapProg').textContent=depthText();
+  $('mapProg').textContent=nextToolsText(); $('mapProg').title='What the next tools need: mine it on the boards, then forge them';
   $('mapBadge').hidden=!fragments; $('mapBadge').textContent='✦'.repeat(fragments); $('mapBadge').title=`Core fragments: ${fragments}`;
   return {current,sb};
 }
@@ -1665,12 +1698,20 @@ function showMap(opts){
   if(opts.broke) setTimeout(()=>mapNotice('broke'),500);
   else if(dayState.notice) setTimeout(()=>{ const n=dayState.notice; dayState.notice=null; saveDay(); mapNotice('missed',n); },500);
   else if(opts.camp) setTimeout(()=>mapNotice('camp',{camp:opts.camp}),600);
+  else setTimeout(mapTips,600);
+}
+// the map's first-time tips: how the descent works, then what to do at the first locked layer
+function mapTips(){ if(screen!=='map'||!$('prospector').hidden) return;
+  const t=tool(), next=TOOLS[Math.min(t+1,TOOLS.length-1)], c=tcost(Math.min(t+1,TOOLS.length-1)), costTxt=Object.entries(c).map(([k,v])=>`${v} ${DROPS[k][0].toLowerCase()}`).join(' and ');
+  if(tipOnce('map',()=>mapNotice('tip',{title:'Dig down',text:`Tap the glowing board to play it. Every board you clear digs the mine deeper. Each new layer needs better tools, forged from what you mine: the bar at the top shows what the next tools still need.`,icon:ITEM.tool_branch}))) return;
+  const f=frontier(); if(f<BOARD_COUNT&&gateWaiting(f)) tipOnce('gate',()=>mapNotice('tip',{title:`${next.name} needed`,text:`${ZONES[zoneOfIdx(f)].name} is too hard for your tools. Forge ${next.name} for ${costTxt}: tap the locked board, or the Forge button. Short of something? Replay boards you've cleared: replays give ore.`,icon:ITEM['tool_'+next.id]}));
 }
 function mapNotice(kind,n){
   const ic=$('pMedal').getContext('2d'); ic.clearRect(0,0,16,16);
   const set=(title,text,icon)=>{ $('pTitle').textContent=title; $('pText').textContent=text; $('pCount').textContent=''; if(icon) ic.drawImage(icon,0,0); $('prospector').hidden=false; };
-  if(kind==='missed') set('The cave settled',`You missed a day, so ${n.lost} board${n.lost===1?'':'s'} in ${ZONES[n.zone].name} caved back in${n.zone===MAGMA_Z&&n.camp?` (back to camp ${n.camp/10})`:''}. Your tools and stash are safe. Clear a board every day to keep your depth.`,ITEM.wood);
-  if(kind==='camp') set('Camp reached',`You made camp ${n.camp/10} in Magmastone. If you miss a day, you'll only drop back to here.`,ITEM.prismore);
+  if(kind==='missed') set('The cave settled',`You missed a day, so ${n.lost} board${n.lost===1?'':'s'} in ${ZONES[n.zone].name} caved back in${n.camp?' (back to your camp)':''}. Your tools and stash are safe. Clear a board every day to keep your depth.`,ITEM.wood);
+  if(kind==='tip') set(n.title,n.text,n.icon);
+  if(kind==='camp') set('Camp made',`You made camp at the top of ${ZONES[n.camp].name}. If you miss a day, you'll only drop back to here.`,ITEM.wood);
   if(kind==='broke') set('Your tools shattered',`The Crust wore your Galaxy Alloy tools down to nothing. You're back at the start of Magmastone with your tools patched to ${DUR_AFTER_BREAK}%. Mine prism ore to mend them, then try the Crust again.`,ITEM.tool_galaxy);
   [392,494,587].forEach((f,j)=>blip(f,.14,'triangle',.05,j*.1));
 }
@@ -1678,11 +1719,12 @@ $('pOk').onclick=()=>{ $('prospector').hidden=true; };
 function goalChips(g){ const wrap=document.createElement('div'); wrap.className='goals'; Object.entries(g).forEach(([k,v])=>{ const s=document.createElement('span'); s.title=DROPS[k][0]; s.append(iconOf(ITEM[k]),document.createTextNode(` ${v}`)); wrap.append(s); }); return wrap; }
 function openCard(i){
   if(i===CORE_IDX&&unlocked(i)){ openCore(); return; }
+  // one tap plays the next board (or resumes the one in progress); cleared, locked and gated boards open their card
+  { const sb=savedBoard(); if(unlocked(i)&&!isDone(i)&&!gateWaiting(i)&&(!sb||sb.idx===i)){ A.track('board_card_open',{idx:i,label:boardLabel(i),quick:true}); show('game'); if(sb) restoreBoard(sb); else { clearBoardSave(); startBoard(i); } return; } }
   const z=zoneOfIdx(i), def=boardDef(i), card=$('nodeCard'), done=isDone(i), open=unlocked(i), gate=gateWaiting(i), sb=savedBoard();
   A.track('board_card_open',{idx:i,label:boardLabel(i),locked:!open&&!gate,gate,done}); if(!open&&!gate) A.attempt('locked_board',i);
   $('ncZone').textContent=`${def.zoneName} · Board ${boardLabel(i)}`;
   $('ncName').textContent=def.name;
-  const tier=tierOf(def.d); $('ncTier').textContent=tier; $('ncTier').dataset.t=tier;
   const g=$('ncGoals'); g.innerHTML='';
   const go=$('ncGo'), note=$('ncNote'); note.textContent=''; go.dataset.gate='';
   if(gate){
@@ -1696,7 +1738,7 @@ function openCard(i){
     [...def.ores, ...Object.keys(def.gems||{})].forEach(res=>{ const s=document.createElement('span'); s.title=DROPS[res][0]; s.append(iconOf(ITEM[res])); g.append(s); });
     if(!open){ go.disabled=true; go.textContent='Locked'; note.textContent=`Mine board ${boardLabel(i-1)} first.`; }
     else { go.disabled=false; go.textContent=(sb&&sb.idx===i)?'Continue':done?'Mine again':'Mine this board';
-      if(z===CRUST_Z&&!done) note.textContent=`Crust rock wears your tools hard. Tools at ${Math.round(dayState.dur)}%; ${bank.prismore||0} prism ore in your stash to mend them at the Forge.`;
+      if(toolBreakable()&&z===CRUST_Z&&!done) note.textContent=`Crust rock wears your tools hard. Tools at ${Math.round(dayState.dur)}%; ${bank.prismore||0} prism ore in your stash to mend them at the Forge.`;
       if(done){ const st=(dayState.stars||{})[i]||1; note.textContent=`Mined · ${(dayState.scores[i]||0).toLocaleString()} points · ${'★'.repeat(st)}${'☆'.repeat(3-st)} · replays give ore`; }
       if(sb&&sb.idx!==i) note.textContent=`Starting this board ends your run on ${boardLabel(sb.idx)}.`; }
   }
@@ -1964,7 +2006,7 @@ function render(now){
 
 // ---------- boot ----------
 // Save format changes between versions. v2: granite zone added (boards renumbered) and cinnabar became ruby.
-const SCHEMA=4;
+const SCHEMA=5;
 function migrate(){
   let v=0; try{ v=+(localStorage.getItem('deepcore-schema')||0); }catch(e){}
   if(v>=SCHEMA) return;
@@ -1974,6 +2016,19 @@ function migrate(){
   // v4: the daily map became one long descent. Everyone starts a fresh run on the grass (lifetime profile, log and settings are kept).
   if(v<4){ lsDel('deepcore-day'); lsDel(K_DAY); lsDel(K_BOARD); if(p){ p.bank={}; p.specials=[]; lsSet(K_PROFILE,p); } }
   else { const b=lsGet(K_BOARD); if(b){ const fix=m=>m==='jackhammer'?'sledgehammer':m; b.grid=b.grid.map(r=>r.map(m=>m&&fix(m))); b.pieces=(b.pieces||[]).map(p=>p&&{...p,mats:p.mats.map(fix)}); b.undo=null; lsSet(K_BOARD,b); } }
+  // v5 (2.1.0): every layer has 8 boards (was 4, 6, 6, 6, 6, 30, 3). The run keeps its depth: layers above the one you were in are
+  // cleared, that layer keeps the same share of its boards, and stars and points move to the matching new board. Tools work again.
+  if(v===4){ const d=lsGet(K_DAY); if(d&&Array.isArray(d.done)){
+    const OLD=[4,6,6,6,6,30,3,1], OS=[]; let n=0; OLD.forEach((b,i)=>{ OS[i]=n; n+=b; });
+    const zOf=i=>{ let z=0; while(z+1<OLD.length&&i>=OS[z+1]) z++; return z; };
+    const conv=i=>{ const z=zOf(i), j=i-OS[z]; return Z_START[z]+(OLD[z]>1?Math.round(j*(ZONES[z].boards-1)/(OLD[z]-1)):0); };
+    const had=new Set(d.done); let f=0; while(had.has(f)) f++;
+    const fz=f>=n?OLD.length:zOf(f), share=fz<OLD.length?(f-OS[fz])/OLD[fz]:1, done=[];
+    ZONES.forEach((z,i)=>{ const k=i<fz?z.boards:i===fz?Math.floor(share*z.boards):0; for(let j=0;j<k;j++) done.push(Z_START[i]+j); });
+    const remap=o=>{ const out={}; Object.entries(o||{}).forEach(([k,v])=>{ const nk=conv(+k); out[nk]=Math.max(out[nk]||0,v); }); return out; };
+    d.done=done; d.stars=remap(d.stars); d.scores=remap(d.scores); d.attempts=remap(d.attempts); d.fails={}; d.camp=0; d.dur=DUR_MAX;
+    d.campsMade=ZONES.map((z,i)=>i).filter(i=>i>0&&!ZONES[i].core&&done.includes(Z_START[i]));
+    lsSet(K_DAY,d); } lsDel(K_BOARD); }
   try{ localStorage.removeItem('deepcore-mode'); localStorage.setItem('deepcore-schema',String(SCHEMA)); }catch(e){}
 }
 function start(){

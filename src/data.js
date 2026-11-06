@@ -24,22 +24,22 @@ const DROPS = {
   bone:['Bone','bone'], meteorite:['Meteorite','meteorite'], prismore:['Prism Ore','prismore'],
 };
 const tierOf=d=> d<.2?'Easy' : d<.5?'Medium' : d<.8?'Hard' : 'Expert';
-// The descent: one row per layer, dug in order over several days. boards: how many boards the layer has; d: dealer difficulty from its
+// The descent: one row per layer, dug in order over several days. boards: how many boards the layer has (8 each since v2.1.0); d: dealer difficulty from its
 // first board to its last; pre: starter blocks; mixes: base blocks, first board to last.
 const ZONES=[
-  {name:'The Forest', rock:'dirt', boards:4, d:[0,.14], pre:[0,1], mixes:[{log:1,grass:1},{log:.7,grass:1,dirt:.5},{log:.5,dirt:2,grass:.6},{dirt:1,log:.2}], ores:['bone','coal'], oreFrom:{coal:1}, boost:{coal:1.6,bone:.8},
+  {name:'The Forest', rock:'dirt', boards:8, d:[0,.14], pre:[0,1], mixes:[{log:1,grass:1},{log:.7,grass:1,dirt:.5},{log:.5,dirt:2,grass:.6},{dirt:1,log:.2}], ores:['bone','coal'], oreFrom:{coal:1}, boost:{coal:1.6,bone:.8},
    names:['Birch Glade','Mossy Hollow','Fern Ridge','Old Stump','Sandy Bank','Pine Clearing','Root Cellar','Brook Bend']},
-  {name:'Limestone Caves', rock:'stone', boards:6, d:[.2,.34], pre:[2,4], mixes:[{dirt:1,stone:1},{stone:2,dirt:.8},{stone:3,dirt:.5},{stone:6,dirt:.25}], ores:['coal','copper','ruby'], boost:{coal:1.1,copper:1.15},
+  {name:'Limestone Caves', rock:'stone', boards:8, d:[.2,.34], pre:[2,4], mixes:[{dirt:1,stone:1},{stone:2,dirt:.8},{stone:3,dirt:.5},{stone:6,dirt:.25}], ores:['coal','copper','ruby'], boost:{coal:1.1,copper:1.15},
    names:['Echo Tunnel','Coal Face','Drip Gallery','Lantern Shaft','Chalk Bend','Bat Roost','Copper Seam','Rubble Hall']},
-  {name:'Slate Caverns', rock:'deep', boards:6, d:[.32,.46], pre:[4,6], mixes:[{stone:1,deep:1},{deep:2,stone:.8},{deep:3,stone:.5},{deep:6,stone:.25}], ores:['coal','copper','iron','ruby'], boost:{iron:4.2,copper:.8,coal:.9},
+  {name:'Slate Caverns', rock:'deep', boards:8, d:[.32,.46], pre:[4,6], mixes:[{stone:1,deep:1},{deep:2,stone:.8},{deep:3,stone:.5},{deep:6,stone:.25}], ores:['coal','copper','iron','ruby'], boost:{iron:4.2,copper:.8,coal:.9},
    names:['Split Seam','Silent Chasm','Iron Stair','Grey Shelf','Slate Stair','Hollow Deep','Layer Walk','Pale Grotto']},
-  {name:'Granite Halls', rock:'granite', boards:6, d:[.44,.58], pre:[5,7], mixes:[{deep:1,granite:1},{granite:2,deep:.8},{granite:3,deep:.5},{granite:6,deep:.25}], ores:['coal','iron','copper','ruby','gold'], boost:{coal:1.25,iron:4.3,copper:.6}, gems:{emerald:{p:.008,cap:1}},
+  {name:'Granite Halls', rock:'granite', boards:8, d:[.44,.58], pre:[5,7], mixes:[{deep:1,granite:1},{granite:2,deep:.8},{granite:3,deep:.5},{granite:6,deep:.25}], ores:['coal','iron','copper','ruby','gold'], boost:{coal:1.25,iron:4.3,copper:.6}, gems:{emerald:{p:.008,cap:1}},
    names:['Pink Vein','Mica Gallery','Feldspar Ledge','Granite Gate','Heavy Stone','Blush Hollow','Pillar Walk','Grey Atrium']},
-  {name:'Basalt Depths', rock:'obsidian', boards:6, d:[.56,.7], pre:[6,8], mixes:[{granite:1,obsidian:1},{obsidian:2,granite:.8},{obsidian:3,granite:.5},{obsidian:6,granite:.25}], ores:['coal','iron','gold','ruby','meteorite'], boost:{meteorite:1.85,iron:1.4,coal:.8}, gems:{emerald:{p:.014,cap:2}, diamond:{p:.01,cap:1}},
+  {name:'Basalt Depths', rock:'obsidian', boards:8, d:[.56,.7], pre:[6,8], mixes:[{granite:1,obsidian:1},{obsidian:2,granite:.8},{obsidian:3,granite:.5},{obsidian:6,granite:.25}], ores:['coal','iron','gold','ruby','meteorite'], boost:{meteorite:1.85,iron:1.4,coal:.8}, gems:{emerald:{p:.014,cap:2}, diamond:{p:.01,cap:1}},
    names:['Column Hall','Glass Vault','Star Fall','Dark Facet','Basalt Shelf','Sky Iron','Black Lens','Comet Cradle']},
-  {name:'Magmastone', rock:'ember', boards:30, camps:[10,20], d:[.66,.76], pre:[7,9], mixes:[{obsidian:1,ember:1},{ember:2,obsidian:.6},{ember:4,obsidian:.3},{ember:6,obsidian:.15}], ores:['coal','gold','ruby','prismore'], boost:{prismore:1.3,coal:.6}, gems:{emerald:{p:.016,cap:2}, diamond:{p:.012,cap:2}},
+  {name:'Magmastone', rock:'ember', boards:8, d:[.66,.76], pre:[7,9], mixes:[{obsidian:1,ember:1},{ember:2,obsidian:.6},{ember:4,obsidian:.3},{ember:6,obsidian:.15}], ores:['coal','iron','gold','ruby','prismore'], boost:{prismore:1.3,coal:.6}, gems:{emerald:{p:.016,cap:2}, diamond:{p:.012,cap:2}},
    names:['Ember Gate','Ash Bridge','Magma Gallery','Ruby Spire','Cinder Throne','Molten Steps','Sulfur Hall','Flame Rift','Glow Vault','Prism Lode','Heat Shimmer','Lava Lattice']},
-  {name:'The Crust', rock:'crust', boards:3, d:[.82,.88], pre:[9,10], mixes:[{ember:1,crust:1},{crust:3,ember:.5},{crust:1}], ores:['gold','prismore'], boost:{prismore:1.25,gold:.6},
+  {name:'The Crust', rock:'crust', boards:8, d:[.82,.88], pre:[9,10], mixes:[{ember:1,crust:1},{crust:3,ember:.5},{crust:1}], ores:['iron','gold','prismore'], boost:{prismore:1.25,gold:.6},
    names:['Searing Gate','White Heat','Last Wall']},
   {name:'Ancient Core', rock:'crust', boards:1, core:true, d:[0,0], pre:[0,0], mixes:[{crust:1}], ores:[], names:['The Ancient Core']},
 ];
@@ -53,15 +53,20 @@ const idxOf=(z,j)=>Z_START[z]+j;
 // Tools: the pick you carry decides how deep you can dig. Layer z needs tool tier z (the Forest needs the branch tools you start with).
 const TOOLS=[
   {id:'branch',  name:'Branch tools',       short:'Branch',       cost:{}},
-  {id:'bone',    name:'Bone tools',         short:'Bone',         cost:{bone:12, wood:6}},
-  {id:'copper',  name:'Copper tools',       short:'Copper',       cost:{copper:20, wood:10}},
-  {id:'iron',    name:'Iron tools',         short:'Iron',         cost:{iron:20, wood:10}},
-  {id:'steel',   name:'Steel tools',        short:'Steel',        cost:{iron:25, coal:25}},
-  {id:'galaxy',  name:'Galaxy Alloy tools', short:'Galaxy Alloy', cost:{meteorite:15, iron:10}},
+  // v2.1.0: costs sized so a typical player needs a few replays per layer on top of its 8 boards (about 2 in the Forest, rising to
+  // about 6 in Basalt), measured with tools/experiments/income.mjs. Digging straight down is rarely enough (backlog F-11 builds on this).
+  {id:'bone',    name:'Bone tools',         short:'Bone',         cost:{bone:24, wood:6}},
+  {id:'copper',  name:'Copper tools',       short:'Copper',       cost:{copper:50, wood:10}},
+  {id:'iron',    name:'Iron tools',         short:'Iron',         cost:{iron:40, wood:10}},
+  {id:'steel',   name:'Steel tools',        short:'Steel',        cost:{iron:45, coal:90}},
+  {id:'galaxy',  name:'Galaxy Alloy tools', short:'Galaxy Alloy', cost:{meteorite:26, iron:15}},
 ];
 const toolNeeded=z=>Math.min(z,TOOLS.length-1);
 // Galaxy Alloy wears down in the deepest rock. Prism ore mends it: in Magmastone one prism ore mends it completely,
 // in the Crust each one mends PRISM_MEND points; each prism ore in the stash mends STASH_MEND at the forge.
+// TOOL_WEAR is off since v2.1.0: wear could break the tools in the Crust with no warning. Backlog F-9 brings durability back for every
+// layer, with repairs on the board and no lost progress; the numbers below are the old Galaxy Alloy rule, kept until then.
+const TOOL_WEAR=false;
 const WEAR={ember:.04, crust:.62}, PRISM_MEND=7, STASH_MEND=12, DUR_MAX=100, DUR_AFTER_BREAK=60;
 // Craftable specials (anvil). Never spawn randomly.
 // Bone is mined only in the Forest; below it, bone comes from Fossils (FOSSIL_BONE), so potions stay scarce
@@ -117,7 +122,7 @@ function placePoints(cells,lines,streak,allClear){
 const DEALS=[4,5,5,6,6,7,7,0];
 // Star lines in board points, per layer. 1 star is the pass mark; 3 stars sits at a skilled player's median deep down; 2 halfway.
 // Board 1-1 (the tutorial board) has a lower 1-star line so it can't realistically fail.
-const STAR_LINES=[[900,1000,1100],[1350,1550,1700],[1500,1700,1850],[2050,2300,2550],[2000,2400,2750],[2500,3000,3550],[2700,3150,3600],[]];
+const STAR_LINES=[[900,1000,1100],[1350,1550,1700],[1500,1700,1850],[2050,2300,2550],[2100,2400,2750],[2500,3000,3550],[2700,3150,3600],[]];
 const FIRST_BOARD_STARS=[700,1000,1100];
 const starsFromScore=(score,at)=>at.reduce((n,v)=>n+(score>=v?1:0),0);
 // each star after the first adds 10% of the 1-star line to the day's points when the board is banked
@@ -131,9 +136,9 @@ const ORE_BUDGET=[
   {coal:8, copper:6, ruby:2.5},
   {coal:8, copper:5, iron:4.5, ruby:2.5},
   {coal:11, iron:5, copper:4, ruby:2.5, gold:1, emerald:.2},
-  {coal:8, iron:2, gold:1, ruby:2, meteorite:2.6, emerald:.4, diamond:.3},
-  {coal:6, gold:1, ruby:2.5, prismore:1.2, emerald:.5, diamond:.35},
-  {gold:.5, prismore:1},
+  {coal:8, iron:3, gold:1, ruby:2, meteorite:2.6, emerald:.4, diamond:.3},
+  {coal:6, iron:1, gold:1, ruby:2.5, prismore:1.2, emerald:.5, diamond:.35},
+  {iron:1, gold:.5, prismore:1},
   {},
 ];
 const STAR_ORES=['coal','bone','copper','iron','ruby','gold','meteorite','prismore','emerald','diamond'];   // the ores and gems (not wood or rock)
@@ -157,6 +162,6 @@ function boardParams(zi,j,mod){
     target:starAt[0]||0, core:!!z.core, d:Math.min(.97,z.d[0]+(z.d[1]-z.d[0])*f), pre:Math.round(z.pre[0]+(z.pre[1]-z.pre[0])*f) };
 }
 const lineName=n=> n>=5?'Mega!' : n===4?'Quad!' : n===3?'Triple!' : n===2?'Double!' : '';
-const api={SCORE,comboBonus,streakBonus,placePoints,DEALS,STAR_LINES,FIRST_BOARD_STARS,starsFromScore,ORE_BUDGET,FOSSIL_BONE,TREASURE,specialHaul,MODIFIERS,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf,STAR_ORES,starBonus,lineName,GEM_KEYS,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS};
+const api={TOOL_WEAR,SCORE,comboBonus,streakBonus,placePoints,DEALS,STAR_LINES,FIRST_BOARD_STARS,starsFromScore,ORE_BUDGET,FOSSIL_BONE,TREASURE,specialHaul,MODIFIERS,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf,STAR_ORES,starBonus,lineName,GEM_KEYS,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.DeepcoreData=api;
 })(typeof self!=='undefined'?self:globalThis);

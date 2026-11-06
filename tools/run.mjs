@@ -16,12 +16,12 @@ for (let run = 0; run < RUNS; run++) {
   const bank = {}; let tool = 0, dur = D.DUR_MAX, attemptsToday = 0, day = 1; const owned = {}; const seen = {};
   const tick = () => { if (++attemptsToday >= PERDAY) { attemptsToday = 0; day++; } };
   const nextCost = z => z + 1 < D.TOOLS.length ? D.TOOLS[z + 1].cost : null;
-  // one board, retried until cleared; in the Crust the tools can break, which sends the run back to the start of Magmastone
+  // one board, retried until cleared; with D.TOOL_WEAR on (off since v2.1.0) the Crust can break the tools, back to the start of Magmastone
   const play = (z, j) => {
     for (let t = 0; t < 25; t++) {
       tick(); S.tries[z]++;
       let mended = 0, broke = false;
-      const onMine = z >= D.MAGMA_Z && tool >= 5 ? (ms => { for (const m of ms) { if (m === 'prismore') { dur = z === D.CRUST_Z ? Math.min(D.DUR_MAX, dur + D.PRISM_MEND) : D.DUR_MAX; mended++; } else if (D.WEAR[m]) dur -= D.WEAR[m]; }
+      const onMine = D.TOOL_WEAR && z >= D.MAGMA_Z && tool >= 5 ? (ms => { for (const m of ms) { if (m === 'prismore') { dur = z === D.CRUST_Z ? Math.min(D.DUR_MAX, dur + D.PRISM_MEND) : D.DUR_MAX; mended++; } else if (D.WEAR[m]) dur -= D.WEAR[m]; }
         if (dur <= 0) { broke = true; return 'break'; } }) : null;
       const r = runBoard(z, j, 90000 + seed++ * 31, t, null, onMine);
       S.moves[z] += r.moves;

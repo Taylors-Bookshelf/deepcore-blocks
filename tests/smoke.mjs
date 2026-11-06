@@ -26,7 +26,7 @@ const T = (fn, arg) => page.evaluate(fn, arg);
 
 await page.click('#mapBtn'); await page.waitForTimeout(300);
 const nodes = await page.$$eval('.node', e => e.length); if (nodes !== 1) fail(`a fresh day shows only the first board, got ${nodes} nodes`);
-await page.click('.node.open'); await page.click('#ncGo'); await page.waitForTimeout(2400);
+await page.click('.node.open'); await page.waitForTimeout(2400);
 
 let moves = 0, end = 'ok';
 for (let k = 0; k < 200; k++) {
@@ -47,7 +47,7 @@ await T(() => { const t = window.__deepcore.test; t.start(5); t.give({ coal: 99,
 await page.waitForTimeout(2400);
 await page.click('#anvilBtn'); await page.waitForTimeout(150);
 const names = await page.$$eval('.recipe .nm', e => e.map(x => x.textContent));
-if (names.join() !== 'Blast Charge,Sledgehammer,Rescue Potion,Luck Tonic') fail('unexpected recipes: ' + names);
+if (names.join() !== 'Blast Charge,Sledgehammer,Rescue Potion,Luck Potion') fail('unexpected recipes: ' + names);
 for (let k = 0; k < 3; k++) { await (await page.$$('.recipe button.go'))[0].click(); await page.waitForTimeout(80); }
 const full = await page.$$eval('.recipe button.go', e => e.map(b => !b.disabled && /Make room/.test(b.textContent)));
 if (!full.every(Boolean)) fail('with three specials in the dock every affordable craft button should say Make room');

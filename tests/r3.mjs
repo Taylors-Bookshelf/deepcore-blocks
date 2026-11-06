@@ -18,7 +18,7 @@ const bankBefore = (await st()).bank;
 await luckBtn.click(); await page.waitForTimeout(400);
 check(await T(() => !document.getElementById('sheetScrim').hidden), 'the sheet opens');
 const txt = await T(() => document.getElementById('sheet').textContent);
-check(/ALL 3 SLOTS FULL/.test(txt) && /Make room for a Luck Tonic/.test(txt) && /Pick a special to destroy\. Your ore is only spent if you go ahead\./.test(txt), 'sheet copy matches the spec');
+check(/ALL 3 SLOTS FULL/.test(txt) && /Make room for a Luck Potion/.test(txt) && /Pick a special to destroy\. Your ore is only spent if you go ahead\./.test(txt), 'sheet copy matches the spec');
 check(await T(() => document.getElementById('shGo').disabled) && await T(() => document.querySelectorAll('.pick').length) === 3, 'DESTROY & CRAFT is disabled until a slot is picked; three tiles are offered');
 await page.tap('#shCancel'); await page.waitForTimeout(200);
 let s = await st(); check(await T(() => document.getElementById('sheetScrim').hidden) && s.specials.join() === 'blast,sledgehammer,rescue' && JSON.stringify(s.bank) === JSON.stringify(bankBefore), 'cancel changes nothing and spends nothing');
@@ -36,7 +36,7 @@ check(await T(() => document.querySelectorAll('#dockSlots .shard').length === 4 
 await page.waitForTimeout(800);
 check(await T(() => !!document.querySelector('#dockSlots .tool.anim canvas.land')), 'phase 3: the new special lands with a bounce');
 await page.waitForTimeout(700);
-check(await T(() => !document.querySelector('#dockSlots .anim') && document.querySelector('#dockSlots .tool:nth-child(2)').dataset.m === 'luck'), 'the dock settles with the Luck Tonic in the second slot');
+check(await T(() => !document.querySelector('#dockSlots .anim') && document.querySelector('#dockSlots .tool:nth-child(2)').dataset.m === 'luck'), 'the dock settles with the Luck Potion in the second slot');
 check(await T(() => window.DCA.buffer.some(e => e.event === 'special_destroyed' && e.properties.destroyed === 'sledgehammer' && e.properties.crafted === 'luck')), 'analytics recorded the destroyed and crafted specials');
 // destroyed-slot cannot be used while the animation runs
 // ---- on the map the swap is immediate ----

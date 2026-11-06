@@ -16,7 +16,7 @@ check(Meta.rankFor(0).name === 'Rookie Miner' && Meta.rankFor(5000).name === 'Pi
   check(Meta.prevDay('2026-03-01') === '2026-02-28' && Meta.prevDay('2027-01-01') === '2026-12-31', 'previous-day maths handles month and year ends'); }
 check(Meta.resetText(new Date('2026-01-15T07:00:00Z')) === '1h 0m' && Meta.resetText(new Date('2026-07-15T06:30:00Z')) === '30m' && Meta.resetText(new Date('2026-07-15T07:00:00Z')) === '24h 0m', 'the countdown runs to midnight Pacific in winter and summer');
 { const run = { done: [0, 1, 2, 3, 4, 5], days: 3 }; const t = Meta.shareText({ day: '2026-10-14', run, zone: 'Limestone Caves', tool: 'Bone tools', total: 18420, streak: 4, fragments: 0, url: 'https://x.test/' }).split('\n');
-  check(t[0] === 'Deepcore Blocks · Oct 14' && t[1] === 'Day 3 of my descent · Limestone Caves · Bone tools' && t[2] === '18,420 pts · 4-day streak' && t[3] === '🟧🟧🟧🟧' && t[4].startsWith('🟧🟧⬛') && t.length === 11 && t[10] === 'https://x.test/', 'the share text shows the descent as a small grid, layer by layer'); }
+  check(t[0] === 'Deepcore Blocks · Oct 14' && t[1] === 'Day 3 of my descent · Limestone Caves · Bone tools' && t[2] === '18,420 pts · 4-day streak' && t[3] === '🟧🟧🟧🟧🟧🟧⬛⬛' && t[4] === '⬛⬛⬛⬛⬛⬛⬛⬛' && t.length === 11 && t[10] === 'https://x.test/', 'the share text shows the descent as a small grid, layer by layer'); }
 { const code = Meta.encodeSave({ profile: { bank: { coal: 7 } }, life: { x: 1 }, note: 'ünïcode ✓' }); const back = Meta.decodeSave(code);
   check(/^DC1\./.test(code) && back && back.profile.bank.coal === 7 && back.note === 'ünïcode ✓', 'save codes round-trip, including unicode');
   check(Meta.decodeSave(code.slice(0, -4)) === null && Meta.decodeSave(code.replace(/\.[a-z0-9]+\./, '.zzzz.')) === null && Meta.decodeSave('garbage') === null && Meta.decodeSave('') === null, 'damaged or fake codes are refused'); }
@@ -31,12 +31,11 @@ const tt = (f, ...a) => page.evaluate(([f, a]) => window.__deepcore.test[f](...a
 const st = () => T(() => { const s = window.__deepcore.test.state(); return { bank: s.bank, day: s.dayState, screen: s.screen, pieces: s.pieces, hint: s.hintInfo }; });
 
 // home screen
-let home = await T(() => ({ cont: document.getElementById('contBtn').hidden, twist: document.getElementById('hcTwist').textContent, streak: document.getElementById('hcStreak').hidden, share: document.getElementById('shareBtn').hidden }));
-check(home.cont && home.streak && home.share, `a new player's home is quiet: no Continue, streak or Share yet`);
-check(home.twist === await tt('mod').then(m => m.name), "home shows today's twist");
+let home = await T(() => ({ cont: document.getElementById('contBtn').hidden, card: !!document.getElementById('homeCard'), play: document.getElementById('mapBtn').textContent, icons: ['profileBtn', 'settingsBtn', 'homeSound'].every(id => !!document.getElementById(id)) }));
+check(home.cont && !home.card && home.play === 'Play' && home.icons, `a new player's home is quiet: Play, and small profile, settings and sound icons (${home.play})`);
 
 // tutorial: scripted first set on board 1-1
-await page.tap('#mapBtn'); await page.waitForTimeout(400); await page.tap('.node.open'); await page.tap('#ncGo'); await page.waitForTimeout(3200);
+await page.tap('#mapBtn'); await page.waitForTimeout(400); await page.tap('.node.open'); await page.waitForTimeout(3200);
 let s = await st(); const sizes = s.pieces.map(p => p.cells.length);
 check(sizes.join() === '3,3,2', `the first board deals a scripted set that fills a row (${sizes})`);
 check(await T(() => !document.getElementById('tutor').hidden && /glowing spot/.test(document.getElementById('tutorText').textContent)) && s.hint && s.hint.r0 === 7 && s.hint.c0 === 0, 'a caption and a glowing target guide the first move');
@@ -63,42 +62,42 @@ let life = await tt('life'); check(life.mined.coal === 2 && life.mined.iron === 
 await tt('complete'); await page.waitForTimeout(3200); life = await tt('life');
 check(life.streak.cur === 1 && life.cleared === 1 && life.stars >= 1 && life.records.bestBoard > 0 && life.records.bestLines >= 1 && life.firstDay, 'clearing a board starts the streak and updates the records');
 await T(() => window.__deepcore.test.showHome()); await page.waitForTimeout(200);
-home = await T(() => ({ cont: document.getElementById('contBtn').hidden, streak: document.getElementById('hcStreak').hidden, share: document.getElementById('shareBtn').hidden, today: document.getElementById('hcToday').textContent }));
-check(home.streak && !home.share && /The Forest/.test(home.today), `home shows where you are and a Share button; a 1-day streak is not shown (${home.today})`);
 await page.tap('#profileBtn'); await page.waitForTimeout(200);
-check(await T(() => /Rookie Miner/.test(document.getElementById('profBody').textContent) && document.querySelectorAll('.stat').length === 12), 'the profile shows the rank and twelve stats');
+check(await T(() => /Rookie Miner/.test(document.getElementById('profBody').textContent) && document.querySelectorAll('.heroTiles .stat').length === 3 && document.querySelectorAll('.recRow').length === 6), 'the profile shows the rank, three headline numbers and six records');
 await page.tap('#profTabs button:nth-child(2)'); await page.waitForTimeout(200);
 const logn = await T(() => ({ all: document.querySelectorAll('.logItem').length, got: document.querySelectorAll('.logItem:not(.no)').length }));
 check(logn.all === Meta.LOG.length && logn.got >= 5, `the discovery log lists everything and has unlocked what you found (${logn.got}/${logn.all})`);
-await page.tap('#profClose');
-// share
+await page.tap('#profTabs button:nth-child(1)');
+// share, from the profile
 await T(() => { window.__shared = null; navigator.share = async (d) => { window.__shared = d.text; }; });
-await page.tap('#shareBtn'); await page.waitForTimeout(300);
+await page.tap('#shareBtn'); await page.waitForTimeout(300); await page.tap('#profClose');
 check(await T(() => /Deepcore Blocks/.test(window.__shared || '') && /Day 1 of my descent/.test(window.__shared || '')), 'Share hands the day\'s text to the phone\'s share sheet');
 // continue button
 await tt('start', 2); await page.waitForTimeout(2600);
 await T(() => { const t = window.__deepcore.test, s = t.state(); const p = s.pieces[0]; for (let r = 7; r >= 0; r--) for (let c = 0; c < 8; c++) if (t.fits(p, r, c)) { t.place(0, r, c); return; } }); await page.waitForTimeout(800);
 await T(() => window.__deepcore.test.showHome()); await page.waitForTimeout(200);
-check(await T(() => !document.getElementById('contBtn').hidden && /Continue 1-3/.test(document.getElementById('contBtn').textContent)), 'Home offers Continue for a board in progress');
+check(await T(() => !document.getElementById('contBtn').hidden && /Continue board 1-3/.test(document.getElementById('contBtn').textContent)), 'Home offers Continue for a board in progress');
 await page.tap('#contBtn'); await page.waitForTimeout(800); check((await st()).screen === 'game', 'Continue resumes it');
 // map countdown
 await T(() => window.__deepcore.test.openMap()); await page.waitForTimeout(300);
-check(await T(() => !/new map in/i.test(document.getElementById('mapDate').textContent) && document.getElementById('mapDate').textContent === document.getElementById('hcTwist').textContent), 'the map header shows the twist, not a date or countdown');
+check(await T(() => !/new map in/i.test(document.getElementById('mapDate').textContent) && document.getElementById('mapDate').textContent === window.__deepcore.test.mod().name), 'the map header shows the twist, not a date or countdown');
 
 // settings
 await T(() => window.__deepcore.test.showHome()); await page.tap('#settingsBtn'); await page.waitForTimeout(200);
 await page.check('#reduceOn'); await page.check('#largeOn');
 check(await T(() => document.documentElement.classList.contains('reduce') && document.documentElement.classList.contains('large')), 'reduce-motion and larger-text switches apply at once');
-await page.fill('#volRange', '30'); await page.dispatchEvent('#volRange', 'input'); await page.waitForTimeout(100);
-check((await tt('settings')).volume === 30 && (await tt('settings')).reduce && (await tt('settings')).large, 'settings are remembered');
+await page.tap('#settingsBack'); await page.tap('#homeSound'); await page.waitForTimeout(200);
+check(await T(() => document.getElementById('musicVol').disabled), 'the music slider is off while music is off');
 await page.check('#musicOn'); await page.waitForTimeout(800);
+await page.fill('#sfxVol', '30'); await page.dispatchEvent('#sfxVol', 'input'); await page.fill('#musicVol', '40'); await page.dispatchEvent('#musicVol', 'input'); await page.waitForTimeout(100);
+check((await tt('settings')).sfxVol === 30 && (await tt('settings')).musicVol === 40 && (await tt('settings')).reduce && (await tt('settings')).large, 'settings and both volumes are remembered');
 check(await tt('musicOn'), 'ambient music starts when switched on');
 await page.uncheck('#musicOn'); await page.waitForTimeout(300); check(!(await tt('musicOn')), 'and stops when switched off');
-await page.uncheck('#sfxOn'); check(await page.getAttribute('#sound', 'aria-pressed') === 'false', 'the sound-effects switch matches the header speaker');
-await page.check('#sfxOn');
+await page.uncheck('#sfxOn'); check(await page.getAttribute('#sound', 'aria-pressed') === 'false', 'with music and effects off, the board\'s speaker shows muted too');
+await page.check('#sfxOn'); await page.mouse.click(10, 500); await page.waitForTimeout(150);
 
-// feedback
-await page.tap('#feedbackBtn'); await page.waitForTimeout(200); await page.tap('#fbChips button:nth-child(1)'); await page.fill('#fbText', 'The hint button is great'); posted.length = 0; await page.tap('#fbSend'); await page.waitForTimeout(600);
+// feedback (from Settings)
+await page.tap('#settingsBtn'); await page.waitForTimeout(200); await page.tap('#feedbackBtn'); await page.waitForTimeout(200); await page.tap('#fbChips button:nth-child(1)'); await page.fill('#fbText', 'The hint button is great'); posted.length = 0; await page.tap('#fbSend'); await page.waitForTimeout(600);
 check(posted.some(b => /"event":"feedback"/.test(b) && /hint button is great/.test(b) && /"kind":"Bug"/.test(b)), 'feedback is sent as an analytics event with its text and kind');
 
 // back up and restore
@@ -120,4 +119,14 @@ await close();
   await t.page.tap('#installClose'); await t.page.evaluate(() => window.__deepcore.test.showHome()); await t.page.waitForTimeout(200);
   check(await t.page.evaluate(() => document.getElementById('installHint').hidden), 'dismissing it hides the hint for two weeks');
   await t.close(); }
+// ---- first-time tips (v2.1.0): the map explains digging and tools once, the first locked layer explains forging ----
+{ const t = await phone({ tips: true }); const T2 = (f, a) => t.page.evaluate(f, a);
+  await t.page.goto(t.base + '?debug'); await t.page.waitForTimeout(700); await t.page.tap('#mapBtn'); await t.page.waitForTimeout(1100);
+  check(await T2(() => !document.getElementById('prospector').hidden && /Dig down/.test(document.getElementById('pTitle').textContent)), 'a first visit to the map explains digging and tools');
+  check(await T2(() => /Bone tools · bone 0\/\d+ · wood 0\/\d+/.test(document.getElementById('mapProg').textContent)), `the map's top bar shows what the next tools need (${await T2(() => document.getElementById('mapProg').textContent)})`);
+  await t.page.tap('#pOk'); await T2(() => { const x = window.__deepcore.test; x.markDone(Array.from({ length: 8 }, (_, k) => k)); x.openMap(); }); await t.page.waitForTimeout(1100);
+  check(await T2(() => !document.getElementById('prospector').hidden && /Bone tools needed/.test(document.getElementById('pTitle').textContent)), 'the first locked layer explains how to forge the tools');
+  await t.page.tap('#pOk'); await T2(() => window.__deepcore.test.openMap()); await t.page.waitForTimeout(1100);
+  check(await T2(() => document.getElementById('prospector').hidden), 'each tip shows only once');
+  check(t.errors.length === 0, 'no page errors with tips ' + t.errors.join(' | ')); await t.close(); }
 console.log(fails.length ? `R5 TESTS FAILED (${fails.length})` : 'R5 TESTS PASSED'); if (fails.length) process.exitCode = 1;

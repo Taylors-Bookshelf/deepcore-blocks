@@ -10,3 +10,4 @@ One-off simulators used to explore balance questions before a rule change. Nothi
 | `p10.mjs` | Typical-player ore percentiles in the deep layers, for the 1-star line. |
 | `score2.mjs` | The points-based scoring (I-15): bots, point breakdown, star-line calibration (`--calibrate`, `--even`). |
 | `alloc.mjs` | Today's average haul per board by layer, the basis for the fixed resource budget. |
+| `income.mjs` | Resources per cleared board by layer (typical player), the basis for the 2.1.0 tool costs. |

@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.1.0 — toward v1: cleaner screens, even layers, no surprise tool breaks
+- Home: a single Play button, with small Profile, Settings and Sound icons at the top. The stats card is gone.
+- Profile: your rank, three headline numbers and your records as cards, with Share at the top.
+- Settings fit on one screen: Reduce motion, Larger text, play data, Back up / Restore, Replay tutorial, Feedback and Reset.
+- Sound: the speaker on the home screen, the map and the board opens a small panel with Music and Effects, each with a switch and its own volume.
+- The board's top bar is calmer: Pause, the board's name, Hint (3 coal), How to play (?) and Sound. The difficulty label, layer stars and tool meter are gone.
+- Pause shows the layer, the star lines and your stars there, with Resume, Restart board and Quit to map.
+- The score is a number that counts up, with the three stars as your progress and the deal you're on beside it. The "Board mined! +…" popup no longer shows a number that didn't match your score.
+- One tap on the next board on the map starts it (or resumes it).
+- Every layer has 8 boards (Magmastone had 30). Your run keeps its depth.
+- Camps: the first board of every layer below the Forest is its camp. A missed day only sends you back to your layer's camp.
+- Tools no longer wear out or break. Durability and repairs will return as a proper feature, taught from the start.
+- The map shows only rock, tunnels, boards and camps: no lamps, rails, crystals, lava or lake.
+- First-time tips explain your haul, digging down, forging tools at the first locked layer and crafting specials. The map's top bar shows what your next tools still need.
+- The Luck Tonic is now the Luck Potion.
+
 ## 2.0.4 — new scoring (playtest build)
 - A board is now a set number of deals: 4 in the Forest, rising to 7 in Magmastone and the Crust. Place every piece and the board is done; stars come from its points.
 - Points come from play, not from what you mine: 10 for every block placed, 100 for every line, +250 / +600 / +1200 for a Double / Triple / Quad, and a streak bonus for clearing on back-to-back moves (+50 per clear in a row, up to +500). An All Clear adds +250.

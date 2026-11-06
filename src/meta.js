@@ -21,7 +21,7 @@ function rankFor(points){
 
 // ---------- the profile that lasts across days ----------
 const newLife=()=>({v:1, firstDay:'', days:0, points:0, cleared:0, stars:0, caveIns:0, specialsCrafted:0, hints:0, runs:0,
-  streak:{cur:0,best:0,last:''}, mined:{}, seen:{}, zones:{}, twists:{}, tutorialDone:false,
+  streak:{cur:0,best:0,last:''}, mined:{}, seen:{}, zones:{}, twists:{}, tips:{}, tutorialDone:false,
   records:{bestBoard:0,bestCombo:0,bestLines:0,bestDay:0,deepest:0,bestRun:0}});
 const prevDay=day=>{ const [y,m,d]=day.split('-').map(Number); const t=new Date(Date.UTC(y,m-1,d)); t.setUTCDate(t.getUTCDate()-1); return t.toISOString().slice(0,10); };
 // a day counts for the streak once you clear a board; consecutive Pacific days extend it
@@ -69,7 +69,7 @@ const LOG=[
   ...[['bone','Bone'],['coal','Coal'],['copper','Copper'],['iron','Iron'],['gold','Gold'],['meteorite','Meteorite'],['prismore','Prism Ore']].map(([id,name])=>({id,name,group:'Ore',kind:'mined'})),
   ...[['ruby','Ruby'],['emerald','Emerald'],['diamond','Diamond']].map(([id,name])=>({id,name,group:'Gems',kind:'mined'})),
   ...[['tool_bone','Bone tools'],['tool_copper','Copper tools'],['tool_iron','Iron tools'],['tool_steel','Steel tools'],['tool_galaxy','Galaxy Alloy tools']].map(([id,name])=>({id,name,group:'Tools forged',kind:'seen'})),
-  ...[['fossil','Fossil'],['treasure','Buried Treasure'],['blast','Blast Charge'],['sledgehammer','Sledgehammer'],['rescue','Rescue Potion'],['luck','Luck Tonic']].map(([id,name])=>({id,name,group:'Specials',kind:'seen'})),
+  ...[['fossil','Fossil'],['treasure','Buried Treasure'],['blast','Blast Charge'],['sledgehammer','Sledgehammer'],['rescue','Rescue Potion'],['luck','Luck Potion']].map(([id,name])=>({id,name,group:'Specials',kind:'seen'})),
   ...D.ZONES.map((z,i)=>({id:String(i),name:z.name,group:'Zones reached',kind:'zones'})),
   ...D.MODIFIERS.map(m=>({id:m.id,name:m.name,group:'Daily twists',kind:'twists'})),
 ];

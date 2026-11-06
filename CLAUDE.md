@@ -8,7 +8,7 @@ A mining-themed 8×8 block puzzle: drag 3-piece sets onto the board, clear rows 
 - `npm install && npx playwright install chromium && npm test` runs every suite (rules, release tests r1/r3/r4/r5/r6/r7, maps, smoke, spec, touch, flow, dock, gates, soak). `npm run test:balance` runs the slow bot-based balance test.
 - Add `?debug` to the URL on **localhost only** to get `window.__deepcore.test` (hooks used by the tests; never rely on them in game code). Tests block analytics so test runs never reach PostHog.
 - Release routine: bump `APP_VERSION` in `src/version.js` (the service worker cache name derives from it), update `CHANGELOG.md`, run `npm test`, commit, tag `vX.Y.Z`, `git push --tags origin main`, then confirm the live site serves the new version. Pushing to `main` republishes in about 30 seconds.
-- Decisions made without asking are logged in `DECISIONS.md`; `ROADMAP.md` tracks the v1.0 work item by item.
+- Decisions made without asking are logged in `DECISIONS.md`; `BACKLOG.md` (exported from the online doc) tracks bugs, features, the roadmap toward v1 and design notes.
 
 ## Files
 
@@ -24,12 +24,12 @@ A mining-themed 8×8 block puzzle: drag 3-piece sets onto the board, clear rows 
 ## Design rules (keep unless told otherwise)
 
 **Boards and progression (the Descent, v2.0)**
-- One long run, kept across days (`dayState` in game.js is the run, saved under `deepcore-run`): Forest 4, Limestone Caves 6, Slate Caverns 6, Granite Halls 6, Basalt Depths 6, Magmastone 30 (camps after 10 and 20), The Crust 3, Ancient Core 1 (`ZONES[].boards`, indices via `Z_START`/`zoneOfIdx`/`jOfIdx`). Pacific-time days still drive the daily twist.
-- **Tools** gate each layer's first board (`TOOLS`, `toolNeeded`): branch → bone → copper → iron → steel → Galaxy Alloy, forged on the map (Forge panel, or one tap on the locked board). Lamps are automatic map decoration.
-- **Missed day** (no clear yesterday or today): `settle()` drops the current layer's boards (to the last camp in Magmastone). Tools and stash are kept.
-- **Galaxy Alloy wear** (`WEAR`, `PRISM_MEND`, `STASH_MEND`): breaking in the Crust (`toolBreak`) sends the run back to the start of Magmastone at `DUR_AFTER_BREAK`.
+- One long run, kept across days (`dayState` in game.js is the run, saved under `deepcore-run`): Forest, Limestone Caves, Slate Caverns, Granite Halls, Basalt Depths, Magmastone and The Crust have 8 boards each, then the Ancient Core (`ZONES[].boards`, indices via `Z_START`/`zoneOfIdx`/`jOfIdx`). Pacific-time days still drive the daily twist.
+- **Tools** gate each layer's first board (`TOOLS`, `toolNeeded`): branch → bone → copper → iron → steel → Galaxy Alloy, forged on the map (Forge panel, or one tap on the locked board). Tool costs need a few replays per layer on top of its 8 boards. The map shows only rock, tunnels, boards, camps and the Core.
+- **Missed day** (no clear yesterday or today): `settle()` drops the current layer's boards after its camp (the layer's first board, below the Forest). Tools and stash are kept.
+- **Tool wear is off** (`TOOL_WEAR=false`) until backlog F-9; the old Galaxy Alloy wear code (`WEAR`, `toolBreak`) is dormant.
 - **Ancient Core** (`openCore`): place the portal, tally, name, share/download card, credits, then `finishRun()` starts a new run with a core fragment (max 5, Legendary at 5).
-- **Scoring (v2.0.4, `SCORE`, `placePoints` in data.js, shared with the simulator):** 10 a block placed, 100 a line, combo +250/+600/+1200 for 2/3/4+ lines, streak +50 per clear in a row after the first (max +500; any non-clearing placement breaks it), All Clear +250. Mining gives resources, never points. Crafted specials: Blast +200, Sledgehammer +350, Luck Tonic −150, Rescue −250. Random specials pay resources only.
+- **Scoring (v2.0.4, `SCORE`, `placePoints` in data.js, shared with the simulator):** 10 a block placed, 100 a line, combo +250/+600/+1200 for 2/3/4+ lines, streak +50 per clear in a row after the first (max +500; any non-clearing placement breaks it), All Clear +250. Mining gives resources, never points. Crafted specials: Blast +200, Sledgehammer +350, Luck Potion −150, Rescue −250. Random specials pay resources only.
 - A board is **a fixed number of deals** (`DEALS` by layer, 4 to 7); placing the last piece ends it (`reachTarget`). Its 0–3 stars come from its points against `STAR_LINES` (board 1-1: `FIRST_BOARD_STARS`); `def.target` is the 1-star line. A three-star meter beside the score bar fills with points; layer star totals show on the header and map. Lines were set with `tools/experiments/score2.mjs --even 1`. The results sheet (`showResult`) offers CONTINUE (`bankBoard`: haul, stars, star bonus) or RETRY (`retryBoard`: a clean restart, the run is discarded); 0 stars = not cleared, RETRY or MAP only. Stars already earned never drop. Each board deals a **fixed ore budget** (`ORE_BUDGET`, `rollBudget`/`spreadOre` in core.js); there is no bonus ore. Replays give ore.
 - No side tunnels (removed in v2.0.2): ore for the next tools comes from replaying cleared boards. Pacing and economy are simulated with `tools/run.mjs` (whole descents, including replays and 0-star retries) and checked by `npm run test:balance`.
 - No difficulty setting; `ZONES[].d` sets dealer difficulty. Repeated cave-ins ease the dealer (`mercyTilt`). One **daily twist** per day (`MODIFIERS`), including Forge Day (cheaper tools).
@@ -39,17 +39,23 @@ A mining-themed 8×8 block puzzle: drag 3-piece sets onto the board, clear rows 
 - `VAL` ranks blocks (deeper rock more, ore far more, gems most); since v2.0.4 it gives no points.
 
 **Specials**
-- Craft-only, held in a **3-slot dock in any mix** (duplicates allowed): Blast Charge, Sledgehammer, Rescue Potion, Luck Tonic (`RECIPES`). Crafting with a full dock opens the make-room sheet (destroy one special; ore is spent only on confirm). Random-only on the board: Fossil and Buried Treasure (`SPECIAL_MIX`, `SPECIAL_RATE` 0.3%/0.6%/1.2%/1.8% by tier; Easy is the Forest). The Geode was removed in v2.0.2. Rescue Potion and Luck Tonic each need 4 bone; bone is mined only in the Forest.
-- Blast Charge breaks the 8 neighbours; Sledgehammer reshuffles the board (no trapped gaps, no full lines, room for the tray); Rescue Potion is used automatically on a cave-in (undo last placement, fresh set); Luck Tonic (tap to drink) favours the next 7 sets. What a Blast Charge breaks is lost, not mined. Fossil = 4–8 bones (`FOSSIL_BONE`); Buried Treasure = a haul of ore/gems (`TREASURE`); no points; both paid by `specialHaul`, shared with the simulator.
+- Craft-only, held in a **3-slot dock in any mix** (duplicates allowed): Blast Charge, Sledgehammer, Rescue Potion, Luck Potion (`RECIPES`). Crafting with a full dock opens the make-room sheet (destroy one special; ore is spent only on confirm). Random-only on the board: Fossil and Buried Treasure (`SPECIAL_MIX`, `SPECIAL_RATE` 0.3%/0.6%/1.2%/1.8% by tier; Easy is the Forest). The Geode was removed in v2.0.2. Rescue Potion and Luck Potion each need 4 bone; bone is mined only in the Forest.
+- Blast Charge breaks the 8 neighbours; Sledgehammer reshuffles the board (no trapped gaps, no full lines, room for the tray); Rescue Potion is used automatically on a cave-in (undo last placement, fresh set); Luck Potion (tap to drink) favours the next 7 sets. What a Blast Charge breaks is lost, not mined. Fossil = 4–8 bones (`FOSSIL_BONE`); Buried Treasure = a haul of ore/gems (`TREASURE`); no points; both paid by `specialHaul`, shared with the simulator.
 
 **Dealer and feel**
 - Every dealt set is solvable (a cave-in is always the player's fault). Easy boards get strong help that fades with difficulty; "mercy" adds help as the board fills; nearly empty boards get a hunt for All-Clear sets. Pieces come in families (all rotations/mirrors equally likely); big corner pieces are dialled down.
 - "Perfect!" when the placement was the only one keeping the tray playable, "Great fit!" for one of 2–3 (praise only, no points). All Clear: +250 and a big easy set.
 - Layout is the design spec at 390pt: 44pt header, 36pt progress bar, 52pt resource strip (counts below the icons, 99+ above 99), 42pt blocks with 2pt seams, 56pt dock slots, 114pt tray slots with 20pt piece cells; `tests/spec.mjs` asserts it. Tray pieces never resize; a piece rides above the fingertip while dragging.
 
+## Screens (v2.1.0)
+
+- Home: Play / Continue, with Profile (podium), Settings (gear) and Sound icons. Settings fit one screen. The speaker on home, map and board opens the sound popover (music and effects, each with a switch and volume: `settings.musicVol`, `settings.sfxVol`).
+- Board header: Pause (`openPause`: Resume, Restart, Quit to map), the board's name, Hint, How to play, Sound. The score is a number with `Deal x of y` and the star meter. One tap on the next map board starts it.
+- First-time tips show once each (`tipOnce`, `life.tips`); tests mark them seen unless `phone({ tips: true })`.
+
 ## Saving
 
-`localStorage` only (keys `deepcore-profile`, `-run`, `-board`, `-life`, `-settings`, `-schema`, `-sound`, `-install`, `-aid`, `-analytics`). `SCHEMA` (currently 4) and `migrate()` handle format changes; a saved board is validated before use. Settings has a save-code backup/restore (`DC1.…`) and a reset. Progress does not follow a player across devices without a code.
+`localStorage` only (keys `deepcore-profile`, `-run`, `-board`, `-life`, `-settings`, `-schema`, `-sound`, `-install`, `-aid`, `-analytics`). `SCHEMA` (currently 5; v5 moved runs to 8 boards a layer) and `migrate()` handle format changes; a saved board is validated before use. Settings has a save-code backup/restore (`DC1.…`) and a reset. Progress does not follow a player across devices without a code.
 
 ## Open items to raise with the designer
 

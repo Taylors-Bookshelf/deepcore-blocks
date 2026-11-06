@@ -5,14 +5,14 @@ const { page, cdp, base, errors, close } = await phone();
 await page.goto(base + '?debug'); await page.waitForTimeout(600);
 check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'page is not wider than the phone screen');
 check(await page.evaluate(() => { const b = document.getElementById('mapBtn').getBoundingClientRect(); return b.left >= 0 && b.right <= innerWidth && b.bottom <= innerHeight; }), 'home buttons are on screen');
-await page.tap('#mapBtn'); await page.waitForTimeout(300); await page.tap('.node.open'); await page.tap('#ncGo'); await page.waitForTimeout(2600);
+await page.tap('#mapBtn'); await page.waitForTimeout(300); await page.tap('.node.open'); await page.waitForTimeout(2600);
 // skip the tutorial: its steps only take a drop on the glowing spot (tests/r7.mjs covers that)
 await page.evaluate(() => document.getElementById('tutorSkip').click()); await page.waitForTimeout(100);
 
 // header controls and the score bar
-check(await page.evaluate(() => ['infoBtn', 'homeBtn', 'sound', 'anvilBtn'].every(id => !!document.getElementById(id))), 'header has info, map and sound; the dock has CRAFT');
+check(await page.evaluate(() => ['pauseBtn', 'hintBtn', 'infoBtn', 'sound', 'anvilBtn'].every(id => !!document.getElementById(id)) && !document.getElementById('homeBtn') && !document.getElementById('tier')), 'header has pause, hint, how to play and sound (no map button, no difficulty label); the dock has CRAFT');
 check(await page.evaluate(() => !document.getElementById('score') && !document.querySelector('.btns') && !document.getElementById('crafted')), 'old big score, footer buttons and hint line are gone');
-check(await page.evaluate(() => /\d/.test(document.getElementById('pscore').textContent) && /\d/.test(document.getElementById('pgoal').textContent)), 'progress bar shows score / target');
+check(await page.evaluate(() => /\d/.test(document.getElementById('pscore').textContent) && /Deal \d+ of \d+/.test(document.getElementById('pgoal').textContent) && !document.querySelector('.pbar')), 'the score is a number with the deal count, no bar');
 
 // tray: one fixed piece size even with a 1x5 bar; sizes never change when a piece is placed
 await page.evaluate(() => { const t = window.__deepcore.test; const mk = (cells, w, h) => ({ cells, h, w, mats: cells.map(() => 'dirt'), sid: 0 });
@@ -39,14 +39,20 @@ await page.waitForTimeout(300);
 const ev = await page.evaluate(() => window.DCA.buffer.map(e => e.event));
 check(ev.includes('piece_place'), 'analytics saw piece_place'); check(ev.includes('drop_invalid'), 'analytics saw drop_invalid'); check(ev.includes('repeat_attempt'), 'analytics flagged the repeated attempt');
 
-// sound: the audio engine starts after a tap, and the icon toggles and remembers
+// sound: the audio engine starts after a tap; the speaker opens the sound panel; switching effects off crosses out every speaker and is remembered
 check(await page.evaluate(() => window.__deepcore.test.audioState()) === 'running', 'audio context is running after touches');
-check(await page.getAttribute('#sound', 'aria-pressed') === 'true', 'sound starts on');
-await page.tap('#sound'); check(await page.getAttribute('#sound', 'aria-pressed') === 'false', 'sound icon toggles off');
+check(await page.getAttribute('#sound', 'aria-pressed') === 'true', 'sound starts on (effects on)');
+await page.tap('#sound'); await page.waitForTimeout(250);
+check(await page.evaluate(() => !document.getElementById('soundPop').hidden && !!document.getElementById('musicVol') && !!document.getElementById('sfxVol')), 'the speaker opens a panel with music and effects volumes');
+await page.tap('#sfxOn'); await page.waitForTimeout(100);
+check(await page.getAttribute('#sound', 'aria-pressed') === 'false' && await page.getAttribute('#homeSound', 'aria-pressed') === 'false', 'with music and effects off, every speaker shows muted');
 await page.reload(); await page.waitForTimeout(500);
-check(await page.getAttribute('#sound', 'aria-pressed') === 'false', 'sound-off survives a reload');
-await page.tap('#mapBtn'); await page.waitForTimeout(300); await page.tap('.node.open'); await page.tap('#ncGo'); await page.waitForTimeout(2400);
-await page.tap('#sound'); check(await page.getAttribute('#sound', 'aria-pressed') === 'true', 'sound icon toggles back on');
+check(await page.getAttribute('#homeSound', 'aria-pressed') === 'false', 'sound-off survives a reload');
+await page.tap('#homeSound'); await page.waitForTimeout(250); await page.tap('#sfxOn'); await page.waitForTimeout(100);
+check(await page.getAttribute('#homeSound', 'aria-pressed') === 'true', 'switching effects back on from the home screen');
+await page.mouse.click(10, 400); await page.waitForTimeout(150);
+check(await page.evaluate(() => document.getElementById('soundPop').hidden), 'tapping elsewhere closes the sound panel');
+await page.tap('#mapBtn'); await page.waitForTimeout(300); await page.tap('.node.open'); await page.waitForTimeout(2400);
 
 // info panel
 await page.tap('#infoBtn'); await page.waitForTimeout(200);
@@ -57,12 +63,10 @@ const txt = await page.evaluate(() => document.getElementById('infoBody').textCo
 check(/Coal/.test(txt) && /Common/.test(txt) && /Unusual/.test(txt) && /Rare/.test(txt) && /points each/.test(txt), 'resources section lists names, rarity and points');
 await page.tap('#infoTabs button:nth-child(3)');
 const crafting = await page.evaluate(() => document.getElementById('infoBody').textContent);
-check(/Bone tools/.test(crafting) && /Galaxy Alloy/.test(crafting) && /[Rr]eplay/.test(crafting) && !/side tunnel/i.test(crafting) && /Luck Tonic/.test(crafting), 'crafting guide covers the tools, replaying for ore (no side tunnels) and the Luck Tonic');
+check(/Bone tools/.test(crafting) && /Galaxy Alloy/.test(crafting) && /[Rr]eplay/.test(crafting) && !/side tunnel/i.test(crafting) && /Luck Potion/.test(crafting), 'crafting guide covers the tools, replaying for ore (no side tunnels) and the Luck Potion');
 await page.tap('#infoClose');
 
-// difficulty naming
-await page.evaluate(() => window.__deepcore.test.start(59)); await page.waitForTimeout(2500);
-check(await page.evaluate(() => document.getElementById('tier').textContent) === 'Expert', 'top difficulty is named Expert');
+// no difficulty label anywhere (there is no difficulty setting)
 check(!(await page.content()).includes('Brutal'), 'no "Brutal" left in the page');
 
 check(errors.length === 0, 'no page errors ' + errors.join(' | '));

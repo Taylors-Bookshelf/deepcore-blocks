@@ -1,4 +1,4 @@
-// Rules and dealer tests (no browser): piece variety and symmetry, Luck Tonic effect, recipes and economy tables.
+// Rules and dealer tests (no browser): piece variety and symmetry, Luck Potion effect, recipes and economy tables.
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const D = require('../src/data.js'), C = require('../src/core.js');
@@ -36,7 +36,7 @@ check(noDupFam < 0.2, `three pieces of one set are rarely the same family (${(10
 let unsolvable = 0; for (let k = 0; k < 200; k++) { const b = boards[k % boards.length]; const set = C.chooseSet(b.bits[0], b.bits[1], b.def.d, { rnd }); if (!C.solveCount(b.bits[0], b.bits[1], set, 1, 40000, false, false).count) unsolvable++; }
 check(unsolvable === 0, `all 200 dealt sets can be placed (${unsolvable} unsolvable)`);
 
-// ---- Luck Tonic: on a half-built board, sets lean toward clearing lines ----
+// ---- Luck Potion: on a half-built board, sets lean toward clearing lines ----
 const midBoards = []; for (let i = 0; i < 40; i++) { const g = Array(64).fill(null);
   for (let n = 0; n < 3; n++) { const r = Math.floor(rnd() * 8); let put = 0; for (let c = 0; c < 8 && put < 5 + (n % 2); c++) { const cc = Math.floor(rnd() * 8); if (!g[r * 8 + cc]) { g[r * 8 + cc] = 'stone'; put++; } } }
   for (let n = 0; n < 8; n++) g[Math.floor(rnd() * 64)] = 'stone';
@@ -44,12 +44,12 @@ const midBoards = []; for (let i = 0; i < 40; i++) { const g = Array(64).fill(nu
 const quality = (b, set) => { const r = C.solveCount(b.bits[0], b.bits[1], set, 60, 12000, false, false); return r.maxLines + (r.allClear ? 3 : 0); };
 let normal = 0, lucky = 0; const M = 240;
 for (let k = 0; k < M; k++) { const b = midBoards[k % midBoards.length]; normal += quality(b, C.chooseSet(b.bits[0], b.bits[1], b.def.d, { rnd })); lucky += quality(b, C.chooseSet(b.bits[0], b.bits[1], b.def.d, { rnd, luck: 1 })); }
-check(lucky >= normal * 1.1, `Luck Tonic sets offer bigger clears (average ${(lucky / M).toFixed(2)} vs ${(normal / M).toFixed(2)} without)`);
+check(lucky >= normal * 1.1, `Luck Potion sets offer bigger clears (average ${(lucky / M).toFixed(2)} vs ${(normal / M).toFixed(2)} without)`);
 
 // ---- recipes and economy tables ----
 const rc = Object.fromEntries(D.RECIPES.map(r => [r.m, r.cost]));
 check(rc.rescue.ruby === 20 && rc.rescue.emerald === 1 && rc.rescue.bone === 4 && Object.keys(rc.rescue).length === 3, 'Rescue Potion costs 20 ruby + 1 emerald + 4 bone');
-check(rc.luck && rc.luck.ruby === 12 && rc.luck.bone === 4 && Object.keys(rc.luck).length === 2, 'Luck Tonic costs 12 ruby + 4 bone (no diamond)');
+check(rc.luck && rc.luck.ruby === 12 && rc.luck.bone === 4 && Object.keys(rc.luck).length === 2, 'Luck Potion costs 12 ruby + 4 bone (no diamond)');
 check(D.ZONES.every((z, i) => i === 0 || !z.ores.includes('bone')), 'bone is mined only in the Forest');
 { const n = new Set(); for (let k = 0; k < 400; k++) { const h = D.specialHaul('fossil', 3); if (h.k !== 'bone' || h.pts !== 0) n.add('bad'); n.add(h.n); } check(!n.has('bad') && [4, 5, 6, 7, 8].every(v => n.has(v)) && n.size === 5, `a Fossil gives 4 to 8 bone and no points at any depth (${[...n].sort()})`); }
 check(!D.RECIPES.some(r => r.cost.lapis || r.cost.quartz) && !D.ORES.lapis && !D.ORES.quartz, 'lapis and quartz are gone');

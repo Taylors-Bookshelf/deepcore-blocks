@@ -7,7 +7,7 @@ const { check, fails } = makeChecker();
 
 // ---- data ----
 check(D.ZONES.map(z => z.name).join() === 'The Forest,Limestone Caves,Slate Caverns,Granite Halls,Basalt Depths,Magmastone,The Crust,Ancient Core', 'the descent: seven layers and the Core, in the agreed order');
-check(D.BOARD_COUNT === 62 && D.STRIP_BASE === undefined && D.ZONES.map(z => z.boards).join() === '4,6,6,6,6,30,3,1', '62 boards (4, 6, 6, 6, 6, 30, 3 and the Core); no side tunnels');
+check(D.BOARD_COUNT === 57 && D.STRIP_BASE === undefined && D.ZONES.map(z => z.boards).join() === '8,8,8,8,8,8,8,1' && !D.ZONES.some(z => z.camps), '57 boards (8 in every layer and the Core); no side tunnels, no mid-layer camps');
 check(D.ZONES[2].rock === 'deep' && D.ZONES[3].rock === 'granite' && D.BASE_MATS.includes('granite') && D.BASE_MATS.includes('crust'), 'slate comes before granite; the crust is a real block');
 { const Z = D.ZONES.filter(z => !z.core); check(Z.every((z, i) => i === 0 || z.d[0] > Z[i - 1].d[0]) && Z.every((z, i) => i === 0 || D.boardParams(i, 0).starAt[2] >= D.boardParams(i - 1, 1).starAt[2]), 'difficulty and star lines rise layer by layer'); }
 check(!D.MODES && !D.ORES.cinnabar && D.ORES.ruby && D.DROPS.ruby[0] === 'Ruby' && !D.RECIPES.some(r => r.cost.cinnabar), 'no difficulty modes; cinnabar is now ruby');
@@ -78,8 +78,19 @@ await ctx.addInitScript(() => { localStorage.clear(); localStorage.setItem('deep
 await page.reload(); await page.waitForTimeout(700);
 s = await st(); const mig = await T(() => ({ schema: localStorage.getItem('deepcore-schema'), mode: localStorage.getItem('deepcore-mode'), specials: window.__deepcore.test.state().specials }));
 check(Object.keys(s.bank).length === 0 && !s.bank.cinnabar, `an old save starts a fresh descent: empty stash (${JSON.stringify(s.bank)})`);
-check(mig.specials.length === 0 && mig.schema === '4' && mig.mode === null && s.day.done.length === 0 && s.day.tool === 0, 'specials cleared, schema 4 stamped, the run starts on the grass with branch tools');
+check(mig.specials.length === 0 && mig.schema === '5' && mig.mode === null && s.day.done.length === 0 && s.day.tool === 0, 'specials cleared, schema 5 stamped, the run starts on the grass with branch tools');
 check(s.day.done.length === 0, "today's map restarts because the boards were renumbered");
 check(errors.length === 0, 'no page errors ' + errors.join(' | '));
 await close();
+// v4 to v5 (2.1.0): 8 boards in every layer. A run deep in Magmastone keeps its depth: every layer above is cleared, Magmastone keeps
+// its share (15 of 30 old boards = 4 of 8), and its camp counts as made.
+{ const M = await phone(); await M.ctx.addInitScript(() => { if (sessionStorage.getItem('seeded')) return; sessionStorage.setItem('seeded', '1'); localStorage.clear();
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
+    localStorage.setItem('deepcore-schema', '4'); localStorage.setItem('deepcore-profile', JSON.stringify({ bank: { coal: 5 }, specials: [] }));
+    localStorage.setItem('deepcore-run', JSON.stringify({ v: 2, seed: 'mig', started: today, day: today, lastClear: today, days: 3, done: Array.from({ length: 43 }, (_, k) => k), scores: { 4: 900 }, stars: { 4: 3 }, attempts: {}, fails: {}, tool: 5, dur: 40, camp: 10 })); });
+  await M.page.goto(M.base + '?debug'); await M.page.waitForTimeout(800);
+  const r = await M.page.evaluate(() => ({ s: window.__deepcore.test.state().dayState, schema: localStorage.getItem('deepcore-schema') }));
+  check(r.schema === '5' && r.s.done.length === 44 && r.s.done.includes(43) && !r.s.done.includes(44) && r.s.tool === 5, `an old run keeps its depth on 8-board layers (${r.s.done.length} boards cleared, schema ${r.schema})`);
+  check(r.s.stars[8] === 3 && r.s.scores[8] === 900 && r.s.campsMade.includes(5) && r.s.dur === 100, 'stars and points move to the matching board; camps and tools carry over');
+  check(M.errors.length === 0, 'no page errors after the migration ' + M.errors.join(' | ')); await M.close(); }
 console.log(fails.length ? `R1 TESTS FAILED (${fails.length})` : 'R1 TESTS PASSED'); if (fails.length) process.exitCode = 1;

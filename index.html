@@ -20,15 +20,11 @@
 <div id="bootError" hidden><p>The game did not finish loading.</p><button type="button" onclick="location.reload()">Reload</button></div>
 <div id="app">
   <header id="hdr">
-    <div id="lvlBadge" aria-label="Board"><span id="level">1-1</span></div>
-    <div class="hmid">
-      <div id="zoneName">THE FOREST</div>
-      <div class="hrow"><span class="tier" id="tier">Easy</span><span id="zoneStars" aria-label="Stars in this layer"></span><span id="durChip" hidden></span><span id="todayTxt">Today <span id="best">0</span><span class="plus" id="bestPlus"></span></span></div>
-    </div>
-    <button id="hintBtn" class="ibtn" type="button" aria-label="Hint: show a good move for 3 coal"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19h6M10 22h4M12 2.5a6.5 6.5 0 0 0-3.7 11.8c.6.5 1 1.1 1 1.9v.3h5.4v-.3c0-.8.4-1.4 1-1.9A6.5 6.5 0 0 0 12 2.5z"/><path d="M10.2 8.2a1.9 1.9 0 1 1 2.8 1.7c-.7.4-1 .8-1 1.5"/><path d="M12 13.4v.1" stroke-width="2.2"/></svg></button>
-    <button id="infoBtn" class="ibtn" type="button" aria-label="Field guide"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.5" r=".6" fill="currentColor"/></svg></button>
-    <button id="homeBtn" class="ibtn" type="button" aria-label="Map"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg></button>
-    <button id="sound" class="ibtn" type="button" aria-label="Sound" aria-pressed="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="wv" d="M17 9a4 4 0 0 1 0 6"/><path class="xx" d="M17 9l5 6M22 9l-5 6"/></svg></button>
+    <button id="pauseBtn" class="ibtn" type="button" aria-label="Pause"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+    <div class="hmid"><div id="zoneName"></div></div>
+    <button id="hintBtn" class="ibtn pill" type="button" aria-label="Hint: show a good move for 3 coal" title="Show a good move (3 coal)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19h6M10 22h4M12 2.5a6.5 6.5 0 0 0-3.7 11.8c.6.5 1 1.1 1 1.9v.3h5.4v-.3c0-.8.4-1.4 1-1.9A6.5 6.5 0 0 0 12 2.5z"/><path d="M10.2 8.2a1.9 1.9 0 1 1 2.8 1.7c-.7.4-1 .8-1 1.5"/><path d="M12 13.4v.1" stroke-width="2.2"/></svg><span>Hint</span></button>
+    <button id="infoBtn" class="ibtn" type="button" aria-label="How to play" title="How to play"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.6"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg></button>
+    <button id="sound" class="ibtn soundBtn" type="button" aria-label="Sound"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="wv" d="M16 9.5a3.5 3.5 0 0 1 0 5M18.5 7a7 7 0 0 1 0 10"/><path class="mx" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg></button>
   </header>
   <div id="goalsBar"></div>
   <div id="stash"><div id="stashItems" aria-label="Ores and gems collected"></div></div>
@@ -86,7 +82,7 @@
 </div>
 <div id="info" hidden>
   <div class="panel" role="dialog" aria-labelledby="infoTitle">
-    <div class="top"><h2 id="infoTitle">Field guide</h2><button id="infoClose" type="button">Close</button></div>
+    <div class="top"><h2 id="infoTitle">How to play</h2><button id="infoClose" type="button">Close</button></div>
     <div id="infoTabs" role="tablist"></div>
     <div id="infoBody"></div>
   </div>
@@ -104,12 +100,12 @@
     <div class="mapmeta"><div class="label" id="mapDate"></div><div id="mapProg"></div></div>
     <span id="mapBadge" hidden></span>
     <button id="mapCraft" type="button">Forge</button>
+    <button id="mapSound" class="ibtn soundBtn" type="button" aria-label="Sound"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="wv" d="M16 9.5a3.5 3.5 0 0 1 0 5M18.5 7a7 7 0 0 1 0 10"/><path class="mx" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg></button>
   </div>
   <div id="mapScroll"><div id="mapInner"><canvas id="mapCanvas"></canvas><div id="mapNodes"></div></div></div>
   <div id="nodeCard" hidden>
     <div class="nctop"><span class="label" id="ncZone"></span><button id="ncClose" type="button" aria-label="Close">✕</button></div>
     <h2 id="ncName"></h2>
-    <span class="tier" id="ncTier"></span>
     <div id="ncGoals"></div>
     <p id="ncNote"></p>
     <button id="ncGo" class="go" type="button">Mine this board</button>
@@ -143,48 +139,39 @@
   <div id="credits" hidden><div id="credRoll"></div><button id="credSkip" type="button">Skip</button></div>
 </div>
 <div id="home">
+  <div id="homeTop">
+    <div id="homeFrag" hidden></div>
+    <button id="profileBtn" class="ibtn" type="button" aria-label="Profile" title="Profile"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M9 20V8h6v12M3 20v-7h6M15 20v-9h6v9M2 20h20"/></svg></button>
+    <button id="settingsBtn" class="ibtn" type="button" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    <button id="homeSound" class="ibtn soundBtn" type="button" aria-label="Sound"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="wv" d="M16 9.5a3.5 3.5 0 0 1 0 5M18.5 7a7 7 0 0 1 0 10"/><path class="mx" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg></button>
+  </div>
   <h1>Deepcore<br>Blocks</h1>
   <canvas id="homeStrip" width="80" height="16"></canvas>
-  <div id="homeFrag" hidden></div>
   <div id="homeMain" class="menu">
     <button id="contBtn" class="go" type="button" hidden></button>
-    <button id="mapBtn" class="go" type="button">World Map</button>
-    <div class="menuRow"><button id="profileBtn" type="button">Profile</button><button id="settingsBtn" type="button">Settings</button></div>
-    <div id="homeCard">
-      <div class="hcTop"><div><b id="hcToday"></b><span class="k" id="hcSub"></span></div><span id="hcPts"></span></div>
-      <div class="hcChips"><span class="chip" id="hcTool"></span><span class="chip" id="hcTwist"></span><span class="chip" id="hcStreak" hidden></span><button id="shareBtn" type="button" hidden>Share</button></div>
-      <p class="fine" id="hcWarn" hidden></p>
-    </div>
+    <button id="mapBtn" class="go" type="button">Play</button>
+    <p class="note" id="hcWarn" hidden>Clear a board today to keep your depth.</p>
     <div id="installHint" hidden><p id="installText"></p><div class="row"><button id="installBtn" class="go" type="button" hidden>Install</button><button id="installClose" type="button">Not now</button></div></div>
   </div>
   <div id="homeSettings" class="settings" hidden>
-    <h2>Settings</h2>
-    <h3>SOUND</h3>
-    <label class="check"><input id="sfxOn" type="checkbox" checked> Sound effects</label>
-    <label class="check"><input id="musicOn" type="checkbox"> Ambient music</label>
-    <label class="slider">Volume <input id="volRange" type="range" min="0" max="100" step="5" value="70"></label>
-    <h3>DISPLAY</h3>
-    <label class="check"><input id="reduceOn" type="checkbox"> Reduce motion</label>
-    <label class="check"><input id="largeOn" type="checkbox"> Larger text in panels</label>
-    <h3>YOUR PROGRESS</h3>
+    <div class="setTop"><h2>Settings</h2><button id="settingsBack" class="ibtn" type="button" aria-label="Close settings">✕</button></div>
+    <label class="tog"><span>Reduce motion</span><input id="reduceOn" type="checkbox" role="switch"></label>
+    <label class="tog"><span>Larger text</span><input id="largeOn" type="checkbox" role="switch"></label>
+    <label class="tog" id="privacyRow" hidden><span>Share anonymous play data</span><input id="shareData" type="checkbox" role="switch" checked></label>
     <div class="row"><button id="backupBtn" type="button">Back up</button><button id="restoreBtn" type="button">Restore</button></div>
-    <div id="codeBox" hidden><textarea id="codeText" rows="4" spellcheck="false" aria-label="Save code"></textarea><div class="row"><button id="codeCopy" type="button">Copy code</button><button id="codeApply" class="go" type="button" hidden>Restore from this code</button></div><p class="fine" id="codeMsg"></p></div>
-    <button id="tutorBtn" type="button">Replay the tutorial</button>
+    <div id="codeBox" hidden><textarea id="codeText" rows="3" spellcheck="false" aria-label="Save code"></textarea><div class="row"><button id="codeCopy" type="button">Copy code</button><button id="codeApply" class="go" type="button" hidden>Restore</button></div><p class="fine" id="codeMsg"></p></div>
+    <div class="row"><button id="tutorBtn" type="button">Replay tutorial</button><button id="feedbackBtn" type="button">Feedback</button></div>
     <button id="resetBtn" type="button" class="danger">Reset all progress</button>
-    <h3>HELP US IMPROVE IT</h3>
-    <button id="feedbackBtn" type="button">Send feedback</button>
-    <div id="privacyRow" hidden>
-      <label class="check"><input id="shareData" type="checkbox" checked> Share anonymous play data</label>
-      <p class="fine">Helps improve the game. No name, email or account: just how boards are played.</p>
-    </div>
-    <p class="fine">There is no difficulty setting: the dealer is tuned zone by zone, and eases up if you cave in repeatedly on the same board.</p>
-    <button id="settingsBack" type="button" class="go">Back</button>
     <p class="fine" id="verLine"></p>
   </div>
 </div>
+<div id="soundPop" hidden role="dialog" aria-label="Sound">
+  <div class="sRow"><label class="tog"><span>Music</span><input id="musicOn" type="checkbox" role="switch"></label><input id="musicVol" type="range" min="0" max="100" step="5" value="50" aria-label="Music volume"></div>
+  <div class="sRow"><label class="tog"><span>Effects</span><input id="sfxOn" type="checkbox" role="switch" checked></label><input id="sfxVol" type="range" min="0" max="100" step="5" value="70" aria-label="Effects volume"></div>
+</div>
 <div id="profile" hidden>
   <div class="panel" role="dialog" aria-labelledby="profTitle">
-    <div class="top"><h2 id="profTitle">Profile</h2><button id="profClose" type="button">Close</button></div>
+    <div class="top"><h2 id="profTitle">Profile</h2><div class="row"><button id="shareBtn" type="button">Share</button><button id="profClose" type="button">Close</button></div></div>
     <div id="profTabs" role="tablist"></div>
     <div id="profBody"></div>
   </div>

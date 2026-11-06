@@ -54,11 +54,11 @@ const play = async (page, n) => { for (let k = 0; k < n * 3; k++) { const r = aw
 { const t = await phone(); await t.ctx.addInitScript(() => { localStorage.clear(); localStorage.setItem('deepcore-profile', '{bad'); localStorage.setItem('deepcore-day', '{"day":5,"done":"x"}'); localStorage.setItem('deepcore-board', '{"grid":[[1]],"pieces":"nope","idx":3,"day":"x"}'); localStorage.setItem('deepcore-life', 'null'); localStorage.setItem('deepcore-settings', '[]'); localStorage.setItem('deepcore-schema', '3'); });
   await t.page.goto(t.base + '?debug'); await t.page.waitForTimeout(800);
   check(await t.page.evaluate(() => !document.getElementById('home').hidden), 'the game starts normally with every save damaged');
-  await t.page.tap('#mapBtn'); await t.page.waitForTimeout(400); await t.page.tap('.node.open'); await t.page.tap('#ncGo'); await t.page.waitForTimeout(2500);
+  await t.page.tap('#mapBtn'); await t.page.waitForTimeout(400); await t.page.tap('.node.open'); await t.page.waitForTimeout(2500);
   const r = await play(t.page, 8); check(t.errors.filter(e => !/404/.test(e)).length === 0 && r !== 'map', `and a board can be played (${t.errors.join(' | ')})`);
   await t.close(); }
 { const t = await phone(); await t.page.addInitScript(() => { Storage.prototype.setItem = () => { throw new Error('QuotaExceededError'); }; });
-  await t.page.goto(t.base + '?debug'); await t.page.waitForTimeout(800); await t.page.tap('#mapBtn'); await t.page.waitForTimeout(400); await t.page.tap('.node.open'); await t.page.tap('#ncGo'); await t.page.waitForTimeout(2500);
+  await t.page.goto(t.base + '?debug'); await t.page.waitForTimeout(800); await t.page.tap('#mapBtn'); await t.page.waitForTimeout(400); await t.page.tap('.node.open'); await t.page.waitForTimeout(2500);
   const r = await play(t.page, 8); check(t.errors.filter(e => !/404|Quota/.test(e)).length === 0, `the game plays even when the browser refuses to save (${t.errors.join(' | ')})`);
   await t.close(); }
 { const t = await phone(); await t.ctx.addInitScript(() => { if (!localStorage.getItem('seeded')) { localStorage.setItem('seeded', '1'); localStorage.setItem('deepcore-day', JSON.stringify({ day: '2099-01-01', done: [0], scores: {}, prospector: false })); localStorage.setItem('deepcore-board', JSON.stringify({ day: '2099-01-01', idx: 2, grid: Array.from({ length: 7 }, () => Array(7).fill(null)), pieces: [null, null, null], score: 5, moves: 3 })); } });
@@ -90,7 +90,7 @@ const play = async (page, n) => { for (let k = 0; k < n * 3; k++) { const r = aw
   await t.ctx.setOffline(true); await t.page.reload(); await t.page.waitForTimeout(1200);
   const off = await t.page.evaluate(() => ({ home: !document.getElementById('home').hidden, fonts: document.fonts.check('20px "Jersey 10"'), canv: !!document.getElementById('homeStrip') }));
   check(off.home && off.fonts && off.canv, 'with no network the game still loads, with its fonts');
-  await t.page.tap('#mapBtn'); await t.page.waitForTimeout(500); await t.page.tap('.node.open'); await t.page.tap('#ncGo'); await t.page.waitForTimeout(2800);
+  await t.page.tap('#mapBtn'); await t.page.waitForTimeout(500); await t.page.tap('.node.open'); await t.page.waitForTimeout(2800);
   check(await t.page.evaluate(() => document.querySelectorAll('#tray .slot canvas:not([hidden])').length) === 3, 'and a board can be started offline');
   await t.close(); }
 console.log(fails.length ? `R6 TESTS FAILED (${fails.length})` : 'R6 TESTS PASSED'); if (fails.length) process.exitCode = 1;

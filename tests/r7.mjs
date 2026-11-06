@@ -15,7 +15,7 @@ const T = (fn, arg) => page.evaluate(fn, arg);
 const tt = (f, ...a) => page.evaluate(([f, a]) => window.__deepcore.test[f](...a), [f, a]);
 
 // ---- B-3: during the tutorial only the glowing spot takes a piece ----
-await page.tap('#mapBtn'); await page.waitForTimeout(400); await page.tap('.node.open'); await page.tap('#ncGo'); await page.waitForTimeout(3000);
+await page.tap('#mapBtn'); await page.waitForTimeout(400); await page.tap('.node.open'); await page.waitForTimeout(3000);
 check(await T(() => window.__deepcore.test.tut().active), 'board 1-1 starts the tutorial on a fresh profile');
 const geo = () => T(() => { const b = document.getElementById('board').getBoundingClientRect(), s = [...document.querySelectorAll('.slot')].map(e => { const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
   return { b: [b.left, b.top], cell: b.width / 8, s }; });
@@ -50,11 +50,11 @@ await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ 
 await sleep();   // the phone sleeps mid-drag and the touch never ends
 check(await T(() => document.getElementById('ghost').hidden && [...document.querySelectorAll('.slot canvas')].every(c => c.style.opacity === '')), 'waking up drops the half-finished drag and shows every tray piece');
 await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
-await page.tap('#homeBtn'); await page.waitForTimeout(500);
+await page.tap('#pauseBtn'); await page.waitForTimeout(300); await page.tap('#pauseQuit'); await page.waitForTimeout(500);
 for (let k = 0; k < 3; k++) await sleep();
 await T(() => document.querySelector('#mapNodes .node').click()); await page.waitForTimeout(300);
-check(await T(() => !document.getElementById('nodeCard').hidden), 'after several sleeps the map still opens a board card');
-await page.tap('#ncClose'); await page.waitForTimeout(200);
+check(await T(() => !document.getElementById('nodeCard').hidden || window.__deepcore.test.state().screen === 'game'), 'after several sleeps the map still answers a tap on a board');
+await T(() => { if (!document.getElementById('nodeCard').hidden) document.getElementById('ncClose').click(); else window.__deepcore.test.openMap(); }); await page.waitForTimeout(400);
 const sc = await T(() => { const s = document.getElementById('mapScroll'); return getComputedStyle(s).overflowY; });
 check(sc !== 'hidden', `the map can still scroll after waking (${sc})`);
 

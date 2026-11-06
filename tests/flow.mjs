@@ -1,4 +1,4 @@
-// Game-flow tests on a phone-sized browser: the unbanked "hand", losing it on a cave-in, banking it on a clear, wood, and the Luck Tonic.
+// Game-flow tests on a phone-sized browser: the unbanked "hand", losing it on a cave-in, banking it on a clear, wood, and the Luck Potion.
 import { phone, makeChecker } from './helpers.mjs';
 const { check, fails } = makeChecker();
 const { page, base, errors, close } = await phone();
@@ -18,7 +18,6 @@ check(s.hand.coal === 2 && s.hand.iron === 1 && s.hand.copper === 1 && s.hand.wo
 check(s.bank.coal === 3 && !s.bank.iron && !s.bank.wood, 'the stash did not change yet');
 const shown = await T(() => [...document.querySelectorAll('.si')].map(e => e.dataset.k + ':' + e.querySelector('.n').textContent + e.querySelector('.pl').textContent).join(' '));
 check(/coal:3\+2/.test(shown) && /wood:0\+2/.test(shown), `stash shows banked count and +haul (${shown})`);
-check((await T(() => document.getElementById('bestPlus').textContent)).startsWith('+'), 'Today shows the points of the board in progress as +n');
 
 // ---- a cave-in without a Rescue Potion spills the hand ----
 await T(() => window.__deepcore.test.gameOver()); await page.waitForTimeout(900);
@@ -35,14 +34,14 @@ await T(() => window.__deepcore.test.giveHand({ coal: 5, iron: 2 })); await T(()
 s = await st(); check(s.bank.coal === 8 && s.bank.iron === 2 && Object.values(s.hand).every(v => !v), `clearing the board banks the hand (${JSON.stringify(s.bank)})`);
 check(s.screen === 'map', 'clearing returns to the map');
 
-// ---- Luck Tonic ----
+// ---- Luck Potion ----
 await board(4);
 await T(() => window.__deepcore.test.give({ ruby: 24, bone: 8 }));
 await page.tap('#anvilBtn'); await page.waitForTimeout(200);
-const names = await page.$$eval('.recipe .nm', e => e.map(x => x.textContent)); check(names.join() === 'Blast Charge,Sledgehammer,Rescue Potion,Luck Tonic', 'anvil lists four recipes: ' + names);
+const names = await page.$$eval('.recipe .nm', e => e.map(x => x.textContent)); check(names.join() === 'Blast Charge,Sledgehammer,Rescue Potion,Luck Potion', 'anvil lists four recipes: ' + names);
 await (await page.$$('.recipe button.go'))[3].click(); await page.waitForTimeout(150);
-s = await st(); check(s.crafted.luck === 1 && s.bank.ruby === 12 && s.bank.bone === 4, 'Luck Tonic crafted for 12 ruby + 4 bone');
-check(await T(() => document.querySelectorAll('#dockSlots .tool:not(.empty)').length) === 1, 'the crafted Luck Tonic sits in a dock slot');
+s = await st(); check(s.crafted.luck === 1 && s.bank.ruby === 12 && s.bank.bone === 4, 'Luck Potion crafted for 12 ruby + 4 bone');
+check(await T(() => document.querySelectorAll('#dockSlots .tool:not(.empty)').length) === 1, 'the crafted Luck Potion sits in a dock slot');
 await page.tap('#anvilClose');
 await page.tap('.tool[data-m="luck"]'); await page.waitForTimeout(1400);
 s = await st(); check(s.luck === 7, 'drinking starts 7 lucky sets');

@@ -1,4 +1,4 @@
-// Soak test: random play through a board of every zone (with a Luck Tonic running), then save/resume across a reload.
+// Soak test: random play through a board of every zone (with a Luck Potion running), then save/resume across a reload.
 import { phone, makeChecker } from './helpers.mjs';
 const { check, fails } = makeChecker();
 const { page, base, errors, close } = await phone();
@@ -32,8 +32,8 @@ const before = await page.evaluate(() => { const s = window.__deepcore.test.stat
 console.log('saved', await page.evaluate(() => { const b = JSON.parse(localStorage.getItem('deepcore-board') || 'null'); return b && [b.idx, b.moves, b.over, b.day]; }), before);
 await page.reload(); await page.waitForTimeout(600); await page.tap('#mapBtn'); await page.waitForTimeout(500);
 await page.evaluate(() => document.querySelector('.node.progress').click()); await page.waitForTimeout(300);
-check(/Continue/.test(await page.evaluate(() => document.getElementById('ncGo').textContent)), 'an unfinished board offers Continue after a reload');
-await page.tap('#ncGo'); await page.waitForTimeout(800);
+await page.waitForTimeout(800);
+check(await page.evaluate(() => window.__deepcore.test.state().screen === 'game'), 'one tap on an unfinished board resumes it after a reload');
 const after = await page.evaluate(() => { const s = window.__deepcore.test.state(); return { score: s.score, hand: JSON.stringify(s.hand), idx: s.level }; });
 check(before.score === after.score && before.hand === after.hand && before.idx === after.idx, `board resumes exactly (score ${before.score}, hand ${before.hand})`);
 check(errors.length === 0, 'no page errors ' + errors.join(' | '));
