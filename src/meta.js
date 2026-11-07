@@ -69,7 +69,7 @@ const LOG=[
   ...[['bone','Bone'],['coal','Coal'],['copper','Copper'],['iron','Iron'],['gold','Gold'],['meteorite','Meteorite'],['prismore','Prism Ore']].map(([id,name])=>({id,name,group:'Ore',kind:'mined'})),
   ...[['ruby','Ruby'],['emerald','Emerald'],['diamond','Diamond']].map(([id,name])=>({id,name,group:'Gems',kind:'mined'})),
   ...[['tool_bone','Bone tools'],['tool_copper','Copper tools'],['tool_iron','Iron tools'],['tool_steel','Steel tools'],['tool_galaxy','Galaxy Alloy tools']].map(([id,name])=>({id,name,group:'Tools forged',kind:'seen'})),
-  ...[['fossil','Fossil'],['treasure','Buried Treasure'],['blast','Blast Charge'],['sledgehammer','Sledgehammer'],['rescue','Rescue Potion'],['luck','Luck Potion']].map(([id,name])=>({id,name,group:'Specials',kind:'seen'})),
+  ...[['fossil','Fossil'],['treasure','Buried Treasure'],['blast','Blast Charge'],['sledgehammer','Sledgehammer'],['rescue','Potion of Protection'],['luck','Potion of Luck']].map(([id,name])=>({id,name,group:'Specials',kind:'seen'})),
   ...D.ZONES.map((z,i)=>({id:String(i),name:z.name,group:'Zones reached',kind:'zones'})),
   ...D.MODIFIERS.map(m=>({id:m.id,name:m.name,group:'Daily twists',kind:'twists'})),
 ];

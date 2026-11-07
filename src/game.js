@@ -1,7 +1,7 @@
 (function(){
 const N = 8, T = 16;
 const A = window.DCA || { track(){}, attempt(){}, setScreen(){}, setBoard(){}, isOn:()=>false, canConfigure:()=>false, setOptOut(){} };
-const {TOOL_WEAR,FOSSIL_BONE,specialHaul,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS,GEM_KEYS,lineName,STAR_ORES,SCORE,placePoints,starsFromScore,starBonus,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf}=DeepcoreData;
+const {TOOL_WEAR,LUCK_DEALS,FOSSIL_BONE,specialHaul,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS,GEM_KEYS,lineName,STAR_ORES,SCORE,placePoints,starsFromScore,starBonus,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf}=DeepcoreData;
 const M=DeepcoreMaps, Meta=DeepcoreMeta;
 const {SHAPES,SHAPE_STRS,SHAPE_BY_KEY,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,getBit,bitOf,chooseSet,BIG_IDS,pickWeighted,rankMoves,rollBudget,spreadOre}=DeepcoreCore;
 const FONT_D = '"Jersey 10", "Courier New", monospace';
@@ -54,8 +54,8 @@ const MATS = {
   fossil:  {kind:'special', gen:'fossil',   drop:null, name:'Fossil',          pts:0},   // random specials pay resources only
   treasure:{kind:'special', gen:'treasure', drop:null, name:'Buried treasure', pts:0},
   sledgehammer:{kind:'special', gen:'sledgehammer', drop:null, name:'Sledgehammer', pts:0},   // points: SCORE.special
-  rescue:{kind:'potion', gen:'rescue', drop:null, name:'Rescue Potion', pts:0},
-  luck:{kind:'potion', gen:'luck', drop:null, name:'Luck Potion', pts:0},
+  rescue:{kind:'potion', gen:'rescue', drop:null, name:'Potion of Protection', pts:0},
+  luck:{kind:'potion', gen:'luck', drop:null, name:'Potion of Luck', pts:0},
 };
 const FX = {
   grass:['#5e9c37','#6a4b35'], dirt:['#79573d','#5b402d'], sand:['#ddd2a3','#cbbf8d'], log:['#5a4427','#3b2b17'],
@@ -333,16 +333,16 @@ function dressPiece(s,setSoFar){
 }
 function updateLuckUI(){
   const lit=luck+(luckLive?1:0), b=$('luckBadge'); b.hidden=lit<=0;
-  b.querySelector('.pips').innerHTML=Array.from({length:7},(_,i)=>`<i class="${i<lit?'on':''}"></i>`).join('');
-  $('luckTxt').textContent = luck>0 ? `Luck: ${luck} more set${luck===1?'':'s'}` : 'Last lucky set';
+  b.querySelector('.pips').innerHTML=Array.from({length:LUCK_DEALS},(_,i)=>`<i class="${i<lit?'on':''}"></i>`).join('');
+  $('luckTxt').textContent = luck>0 ? `Luck: ${luck} more deal${luck===1?'':'s'}` : 'Last lucky deal';
   $('tray').classList.toggle('lucky',luckLive);
 }
 function drinkLuck(){
   if(dockAnim) return;
   const li=specials.indexOf('luck'); if(busy||over||uiOpen()||li<0||luck>0) return;
-  dockRemove(li); luck=7; score=Math.max(0,score+SCORE.special.luck); shown=score; updateBar(); renderDock(); updateLuckUI(); updateAnvilGlow(); saveProfile(); saveBoard();
+  dockRemove(li); luck=LUCK_DEALS; score=Math.max(0,score+SCORE.special.luck); shown=score; updateBar(); renderDock(); updateLuckUI(); updateAnvilGlow(); saveProfile(); saveBoard();
   A.track('luck_drunk',{idx:level-1,score,moves}); life.seen.luck=true;
-  busy=true; const d=playSplash('Luck Potion',`The next 7 sets favour you · ${SCORE.special.luck}`,'luck'); setTimeout(()=>{ busy=false; },d);
+  busy=true; const d=playSplash('Potion of Luck',`The next ${LUCK_DEALS} deals favour you · ${SCORE.special.luck}`,'luck'); setTimeout(()=>{ busy=false; },d);
 }
 let bigNext=false;
 // after 2 cave-ins on the same board today the dealer starts leaning your way (0, 0, .35, .7, then .75)
@@ -352,7 +352,7 @@ function dealSet(){
   if(tut.active&&tut.stage===0){ set=TUT_SET.map(str=>SHAPES[SHAPE_STRS.indexOf(str)]); tut.stage=1; }
   else if(bigNext && lo===0 && hi===0){ set=BIG_IDS.map(ids=>SHAPES[ids[Math.floor(Math.random()*ids.length)]]).sort(()=>Math.random()-.5); bigNext=false; }
   else set=chooseSet(lo,hi,difficulty(),{luck:luck>0?1:0,tilt:mercyTilt()});
-  if(luck>0){ luck--; luckLive=true; } else if(luckLive){ luckLive=false; showCombo('Luck Potion wore off'); blip(330,.2,'sine',.05); }
+  if(luck>0){ luck--; luckLive=true; } else if(luckLive){ luckLive=false; showCombo('Potion of Luck wore off'); blip(330,.2,'sine',.05); }
   updateLuckUI();
   const out=[]; set.forEach(s=>out.push(dressPiece(s,out)));
   // the board's ore budget: this deal's share of what is left goes into the plain blocks
@@ -1064,7 +1064,7 @@ function bankBoard(){
   },1100);
 }
 const completeBoard=bankBoard;
-// a cave-in without a Rescue Potion: whatever you hauled on this attempt spills back out of the stash
+// a cave-in without a Potion of Protection: whatever you hauled on this attempt spills back out of the stash
 function loseHand(){
   const entries=Object.entries(hand).filter(([,v])=>v>0); if(!entries.length) return 0;
   let total=0, topY=innerHeight;
@@ -1104,8 +1104,9 @@ function useRescue(free){
   if(undo){ ({grid,pieces,score,combo,sinceClear,collected,hand,since,bigNext,moves,dealt}=JSON.parse(JSON.stringify(undo))); dealsDone=undo.dealsDone??dealsDone; oreLeft=undo.oreLeft||oreLeft; hand=hand||{}; shownCol={...collected}; }
   score=Math.max(0,score+SCORE.special.rescue); shown=score;   // the potion costs points
   undo=null; over=false; $('over').hidden=true; updateComboMeter();
-  dealsDone=Math.max(0,dealsDone-1); dealSet();   // the fresh set replaces the tray, it is not an extra deal buildGoals(); updateHUD(); updateStash(); renderDock(); drawTray();
-  busy=true; const d=playSplash('Rescue Potion',`Last move undone · fresh pieces · ${SCORE.special.rescue}`,'rescue'); setTimeout(()=>{ busy=false; },d);
+  dealsDone=Math.max(0,dealsDone-1); dealSet();   // the fresh set replaces the tray, it is not an extra deal
+  buildGoals(); updateHUD(); updateStash(); renderDock(); drawTray(); updateAnvilGlow();
+  busy=true; const d=playSplash('Potion of Protection',`Last move undone · fresh pieces · ${SCORE.special.rescue}`,'rescue'); setTimeout(()=>{ busy=false; },d);
   saveBoard(); saveProfile();
 }
 const TIPS=['Look at all three pieces before you place the first one.','A bright outline means that drop will clear a line.','Clear lines on back-to-back moves to build a combo.','A crafted Blast Charge or Sledgehammer can rescue a crowded board.'];
@@ -1368,8 +1369,8 @@ const INFO_TABS={
   Play(b){
     b.append(infoEl('h3','THE GOAL'),infoEl('p',`Drag the three pieces onto the 8×8 board. Fill a whole row or column and it clears, mining every block in it. Each board deals a set number of sets of pieces: place them all, scoring enough points for at least one star, and the board is cleared. Board by board you dig down through seven layers to the Ancient Core at the heart of the world. It takes a couple of weeks of daily play.`));
     b.append(infoEl('h3','CAVE-IN'),infoEl('p',`If none of your three pieces can fit anywhere before the last deal is placed, the cave collapses and the board ends. Ore you hauled on that attempt is lost, so keep your options open.`));
-    b.append(infoEl('h3','HAULING ORE'),infoList([`Ore, gems and wood you mine on a board show up in the stash strip as a green +number. That's your haul for this attempt.`,`Clear the board and the haul joins your stash, which you keep for the whole descent. Cave in without a Rescue Potion and that haul is lost.`,`Replaying a board you've already cleared gives ore too, so you can always gather more.`]));
-    b.append(infoEl('h3','SCORING'),infoList([`Every block you place scores ${SCORE.block}. Every line you clear scores ${SCORE.line}. Mining ore and gems gives resources, not points.`,`Clear 2, 3 or 4 lines with one piece for a Double (+${SCORE.combo[2]}), Triple (+${SCORE.combo[3]}) or Quad (+${SCORE.combo[4]}).`,`Streak: clear on back-to-back placements. Each clear in a row after the first adds +${SCORE.streakStep}, up to +${SCORE.streakMax}. A placement that clears nothing ends the streak.`,`All Clear (an empty board) adds +${SCORE.allClear}, then deals a big easy set.`,`Blast Charge +${SCORE.special.blast}, Sledgehammer +${SCORE.special.sledgehammer}. A Luck Potion costs ${-SCORE.special.luck} points and a Rescue Potion ${-SCORE.special.rescue}.`,`"Perfect!" means yours was the only placement that kept the whole tray playable; "Great fit!" one of two or three.`,`If you cave in twice on the same board, the dealer starts to go easier on you.`]));
+    b.append(infoEl('h3','HAULING ORE'),infoList([`Ore, gems and wood you mine on a board show up in the stash strip as a green +number. That's your haul for this attempt.`,`Clear the board and the haul joins your stash, which you keep for the whole descent. Cave in without a Potion of Protection and that haul is lost.`,`Replaying a board you've already cleared gives ore too, so you can always gather more.`]));
+    b.append(infoEl('h3','SCORING'),infoList([`Every block you place scores ${SCORE.block}. Every line you clear scores ${SCORE.line}. Mining ore and gems gives resources, not points.`,`Clear 2, 3 or 4 lines with one piece for a Double (+${SCORE.combo[2]}), Triple (+${SCORE.combo[3]}) or Quad (+${SCORE.combo[4]}).`,`Streak: clear on back-to-back placements. Each clear in a row after the first adds +${SCORE.streakStep}, up to +${SCORE.streakMax}. A placement that clears nothing ends the streak.`,`All Clear (an empty board) adds +${SCORE.allClear}, then deals a big easy set.`,`Blast Charge +${SCORE.special.blast}, Sledgehammer +${SCORE.special.sledgehammer}. A Potion of Luck costs ${-SCORE.special.luck} points and a Potion of Protection ${-SCORE.special.rescue}.`,`"Perfect!" means yours was the only placement that kept the whole tray playable; "Great fit!" one of two or three.`,`If you cave in twice on the same board, the dealer starts to go easier on you.`]));
     b.append(infoEl('h3','STARS'),infoList([`A board is a fixed number of deals. Place every piece and its points earn 0 to 3 stars; the star lines rise layer by layer.`,`The three stars next to the score bar fill up as you score and light up as you earn them.`,`Deep down, stars come from combos and streaks: the blocks and the lines you have to clear anyway are not enough.`,`At the end, CONTINUE banks your haul and stars, or RETRY plays the board again for more stars. A retry starts over: that run's haul is not kept. Stars you already earned on a board stay.`,`Score too little for one star and the board is not cleared: retry it. Each star after the first adds bonus points to your day.`]));
     b.append(infoEl('h3','HINT AND DAILY TWIST'),infoList([`The bulb with a question mark in the top bar spends 3 coal to show a good move.`,`Every day has one twist, such as Gold Rush or Forge Day. It's shown on the map and the home screen.`]));
     b.append(infoEl('h3','HOW TO GET BETTER'),infoList([`Look at all three pieces before you place any. Plan the order.`,`Keep one row and one column mostly open so long bars still fit.`,`Avoid sealing off single empty cells or tiny pockets; they can only be filled by a matching piece, if one ever comes.`,`Build rows and columns up to one piece away from full, then finish several at once for a combo.`,`Gold glow under your piece means the drop will clear a line.`,`Save Blast Charges and Jackhammers for tight spots, not to pad your score.`]));
@@ -1384,13 +1385,13 @@ const INFO_TABS={
   },
   Crafting(b){
     b.append(infoEl('h3','TWO KINDS OF CRAFTING'),infoEl('p',`Tools are forged on the map (the Craft button at the top). Specials are crafted during a board, from the CRAFT button next to your dock, which holds three specials in any mix.`));
-    b.append(infoEl('h3','HOW'),infoList([`Tap CRAFT, then tap Craft on anything you can afford. Your specials dock holds three at a time (any mix).`,`Drag a Blast Charge onto the board to blow up the 3×3 patch under it, or a Sledgehammer to shake the blocks into a fresh layout. Tap a Luck Potion to drink it.`]));
+    b.append(infoEl('h3','HOW'),infoList([`Tap CRAFT, then tap Craft on anything you can afford. Your specials dock holds three at a time (any mix).`,`Drag a Blast Charge onto the board to blow up the 3×3 patch under it, or a Sledgehammer to shake the blocks into a fresh layout. Tap a Potion of Luck to drink it.`]));
     b.append(infoEl('h3','WHAT YOU CAN CRAFT'));
     craftList().forEach(c=>{ const row=infoEl('div',undefined,'irow'); row.append(iconOf(c.item?ITEM[c.item]:(SPR[c.mat]||TEX[c.mat]))); const d=infoEl('div'); d.append(infoEl('div',c.name,'nm'),infoEl('div',c.desc,'meta'),
       infoEl('div','Costs: '+Object.entries(c.cost).map(([k,v])=>`${v} ${DROPS[k][0]}`).join(', '),'meta')); row.append(d); b.append(row); });
     b.append(infoEl('h3','TOOLS'),infoList([`Each layer is harder rock and needs better tools: branch tools for the Forest, then bone (from bones in the dirt), copper (Limestone), iron (Slate), steel (iron and coal from Granite) and Galaxy Alloy (meteorite from Basalt).`,`Short of something? Replay boards you have already cleared: replays give ore too.`,`Each layer's 8 boards rarely give quite enough for the next tools on their own: replay a few cleared boards to make up the rest.`]));
     b.append(infoEl('h3','THE ANCIENT CORE'),infoList([`Below the Crust lies the Core: one piece, one spot. What happens next is for you to find out.`]));
-    b.append(infoEl('h3','WHY IT HELPS'),infoList([`Blast Charge and Sledgehammer rescue a crowded board and score points. What a Blast Charge breaks is lost, not mined.`,`A Rescue Potion saves you from one cave-in: it undoes your last move and deals fresh pieces, and keeps your haul. It costs ${-SCORE.special.rescue} points.`,`A Luck Potion: tap it in the dock to drink (it costs ${-SCORE.special.luck} points). For the next 7 sets of pieces the dealer favours sets that clear rows and columns. A row of green dots shows how many are left.`]));
+    b.append(infoEl('h3','WHY IT HELPS'),infoList([`Blast Charge and Sledgehammer rescue a crowded board and score points. What a Blast Charge breaks is lost, not mined.`,`A Potion of Protection saves you from one cave-in: it undoes your last move and deals fresh pieces, and keeps your haul. It costs ${-SCORE.special.rescue} points.`,`A Potion of Luck: tap it in the dock to drink (it costs ${-SCORE.special.luck} points). For the next ${LUCK_DEALS} deals the dealer favours sets that clear rows and columns. A row of green dots shows how many are left.`]));
   },
   Specials(b){
     b.append(infoEl('p',`These appear on their own inside pieces, now and then, more often the deeper you go. You can't craft them. When the line they sit in clears, they pay out resources (no points).`));

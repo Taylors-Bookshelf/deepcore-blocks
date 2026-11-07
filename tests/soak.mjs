@@ -1,4 +1,4 @@
-// Soak test: random play through a board of every zone (with a Luck Potion running), then save/resume across a reload.
+// Soak test: random play through a board of every zone (with a Potion of Luck running), then save/resume across a reload.
 import { phone, makeChecker } from './helpers.mjs';
 const { check, fails } = makeChecker();
 const { page, base, errors, close } = await phone();

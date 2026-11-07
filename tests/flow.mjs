@@ -1,4 +1,4 @@
-// Game-flow tests on a phone-sized browser: the unbanked "hand", losing it on a cave-in, banking it on a clear, wood, and the Luck Potion.
+// Game-flow tests on a phone-sized browser: the unbanked "hand", losing it on a cave-in, banking it on a clear, wood, and the Potion of Luck.
 import { phone, makeChecker } from './helpers.mjs';
 const { check, fails } = makeChecker();
 const { page, base, errors, close } = await phone();
@@ -19,7 +19,7 @@ check(s.bank.coal === 3 && !s.bank.iron && !s.bank.wood, 'the stash did not chan
 const shown = await T(() => [...document.querySelectorAll('.si')].map(e => e.dataset.k + ':' + e.querySelector('.n').textContent + e.querySelector('.pl').textContent).join(' '));
 check(/coal:3\+2/.test(shown) && /wood:0\+2/.test(shown), `stash shows banked count and +haul (${shown})`);
 
-// ---- a cave-in without a Rescue Potion spills the hand ----
+// ---- a cave-in without a Potion of Protection spills the hand ----
 await T(() => window.__deepcore.test.gameOver()); await page.waitForTimeout(900);
 s = await st();
 check(Object.values(s.hand).every(v => !v), 'cave-in empties the hand');
@@ -34,22 +34,22 @@ await T(() => window.__deepcore.test.giveHand({ coal: 5, iron: 2 })); await T(()
 s = await st(); check(s.bank.coal === 8 && s.bank.iron === 2 && Object.values(s.hand).every(v => !v), `clearing the board banks the hand (${JSON.stringify(s.bank)})`);
 check(s.screen === 'map', 'clearing returns to the map');
 
-// ---- Luck Potion ----
+// ---- Potion of Luck ----
 await board(4);
 await T(() => window.__deepcore.test.give({ ruby: 24, bone: 8 }));
 await page.tap('#anvilBtn'); await page.waitForTimeout(200);
-const names = await page.$$eval('.recipe .nm', e => e.map(x => x.textContent)); check(names.join() === 'Blast Charge,Sledgehammer,Rescue Potion,Luck Potion', 'anvil lists four recipes: ' + names);
+const names = await page.$$eval('.recipe .nm', e => e.map(x => x.textContent)); check(names.join() === 'Blast Charge,Sledgehammer,Potion of Protection,Potion of Luck', 'anvil lists four recipes: ' + names);
 await (await page.$$('.recipe button.go'))[3].click(); await page.waitForTimeout(150);
-s = await st(); check(s.crafted.luck === 1 && s.bank.ruby === 12 && s.bank.bone === 4, 'Luck Potion crafted for 12 ruby + 4 bone');
-check(await T(() => document.querySelectorAll('#dockSlots .tool:not(.empty)').length) === 1, 'the crafted Luck Potion sits in a dock slot');
+s = await st(); check(s.crafted.luck === 1 && s.bank.ruby === 12 && s.bank.bone === 4, 'Potion of Luck crafted for 12 ruby + 4 bone');
+check(await T(() => document.querySelectorAll('#dockSlots .tool:not(.empty)').length) === 1, 'the crafted Potion of Luck sits in a dock slot');
 await page.tap('#anvilClose');
 await page.tap('.tool[data-m="luck"]'); await page.waitForTimeout(1400);
-s = await st(); check(s.luck === 7, 'drinking starts 7 lucky sets');
-check(await T(() => !document.getElementById('luckBadge').hidden && document.querySelectorAll('#luckBadge .pips i.on').length === 7), 'luck badge shows 7 lit pips');
-await T(() => { const t = window.__deepcore.test; t.deal(); }); s = await st(); check(s.luck === 6 && s.luckLive, 'each deal uses one lucky set');
-for (let i = 0; i < 6; i++) await T(() => window.__deepcore.test.deal());
-s = await st(); check(s.luck === 0 && s.luckLive, 'after the 7th lucky set the last one is still live');
-check(await T(() => document.getElementById('luckTxt').textContent) === 'Last lucky set', 'badge says it is the last lucky set');
+s = await st(); check(s.luck === 5, "drinking starts 5 lucky deals");
+check(await T(() => !document.getElementById('luckBadge').hidden && document.querySelectorAll('#luckBadge .pips i.on').length === 5), "luck badge shows 5 lit pips");
+await T(() => { const t = window.__deepcore.test; t.deal(); }); s = await st(); check(s.luck === 4 && s.luckLive, 'each deal uses one lucky set');
+for (let i = 0; i < 4; i++) await T(() => window.__deepcore.test.deal());
+s = await st(); check(s.luck === 0 && s.luckLive, 'after the 5th lucky deal the last one is still live');
+check(await T(() => document.getElementById('luckTxt').textContent) === "Last lucky deal", "badge says it is the last lucky deal");
 await T(() => window.__deepcore.test.deal()); s = await st(); check(!s.luckLive && await T(() => document.getElementById('luckBadge').hidden), 'luck expires with a clear indicator going away');
 
 check(errors.length === 0, 'no page errors ' + errors.join(' | '));

@@ -39,12 +39,22 @@ check(await page.evaluate(() => document.querySelectorAll('#dockSlots .tool:not(
 // Luck is tapped from its slot; Rescue is automatic
 await tt('give', { ruby: 30, bone: 8 });
 await page.tap('#anvilBtn'); await page.waitForTimeout(200); await craft(3); await page.tap('#anvilClose'); await page.waitForTimeout(200);
-s = await st(); check(s.specials.join() === 'blast,rescue,luck', 'Luck Potion joins the dock');
+s = await st(); check(s.specials.join() === 'blast,rescue,luck', 'Potion of Luck joins the dock');
 await page.tap('#dockSlots .tool[data-m="luck"]'); await page.waitForTimeout(1500);
-s = await st(); check(s.luck === 7 && s.specials.join() === 'blast,rescue', 'tapping the Luck Potion drinks it and frees its slot');
+s = await st(); check(s.luck === 5 && s.specials.join() === 'blast,rescue', 'tapping the Potion of Luck drinks it and frees its slot');
 const before = (await st()).specials.length;
+// v2.1.2 regression: put the potion in front of the Blast Charge and leave one piece in the tray, so a stale dock or tray shows
+await page.evaluate(() => { const t = window.__deepcore.test, s = t.state(); s.specials.splice(0, s.specials.length, 'rescue'); t.addSpecial('blast');
+  t.setPieces([{ cells: [[0, 0]], h: 1, w: 1, mats: ['stone'], sid: 0 }, null, null]); });
+await page.waitForTimeout(200);
 await tt('gameOver'); await page.waitForTimeout(1500); s = await st();
-check(s.specials.join() === 'blast' && !s.over, `a cave-in uses the Rescue Potion automatically (${s.specials})`);
+check(s.specials.join() === 'blast' && !s.over, `a cave-in uses the Potion of Protection automatically (${s.specials})`);
+check(await page.evaluate(() => { const t = [...document.querySelectorAll('#dockSlots .tool:not(.empty)')]; return t.length === 1 && t[0].dataset.m === 'blast'; }), 'the used potion leaves the dock right away');
+check(await page.evaluate(() => { const p = window.__deepcore.test.state().pieces; return p.every(Boolean) && [...document.querySelectorAll('.slot canvas')].every(c => !c.hidden && c.style.width); }), 'the fresh pieces show in the tray right away');
+await page.evaluate(() => { const t = window.__deepcore.test; for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) t.setCell(r, c, null); t.setCell(3, 3, 'stone'); t.setCell(0, 0, 'stone'); });
+await page.waitForTimeout(2200); g = await geo();
+await touchDrag(page, cdp, g.tool[0], [g.left + 3.5 * g.cell, g.top + 3.5 * g.cell + g.cell * 1.2]); await page.waitForTimeout(3500);
+s = await st(); check(s.specials.length === 0 && !(await page.evaluate(() => window.__deepcore.test.state().grid[3][3])), `after a rescue the Blast Charge still drags onto the board (${s.specials})`);
 check(errors.filter(e => !/404/.test(e)).length === 0, 'no page errors ' + errors.join(' | '));
 await close();
 console.log(fails.length ? `DOCK TESTS FAILED (${fails.length})` : 'DOCK TESTS PASSED'); if (fails.length) process.exitCode = 1;

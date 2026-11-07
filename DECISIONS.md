@@ -186,3 +186,6 @@ Your calls: keep 2.x version numbers ("v1" is a milestone name); no tool wear un
 - **Restart asks first too**, not only Map: Restart throws away the board's points, so it gets the same Yes/No as Exit to map.
 - **Small labels under the pause icons** (Resume, Restart, Map), so the icons read without guessing.
 - **"Placements left" counts the pieces in the tray plus three for every deal still to come**, so it drops by one with every placement (a Rescue Potion's fresh set doesn't change it).
+
+## v2.1.2 (2.1.1 playtest; built 2026-11-06)
+- **"Each potion lasts 5 deals":** the Potion of Luck now lasts 5 deals (`LUCK_DEALS` in data.js, was 7). The Potion of Protection still works automatically on a cave-in, because a timed Protection only makes sense once it's drunk on purpose, which is F-10. F-10's design now says 5 deals instead of 3.

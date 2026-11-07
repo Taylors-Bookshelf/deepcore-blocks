@@ -1,6 +1,6 @@
 {
   "name": "deepcore-blocks",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "private": true,
   "description": "Deepcore Blocks: a mining block puzzle (web app, installable as a PWA).",
   "scripts": {

@@ -75,11 +75,13 @@ function specialHaul(m,zi,rnd){
   let v=rnd(); if(deep&&(pick.k==='emerald'||pick.k==='diamond')) v=Math.pow(v,.55);
   return {k:pick.k, n:pick.lo+Math.min(pick.hi-pick.lo,Math.floor(v*(pick.hi-pick.lo+1))), pts};
 }
+// how many deals a Potion of Luck lasts (v2.1.2: was 7)
+const LUCK_DEALS=5;
 const RECIPES=[
   {m:'blast',      cost:{coal:12, iron:3},                                  desc:'Drag it onto the board: it blows up a 3×3 patch and mines everything in it.'},
   {m:'sledgehammer', cost:{copper:10, ruby:8, iron:8, gold:4},            desc:'Drag it onto the board: it shakes the blocks into a fresh arrangement with no trapped gaps.'},
   {m:'rescue',     cost:{ruby:20, emerald:1, bone:4},                         desc:'Used automatically on a cave-in: undoes your last placement and deals a fresh set of pieces.'},
-  {m:'luck',       cost:{ruby:12, bone:4},                                desc:'Tap to drink. For the next 7 sets, the dealer leans toward pieces that clear rows, columns, and even the whole board.'},
+  {m:'luck',       cost:{ruby:12, bone:4},                                desc:'Tap to drink. For the next '+LUCK_DEALS+' deals, the dealer leans toward pieces that clear rows, columns, and even the whole board.'},
 ];
 // One twist per Pacific day, chosen from the date. They shift resources, never the rules of clearing a board.
 const MODIFIERS=[
@@ -155,6 +157,6 @@ function boardParams(zi,j,mod){
     target:starAt[0]||0, core:!!z.core, d:Math.min(.97,z.d[0]+(z.d[1]-z.d[0])*f), pre:Math.round(z.pre[0]+(z.pre[1]-z.pre[0])*f) };
 }
 const lineName=n=> n>=5?'Mega!' : n===4?'Quad!' : n===3?'Triple!' : n===2?'Double!' : '';
-const api={TOOL_WEAR,SCORE,comboBonus,streakBonus,placePoints,DEALS,STAR_LINES,FIRST_BOARD_STARS,starsFromScore,ORE_BUDGET,FOSSIL_BONE,TREASURE,specialHaul,MODIFIERS,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf,STAR_ORES,starBonus,lineName,GEM_KEYS,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS};
+const api={TOOL_WEAR,LUCK_DEALS,SCORE,comboBonus,streakBonus,placePoints,DEALS,STAR_LINES,FIRST_BOARD_STARS,starsFromScore,ORE_BUDGET,FOSSIL_BONE,TREASURE,specialHaul,MODIFIERS,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf,STAR_ORES,starBonus,lineName,GEM_KEYS,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.DeepcoreData=api;
 })(typeof self!=='undefined'?self:globalThis);

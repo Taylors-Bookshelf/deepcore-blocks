@@ -63,7 +63,7 @@ const txt = await page.evaluate(() => document.getElementById('infoBody').textCo
 check(/Coal/.test(txt) && /Common/.test(txt) && /Unusual/.test(txt) && /Rare/.test(txt) && /points each/.test(txt), 'resources section lists names, rarity and points');
 await page.tap('#infoTabs button:nth-child(3)');
 const crafting = await page.evaluate(() => document.getElementById('infoBody').textContent);
-check(/Bone tools/.test(crafting) && /Galaxy Alloy/.test(crafting) && /[Rr]eplay/.test(crafting) && !/side tunnel/i.test(crafting) && /Luck Potion/.test(crafting), 'crafting guide covers the tools, replaying for ore (no side tunnels) and the Luck Potion');
+check(/Bone tools/.test(crafting) && /Galaxy Alloy/.test(crafting) && /[Rr]eplay/.test(crafting) && !/side tunnel/i.test(crafting) && /Potion of Luck/.test(crafting), 'crafting guide covers the tools, replaying for ore (no side tunnels) and the Potion of Luck');
 await page.tap('#infoClose');
 
 // no difficulty label anywhere (there is no difficulty setting)

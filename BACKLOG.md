@@ -85,6 +85,14 @@ Goal: **v1**, the build shared with family and friends. Version numbers keep cou
 | I-35 | Improvement | Centred pause card | Next star line (or "All three stars! Finish strong."), layer stars, round Resume / Restart / Map icons; Map and Restart ask first. "Your best here" and the star lines are gone. |
 | B-8 | Bug | Hint stayed greyed out at the start of a board | Fixed: it wakes as soon as the opening banner ends. |
 
+### Done in 2.1.2 (2.1.1 playtest)
+
+| Proposed ID | Type | Item | Notes |
+| --- | --- | --- | --- |
+| B-9 | Bug | After a Rescue the tray looked empty, the used potion stayed in the dock, and a Blast Charge wouldn't drag | One line since 2.0.4 had the redraw calls inside a comment. Fixed, with a regression test. |
+| I-36 | Improvement | Potions renamed | Potion of Luck (was Luck Potion), Potion of Protection (was Rescue Potion). |
+| I-37 | Improvement | Potion of Luck lasts 5 deals | Was 7. The Potion of Protection stays automatic until F-10, which makes both potions drink-on-purpose for 5 deals. |
+
 ### Backlog features from this round
 
 **F-9 Tool durability and repair** (replaces today's Galaxy-Alloy-only wear)
@@ -98,7 +106,7 @@ Goal: **v1**, the build shared with family and friends. Version numbers keep cou
 - Two kinds of specials, two kinds of slots. Equipment (Blast Charge, Sledgehammer) on the left with the anvil; potions (Rescue, Luck) on the right with the brewing table. Not interchangeable.
 - Equipment: one slot to start; a second slot crafted for a very large cost that only a thrifty player reaches near the end of a descent.
 - Brewing table: crafted from the equipment menu for ruby, emerald, bone, iron and wood, affordable around 30% of a descent. It unlocks potion crafting and one potion slot; a second potion slot costs a late-game amount like the second equipment slot.
-- Both potions are drunk on purpose and last 3 deals. Rescue keeps today's effect during that window (a cave-in undoes your last move and deals fresh pieces, and the protection carries on), with a clear "saved you" animation. Luck favours easy-to-place and gap-filling pieces and doubles the chance of random specials.
+- Both potions are drunk on purpose and last 5 deals (the Potion of Luck already does from 2.1.2). Rescue keeps today's effect during that window (a cave-in undoes your last move and deals fresh pieces, and the protection carries on), with a clear "saved you" animation. Luck favours easy-to-place and gap-filling pieces and doubles the chance of random specials.
 - Potions need bone, so Fossils stay useful the whole way down.
 
 **F-11 Zone grid maps** (supersedes F-1 Layer maps and F-2 Vein farming; their proposals OI-2, OI-3, OI-4 are replaced)

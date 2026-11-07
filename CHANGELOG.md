@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.2 — potion fixes
+- Fixed: after a Rescue (now the Potion of Protection) saved you, the tray looked empty until you touched it, the used potion stayed in the dock, and a Blast Charge could refuse to drag. Broken since 2.0.4.
+- The potions are now the Potion of Luck and the Potion of Protection.
+- A Potion of Luck lasts 5 deals (was 7).
+
 ## 2.1.1 — first 2.1.0 playtest fixes
 - Hint asks before spending coal, and now costs 5 coal (was 3). When you say yes, the coal flies from your stash into the Hint button and the best move then glows.
 - Hint wakes up as soon as a board's opening banner ends; it could stay greyed out until your first placement.

@@ -139,7 +139,7 @@ const targetWays=d=>Math.max(TUNE.waysFloor,Math.pow(400,1-d*TUNE.waysExp));
 const assistOf=d=>Math.pow(1-d,TUNE.assistExp);
 const BIG_SET=[['###/###/###'],['###/###','##/##/##'],['#####','#/#/#/#/#']];
 const BIG_IDS=BIG_SET.map(o=>o.map(x=>SHAPE_STRS.indexOf(x)));
-// opts: {luck:0..1 (Luck Potion), rnd}
+// opts: {luck:0..1 (Potion of Luck), rnd}
 function chooseSet(lo,hi,d,opts={}){
   const rnd=opts.rnd||Math.random, luck=opts.luck||0;
   if(opts.tilt) d=d*(1-.4*opts.tilt);   // repeated cave-ins on a board: deal as if the board were easier
