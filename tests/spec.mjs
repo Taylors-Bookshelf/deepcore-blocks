@@ -7,7 +7,7 @@ const measure = (page) => page.evaluate(() => {
   const cs = (sel, p) => getComputedStyle(document.querySelector(sel))[p];
   return { hdr: r('#hdr'), badge: r('#pauseBtn'), ibtn: [...document.querySelectorAll('#hdr .ibtn:not(.pill)')].map(e => { const b = e.getBoundingClientRect(); return [b.width, b.height]; }), hint: r('#hintBtn'), goals: r('#goalsBar'), strip: r('#stash'), board: r('#board'), well: r('#boardWell'),
     dock: r('#dock'), tool: r('.tool'), craft: r('#anvilBtn'), craftIcon: r('#anvilIcon'), tray: r('#tray'), slot: r('.slot'), slots: [...document.querySelectorAll('.slot')].map(e => e.getBoundingClientRect().height),
-    bodyBg: cs('body', 'backgroundColor'), wellBg: cs('#boardWell', 'backgroundColor'), panelBg: cs('#dock', 'backgroundColor'),
+    bodyBg: cs('body', 'backgroundColor'), wellBg: cs('#boardWell', 'backgroundColor'), panelBg: cs('#toolGrp', 'backgroundColor'),
     scoreFont: cs('#pscore', 'fontFamily'), bodyFont: cs('body', 'fontFamily'), vw: innerWidth, vh: innerHeight, boardRender: cs('#board', 'imageRendering'),
     fonts: [document.fonts.check('20px "Jersey 10"'), document.fonts.check('600 16px "Chakra Petch"')] };
 });
@@ -30,7 +30,7 @@ const near = (a, b, tol = 1) => Math.abs(a - b) <= tol;
   check(near(m.strip.h, 52), `resource strip is 52 tall (${m.strip.h})`);
   check(near(m.board.w, 350, 1.5) && near(m.well.w, 358, 1.5), `board is 8 x 42pt cells with 2pt seams: 350 wide inside a 358 well (${m.board.w}, ${m.well.w})`);
   check(near(m.tool.w, 56) && near(m.tool.h, 56), 'specials dock slots are 56x56');
-  check(near(m.dock.h, 68, 1), `dock is 56 plus 6 padding each side (${m.dock.h})`);
+  check(near(m.dock.h, 64, 1), `dock panels are 56 plus 4 padding each side (${m.dock.h})`);
   check(near(m.craftIcon.w, 28) && near(m.craft.w, 36), 'the anvil button is 36 wide with a 28 icon');
   check(m.slots.every(h => near(h, 114)), `tray slots are 114 tall (${m.slots})`);
   const piece = await t.page.evaluate(() => [...document.querySelectorAll('.slot canvas')].map(c => [c.clientWidth, c.clientHeight]));

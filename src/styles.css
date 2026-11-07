@@ -487,3 +487,12 @@ label.tog input:checked::after{transform:translateX(18px);background:#fff}
 .recipe.flash{animation:rowFlash 1.2s ease-out}
 @keyframes rowFlash{0%,40%{box-shadow:0 0 0 2px var(--lamp)}100%{box-shadow:none}}
 .tool.land{animation:land .5s cubic-bezier(.3,1.6,.5,1)}
+
+/* v2.2.1: the dock is two panels, tools (anvil on the left) and potions (brewing table on the right), no outer panel or labels */
+#dock{padding:0;background:none;box-shadow:none;display:block}
+#dockSlots{display:flex;justify-content:space-between;gap:8px;width:100%}
+#dock .dg{flex:none;display:flex;align-items:center;gap:4px;padding:4px;border-radius:10px;background:var(--panel)}
+#dock .dg.t{box-shadow:inset 0 0 0 1px rgba(255,207,92,.28)}
+#dock .dg.p{box-shadow:inset 0 0 0 1px rgba(255,154,184,.28)}
+#dock .dg.p.off{box-shadow:inset 0 0 0 1px var(--panel-line)}
+#dock .wsBtn{font-size:9px}

@@ -49,9 +49,10 @@
     </div>
   </div>
   <div id="dock" aria-label="Specials">
-    <button id="anvilBtn" class="wsBtn" type="button" aria-label="Anvil: craft equipment"><canvas id="anvilIcon" width="16" height="16"></canvas><span>CRAFT</span></button>
-    <div id="dockSlots"><div id="eqSlots" class="dockGroup" aria-label="Equipment"></div><div class="dockDiv"></div><div id="potSlots" class="dockGroup" aria-label="Potions"></div></div>
-    <button id="brewBtn" class="wsBtn" type="button" aria-label="Brewing table: brew potions"><canvas id="brewIcon" width="16" height="16"></canvas><span>BREW</span></button>
+    <div id="dockSlots">
+      <div id="toolGrp" class="dg t" aria-label="Tools"><button id="anvilBtn" class="wsBtn" type="button" aria-label="Anvil: craft tools"><canvas id="anvilIcon" width="16" height="16"></canvas><span>CRAFT</span></button><div id="eqSlots" class="dockGroup"></div></div>
+      <div id="potGrp" class="dg p" aria-label="Potions"><div id="potSlots" class="dockGroup"></div><button id="brewBtn" class="wsBtn" type="button" aria-label="Brewing table: brew potions"><canvas id="brewIcon" width="16" height="16"></canvas><span>BREW</span></button></div>
+    </div>
   </div>
   <div id="trayWrap">
     <div id="potionBadges"><div id="luckBadge" class="pBadge" hidden><span class="pips"></span><span id="luckTxt"></span></div><div id="protBadge" class="pBadge" hidden><span class="pips"></span><span id="protTxt"></span></div></div>

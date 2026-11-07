@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.1 — a clearer dock
+- The dock is two panels: tools on the left with CRAFT (the anvil) beside them, potions on the right with BREW (the brewing table) beside them. The tools panel has a faint amber outline, the potions panel a pink one.
+- Before the brewing table is built, the whole potions panel is greyed out.
+
 ## 2.2.0 — workshop and brewing (F-10)
 - The dock is split: equipment on the left beside the anvil (CRAFT), potions on the right beside the brewing table (BREW). They don't share slots.
 - You start with one equipment slot. Build a brewing table at the anvil (12 ruby, 1 emerald, 4 bone, 4 iron, 8 wood) to unlock potions and a potion slot.

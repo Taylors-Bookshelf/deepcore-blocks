@@ -1243,6 +1243,7 @@ function buildStash(){
 // the anvil and brewing table glow when something there can be crafted now (a free slot, or an upgrade you can afford)
 const canMake=at=>RECIPES.some(r=>(r.slot==='equip')===(at==='anvil')&&capOf(r.slot)>0&&!kindFull(r.slot)&&canAfford(r)) || wsOpen(at).some(w=>canAfford(w));
 function updateAnvilGlow(){ const a=$('anvilBtn'), b=$('brewBtn'); if(a) a.classList.toggle('afford',canMake('anvil'));
+  { const g=$('potGrp'); if(g) g.classList.toggle('off',!wk().table); }
   if(b){ b.classList.toggle('locked',!wk().table); b.classList.toggle('afford',!!wk().table&&canMake('brew')); b.setAttribute('aria-label',wk().table?'Brewing table: brew potions':'Brewing table (not built yet: craft it at the anvil)'); } }
 // the strip has room for two digits: bigger counts read 99+ (the forge and craft panels show the real totals)
 const cap99=n=>n>99?'99+':String(n);

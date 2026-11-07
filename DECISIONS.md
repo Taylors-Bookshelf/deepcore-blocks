@@ -200,3 +200,7 @@ Your calls: keep 2.x version numbers ("v1" is a milestone name); no tool wear un
 - **The workshop belongs to the run** (`dayState.wk`), like tools, so a new run after the Core starts without it. A missed day keeps it.
 - **Migration (schema 6):** a run whose player held a potion gets the brewing table. Specials beyond the new slots are refunded as their ore (`fitDock`).
 - **The simulator's player** still buys extras only after saving for the next tools, so `tools/run.mjs` builds the table late (around day 9). It now models the workshop and slot limits; the balance test is unchanged and passes.
+
+## v2.2.1 (dock redesign; built 2026-11-06)
+- **Dock layout chosen by the user** from four mock-ups: two panels, CRAFT left of the tool slots and BREW right of the potion slots, no group labels, the game's own sprites. Slots stay 56pt; the two panels fill a 375pt phone exactly (15pt gap), wider phones get a bigger gap.
+- **Naming:** the user called the left group "Tools". With the labels removed this name isn't shown; the anvil panel still heads its list "Equipment", because "tools" already means the mining tools you forge on the map.
