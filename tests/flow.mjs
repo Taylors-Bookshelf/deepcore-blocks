@@ -36,10 +36,10 @@ check(s.screen === 'map', 'clearing returns to the map');
 
 // ---- Potion of Luck ----
 await board(4);
-await T(() => window.__deepcore.test.give({ ruby: 24, bone: 8 }));
-await page.tap('#anvilBtn'); await page.waitForTimeout(200);
-const names = await page.$$eval('.recipe .nm', e => e.map(x => x.textContent)); check(names.join() === 'Blast Charge,Sledgehammer,Potion of Protection,Potion of Luck', 'anvil lists four recipes: ' + names);
-await (await page.$$('.recipe button.go'))[3].click(); await page.waitForTimeout(150);
+await T(() => { const t = window.__deepcore.test; t.give({ ruby: 24, bone: 8 }); t.workshop('table'); });
+await page.tap('#brewBtn'); await page.waitForTimeout(200);
+const names = await page.$$eval('.recipe .nm', e => e.map(x => x.textContent)); check(names.join() === 'Potion of Protection,Potion of Luck,Second potion slot', 'the brewing table lists the potions and its upgrade: ' + names);
+await page.click('.recipe[data-m="luck"] button'); await page.waitForTimeout(150);
 s = await st(); check(s.crafted.luck === 1 && s.bank.ruby === 12 && s.bank.bone === 4, 'Potion of Luck crafted for 12 ruby + 4 bone');
 check(await T(() => document.querySelectorAll('#dockSlots .tool:not(.empty)').length) === 1, 'the crafted Potion of Luck sits in a dock slot');
 await page.tap('#anvilClose');

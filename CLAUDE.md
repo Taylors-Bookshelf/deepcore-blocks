@@ -39,15 +39,15 @@ A mining-themed 8×8 block puzzle: drag 3-piece sets onto the board, clear rows 
 - `VAL` ranks blocks (deeper rock more, ore far more, gems most); since v2.0.4 it gives no points.
 
 **Specials**
-- Craft-only, held in a **3-slot dock in any mix** (duplicates allowed): Blast Charge, Sledgehammer, Potion of Protection (id `rescue`), Potion of Luck (id `luck`) (`RECIPES`). Crafting with a full dock opens the make-room sheet (destroy one special; ore is spent only on confirm). Random-only on the board: Fossil and Buried Treasure (`SPECIAL_MIX`, `SPECIAL_RATE` 0.3%/0.6%/1.2%/1.8% by tier; Easy is the Forest). The Geode was removed in v2.0.2. Both potions need 4 bone; bone is mined only in the Forest.
-- Blast Charge breaks the 8 neighbours; Sledgehammer reshuffles the board (no trapped gaps, no full lines, room for the tray); the Potion of Protection is used automatically on a cave-in (undo last placement, fresh set); the Potion of Luck (tap to drink) favours the next `LUCK_DEALS` (5) deals. What a Blast Charge breaks is lost, not mined. Fossil = 4–8 bones (`FOSSIL_BONE`); Buried Treasure = a haul of ore/gems (`TREASURE`); no points; both paid by `specialHaul`, shared with the simulator.
+- Craft-only, in a **split dock** (F-10, v2.2.0): equipment (Blast Charge, Sledgehammer; `RECIPES[].slot='equip'`) on the left with the anvil, potions (Potion of Protection id `rescue`, Potion of Luck id `luck`; `slot='potion'`) on the right with the brewing table. One equipment slot to start; the brewing table (built at the anvil) unlocks potions and one potion slot; second slots are late-run upgrades (`WORKSHOP` in data.js, kept per run in `dayState.wk`, `capOf`/`heldOf`/`fitDock` in game.js). Crafting into a full kind opens the make-room sheet for that kind (destroy one; ore is spent only on confirm). Random-only on the board: Fossil and Buried Treasure (`SPECIAL_MIX`, `SPECIAL_RATE` 0.3%/0.6%/1.2%/1.8% by tier; Easy is the Forest). The Geode was removed in v2.0.2. Both potions need 4 bone; bone is mined only in the Forest.
+- Blast Charge breaks the 8 neighbours; Sledgehammer reshuffles the board (no trapped gaps, no full lines, room for the tray); both potions are tapped to drink and last `POTION_DEALS` (5) deals. Protection covers the current tray plus 4 deals; any cave-in then undoes the last placement and deals a fresh set (`useRescue('potion')`, `playSaved`). Luck favours gap-filling sets and doubles random specials. What a Blast Charge breaks is lost, not mined. Fossil = 4–8 bones (`FOSSIL_BONE`); Buried Treasure = a haul of ore/gems (`TREASURE`); no points; both paid by `specialHaul`, shared with the simulator.
 
 **Dealer and feel**
 - Every dealt set is solvable (a cave-in is always the player's fault). Easy boards get strong help that fades with difficulty; "mercy" adds help as the board fills; nearly empty boards get a hunt for All-Clear sets. Pieces come in families (all rotations/mirrors equally likely); big corner pieces are dialled down.
 - "Perfect!" when the placement was the only one keeping the tray playable, "Great fit!" for one of 2–3 (praise only, no points). All Clear: +250 and a big easy set.
 - Layout is the design spec at 390pt: 44pt header, 36pt progress bar, 52pt resource strip (counts below the icons, 99+ above 99), 42pt blocks with 2pt seams, 56pt dock slots, 114pt tray slots with 20pt piece cells; `tests/spec.mjs` asserts it. Tray pieces never resize; a piece rides above the fingertip while dragging.
 
-## Screens (v2.1.1)
+## Screens (v2.2.0)
 
 - Home: Play / Continue, with Profile (podium), Settings (gear) and Sound icons. Settings fit one screen. The speaker on home, map and board opens the sound popover (music and effects, each with a switch and volume: `settings.musicVol`, `settings.sfxVol`).
 - Board header: Pause, the board's number (`boardName`: "Magmastone board #3", shown as the layer over "Board #3"), Hint (asks first via `ask()`, 5 coal fly from the stash into the button), Guide, Sound. Pause (`openPause`) is a centred card: next star line, layer stars, round Resume / Restart / Map buttons; Restart and Map ask first. The score is a number with `x/y placements left` (`placementsLeft`) and the star meter. One tap on the next map board starts it.
@@ -55,7 +55,7 @@ A mining-themed 8×8 block puzzle: drag 3-piece sets onto the board, clear rows 
 
 ## Saving
 
-`localStorage` only (keys `deepcore-profile`, `-run`, `-board`, `-life`, `-settings`, `-schema`, `-sound`, `-install`, `-aid`, `-analytics`). `SCHEMA` (currently 5; v5 moved runs to 8 boards a layer) and `migrate()` handle format changes; a saved board is validated before use. Settings has a save-code backup/restore (`DC1.…`) and a reset. Progress does not follow a player across devices without a code.
+`localStorage` only (keys `deepcore-profile`, `-run`, `-board`, `-life`, `-settings`, `-schema`, `-sound`, `-install`, `-aid`, `-analytics`). `SCHEMA` (currently 6; v5 moved runs to 8 boards a layer, v6 split the dock) and `migrate()` handle format changes; a saved board is validated before use. Settings has a save-code backup/restore (`DC1.…`) and a reset. Progress does not follow a player across devices without a code.
 
 ## Open items to raise with the designer
 

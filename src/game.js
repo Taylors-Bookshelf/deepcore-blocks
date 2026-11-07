@@ -1,7 +1,7 @@
 (function(){
 const N = 8, T = 16;
 const A = window.DCA || { track(){}, attempt(){}, setScreen(){}, setBoard(){}, isOn:()=>false, canConfigure:()=>false, setOptOut(){} };
-const {TOOL_WEAR,LUCK_DEALS,FOSSIL_BONE,specialHaul,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS,GEM_KEYS,lineName,STAR_ORES,SCORE,placePoints,starsFromScore,starBonus,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf}=DeepcoreData;
+const {TOOL_WEAR,POTION_DEALS,WORKSHOP,FOSSIL_BONE,specialHaul,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS,GEM_KEYS,lineName,STAR_ORES,SCORE,placePoints,starsFromScore,starBonus,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf}=DeepcoreData;
 const M=DeepcoreMaps, Meta=DeepcoreMeta;
 const {SHAPES,SHAPE_STRS,SHAPE_BY_KEY,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,getBit,bitOf,chooseSet,BIG_IDS,pickWeighted,rankMoves,rollBudget,spreadOre}=DeepcoreCore;
 const FONT_D = '"Jersey 10", "Courier New", monospace';
@@ -292,12 +292,24 @@ const texOf=m=> (MATS[m].kind==='ore'||MATS[m].kind==='gem') ? TEX[m+'@'+levelDe
 
 // ---------- state ----------
 let dealt={}, grid, pieces, score=0, combo=0, sinceClear=0, over=false, busy=false, level=1, collected={}, shownCol={}, since={};
-// the specials dock: up to three crafted specials in any mix, in slot order
-const DOCK_SLOTS=3; let specials=[];
-const dockCount=m=>specials.filter(x=>x===m).length, dockFull=()=>specials.length>=DOCK_SLOTS;
+// the specials dock (F-10, v2.2.0): equipment slots on the left with the anvil, potion slots on the right with the brewing table.
+// One equipment slot to start; the brewing table (built at the anvil) unlocks potions and one potion slot; a second slot of each
+// kind is a late-game upgrade. The workshop is kept for the run (dayState.wk), like tools. specials holds both kinds, in craft order.
+let specials=[];
+const MAX_SLOTS=2;
+const slotOf=m=>(RECIPES.find(r=>r.m===m)||{}).slot||'equip';
+const wk=()=>dayState.wk||(dayState.wk={});
+const capOf=kind=>kind==='equip'?1+(wk().equip2?1:0):(wk().table?1+(wk().potion2?1:0):0);
+const heldOf=kind=>specials.map((m,i)=>({m,i})).filter(x=>slotOf(x.m)===kind);
+const kindFull=kind=>heldOf(kind).length>=capOf(kind);
+const dockCount=m=>specials.filter(x=>x===m).length;
 const dockRemove=i=>{ if(i>=0&&i<specials.length) specials.splice(i,1); };
+// more held than the slots allow (an old save, or a run that lost its upgrades): the extras go back to the stash as their ore
+function fitDock(){ let refund=false;
+  ['equip','potion'].forEach(kind=>{ const h=heldOf(kind), cap=capOf(kind); h.slice(cap).reverse().forEach(({m,i})=>{ const rc=RECIPES.find(r=>r.m===m); if(rc) Object.entries(rc.cost).forEach(([k,v])=>bank[k]=(bank[k]||0)+v); specials.splice(i,1); refund=true; }); });
+  if(refund) saveProfile(); return refund; }
 let reached=false, reachScore=0, clearBonus=0, decided=true, hintInfo=null, sheetMode='';
-let practice=false, bank={}, hand={}, luck=0, luckLive=false, moves=0, fragments=0, boardT0=0, lastAct=0;
+let practice=false, bank={}, hand={}, luck=0, luckLive=false, prot=0, protLive=false, moves=0, fragments=0, boardT0=0, lastAct=0;
 
 // ---------- the descent: one run from the Forest to the Ancient Core, kept from day to day ----------
 // Days are Pacific-time days (the daily twist follows them). Clear at least one board a day to keep
@@ -329,30 +341,45 @@ function specialOnField(){
 }
 function pickBase(){ return DeepcoreCore.pickBase(levelDef(level)); }
 function dressPiece(s,setSoFar){
-  return DeepcoreCore.dressPiece(s,levelDef(level),{dealt,budgeted:true,specialBlocked:specialOnField()||setSoFar.some(p=>p.mats.some(m=>MATS[m].kind==='special'))});
+  const def=levelDef(level), d2=luckLive?{...def,specialMul:(def.specialMul||1)*2}:def;   // a Potion of Luck doubles random specials
+  return DeepcoreCore.dressPiece(s,d2,{dealt,budgeted:true,specialBlocked:specialOnField()||setSoFar.some(p=>p.mats.some(m=>MATS[m].kind==='special'))});
 }
+// both potions count deals: the number is the deals still to come, Live means the pieces in the tray are covered
+function potionBadge(id,txt,left,live,word,last){
+  const lit=left+(live?1:0), b=$(id); b.hidden=lit<=0;
+  b.querySelector('.pips').innerHTML=Array.from({length:POTION_DEALS},(_,i)=>`<i class="${i<lit?'on':''}"></i>`).join('');
+  $(txt).textContent=left>0?`${word}: ${left} more deal${left===1?'':'s'}`:last; return lit>0; }
 function updateLuckUI(){
-  const lit=luck+(luckLive?1:0), b=$('luckBadge'); b.hidden=lit<=0;
-  b.querySelector('.pips').innerHTML=Array.from({length:LUCK_DEALS},(_,i)=>`<i class="${i<lit?'on':''}"></i>`).join('');
-  $('luckTxt').textContent = luck>0 ? `Luck: ${luck} more deal${luck===1?'':'s'}` : 'Last lucky deal';
-  $('tray').classList.toggle('lucky',luckLive);
+  const a=potionBadge('luckBadge','luckTxt',luck,luckLive,'Luck','Last lucky deal'), b=potionBadge('protBadge','protTxt',prot,protLive,'Protected','Last protected deal');
+  $('potionBadges').classList.toggle('both',a&&b);
+  $('tray').classList.toggle('lucky',luckLive); $('tray').classList.toggle('guarded',protLive);
 }
-function drinkLuck(){
+// tap a potion in the dock to drink it. Luck starts with the next deal; Protection covers the pieces you hold now and the next deals.
+function drinkPotion(m){
   if(dockAnim) return;
-  const li=specials.indexOf('luck'); if(busy||over||uiOpen()||li<0||luck>0) return;
-  dockRemove(li); luck=LUCK_DEALS; score=Math.max(0,score+SCORE.special.luck); shown=score; updateBar(); renderDock(); updateLuckUI(); updateAnvilGlow(); saveProfile(); saveBoard();
-  A.track('luck_drunk',{idx:level-1,score,moves}); life.seen.luck=true;
-  busy=true; const d=playSplash('Potion of Luck',`The next ${LUCK_DEALS} deals favour you · ${SCORE.special.luck}`,'luck'); setTimeout(()=>{ busy=false; },d);
+  const i=specials.indexOf(m); if(busy||over||uiOpen()||i<0) return;
+  if(m==='luck'&&luck>0 || m==='rescue'&&prot>0){ showCombo(m==='luck'?'Luck is already working':'You are already protected'); return; }
+  dockRemove(i); score=Math.max(0,score+SCORE.special[m]); shown=score; updateBar();
+  if(m==='luck'){ luck=POTION_DEALS; } else { prot=POTION_DEALS-1; protLive=true; }
+  renderDock(); updateLuckUI(); updateAnvilGlow(); saveProfile(); saveBoard();
+  A.track(m==='luck'?'luck_drunk':'protection_drunk',{idx:level-1,score,moves}); life.seen[m]=true;
+  busy=true; const d=m==='luck'?playSplash('Potion of Luck',`The next ${POTION_DEALS} deals favour you · ${SCORE.special.luck}`,'luck')
+    :playSplash('Potion of Protection',`Safe from cave-ins for ${POTION_DEALS} deals · ${SCORE.special.rescue}`,'rescue');
+  setTimeout(()=>{ busy=false; },d);
 }
+const drinkLuck=()=>drinkPotion('luck');
 let bigNext=false;
 // after 2 cave-ins on the same board today the dealer starts leaning your way (0, 0, .35, .7, then .75)
 const mercyTilt=()=>Math.min(.75,Math.max(0,((dayState.fails||{})[level-1]||0)-1)*.35);
-function dealSet(){
+function dealSet(fresh){   // fresh: a Protection's replacement set, which is not a new deal and doesn't use up a potion
   const [lo,hi]=occBits(grid); let set;
   if(tut.active&&tut.stage===0){ set=TUT_SET.map(str=>SHAPES[SHAPE_STRS.indexOf(str)]); tut.stage=1; }
   else if(bigNext && lo===0 && hi===0){ set=BIG_IDS.map(ids=>SHAPES[ids[Math.floor(Math.random()*ids.length)]]).sort(()=>Math.random()-.5); bigNext=false; }
   else set=chooseSet(lo,hi,difficulty(),{luck:luck>0?1:0,tilt:mercyTilt()});
-  if(luck>0){ luck--; luckLive=true; } else if(luckLive){ luckLive=false; showCombo('Potion of Luck wore off'); blip(330,.2,'sine',.05); }
+  if(!fresh){
+    if(luck>0){ luck--; luckLive=true; } else if(luckLive){ luckLive=false; showCombo('Potion of Luck wore off'); blip(330,.2,'sine',.05); }
+    if(prot>0){ prot--; protLive=true; } else if(protLive){ protLive=false; setTimeout(()=>showCombo('Protection wore off'),luckLive?0:200); blip(300,.2,'sine',.05); }
+  }
   updateLuckUI();
   const out=[]; set.forEach(s=>out.push(dressPiece(s,out)));
   // the board's ore budget: this deal's share of what is left goes into the plain blocks
@@ -1078,7 +1105,7 @@ function loseHand(){
   return total;
 }
 function gameOver(){
-  if(dockCount('rescue')>0){ setTimeout(()=>useRescue(),450); return; }
+  if(protLive&&!reached){ busy=true; setTimeout(()=>useRescue('potion'),450); return; }
   if(reached) return;   // the board already ended at its target
   { const f=dayState.fails=dayState.fails||{}; f[level-1]=(f[level-1]||0)+1; saveDay(); life.caveIns++; }
   const tg=levelDef(level).target||1, lost=loseHand();
@@ -1098,16 +1125,32 @@ function toolBreak(){
 }
 function updateDur(){ const c=$('durChip'); if(!c) return; const z=level?zoneOfIdx(level-1):0, show=toolBreakable()&&z>=MAGMA_Z&&screen==='game';
   c.hidden=!show; if(!show) return; c.textContent=`TOOLS ${Math.max(0,Math.round(dayState.dur))}%`; c.classList.toggle('low',dayState.dur<25); }
-function useRescue(free){
-  A.track('rescue_used',{idx:level-1,score,moves}); life.seen.rescue=true;
-  if(!free) dockRemove(specials.indexOf('rescue'));
+// a cave-in while protected: free (the potion paid its points when drunk), and the protection carries on.
+// Nothing saves you after a cave-in has happened (v2.2.0): the cave-in screen offers only Retry and Map.
+function useRescue(mode){
+  A.track('rescue_used',{idx:level-1,score,moves,mode}); life.seen.rescue=true;
   if(undo){ ({grid,pieces,score,combo,sinceClear,collected,hand,since,bigNext,moves,dealt}=JSON.parse(JSON.stringify(undo))); dealsDone=undo.dealsDone??dealsDone; oreLeft=undo.oreLeft||oreLeft; hand=hand||{}; shownCol={...collected}; }
-  score=Math.max(0,score+SCORE.special.rescue); shown=score;   // the potion costs points
-  undo=null; over=false; $('over').hidden=true; updateComboMeter();
-  dealsDone=Math.max(0,dealsDone-1); dealSet();   // the fresh set replaces the tray, it is not an extra deal
+  shown=score; undo=null; over=false; $('over').hidden=true; updateComboMeter();
+  dealsDone=Math.max(0,dealsDone-1); dealSet(true);   // the fresh set replaces the tray, it is not an extra deal
   buildGoals(); updateHUD(); updateStash(); renderDock(); drawTray(); updateAnvilGlow();
-  busy=true; const d=playSplash('Potion of Protection',`Last move undone · fresh pieces · ${SCORE.special.rescue}`,'rescue'); setTimeout(()=>{ busy=false; },d);
+  busy=true; const d=playSaved('Last move undone · fresh pieces'); setTimeout(()=>{ busy=false; },d);
   saveBoard(); saveProfile();
+}
+// the "saved you" moment: a shield snaps over the board, glows and fades, with a big SAVED!
+function playSaved(sub){
+  const B=boardC.getBoundingClientRect(), cx=B.left+B.width/2, cy=B.top+B.height/2, R=B.width*.62, t0=performance.now(), D=REDUCE?500:1500;
+  fxList.push({draw(ctx,now){ const t=(now-t0)/D; if(t>=1) return false; if(t<0) return true;
+    const pop=t<.18?easeOut(t/.18)*1.08:t<.3?1.08-.08*((t-.18)/.12):1, a=t<.7?1:1-(t-.7)/.3, r=R*pop;
+    ctx.save(); ctx.globalAlpha=a; ctx.translate(cx,cy);
+    const path=()=>{ ctx.beginPath(); ctx.moveTo(0,-r); ctx.quadraticCurveTo(r*.95,-r*.95,r*.9,-r*.25); ctx.quadraticCurveTo(r*.8,r*.55,0,r); ctx.quadraticCurveTo(-r*.8,r*.55,-r*.9,-r*.25); ctx.quadraticCurveTo(-r*.95,-r*.95,0,-r); ctx.closePath(); };
+    path(); ctx.fillStyle='rgba(255,154,184,.16)'; ctx.fill();
+    ctx.shadowColor='#ff9ab8'; ctx.shadowBlur=24+12*Math.sin(now/90); ctx.lineWidth=5; ctx.strokeStyle='#ffd0e0'; ctx.stroke();
+    ctx.shadowBlur=0; ctx.lineWidth=2; ctx.strokeStyle='#ffffff'; ctx.globalAlpha=a*.7; ctx.stroke();
+    const sweep=(now-t0)/700%1; ctx.save(); path(); ctx.clip(); const g=ctx.createLinearGradient(-r,-r+2*r*sweep-40,r,-r+2*r*sweep+40); g.addColorStop(0,'rgba(255,255,255,0)'); g.addColorStop(.5,'rgba(255,255,255,.35)'); g.addColorStop(1,'rgba(255,255,255,0)'); ctx.fillStyle=g; ctx.fillRect(-r,-r,2*r,2*r); ctx.restore();
+    ctx.restore(); return true; }});
+  [[cx,cy-R*.9],[cx-R*.8,cy-R*.2],[cx+R*.8,cy-R*.2],[cx,cy+R*.9]].forEach(([x,y])=>spawnFxParts('spark',x,y,REDUCE?2:8,['#ffffff','#ff9ab8','#ffd0e0']));
+  [523,659,784,1047,1319].forEach((f,j)=>blip(f,.12,'triangle',.06,j*.07));
+  return Math.max(D,playSplash('Saved!',sub,'rescue'));
 }
 const TIPS=['Look at all three pieces before you place the first one.','A bright outline means that drop will clear a line.','Clear lines on back-to-back moves to build a combo.','A crafted Blast Charge or Sledgehammer can rescue a crowded board.'];
 function caveInTip(){
@@ -1127,12 +1170,11 @@ function showOver(){
     $('overBar').firstElementChild.style.width=pct+'%'; $('overBar').hidden=false;
     $('finalNote').textContent='Ore hauled on this attempt is lost. Your stash and crafted specials are safe.';
     $('overTip').textContent=caveInTip()+(fails>=2?' The dealer will go easier on your next try.':''); $('retry').textContent='Retry board';
-    $('rescueBtn').hidden=!(canAfford(RESCUE()) && dockCount('rescue')===0);
+    if(dockCount('rescue')) $('overTip').textContent='You were holding a Potion of Protection. Tap it in the dock to drink it before you get stuck: it guards you for '+POTION_DEALS+' deals.';
   }
   $('over').hidden=false; blip(110,.4,'sawtooth',.05);
 }
 $('retry').onclick=()=>{ A.attempt('retry_board',level-1,{score},120000); startBoard(level-1); };
-$('rescueBtn').onclick=()=>{ const rc=RESCUE(); if(!canAfford(rc)) return; Object.entries(rc.cost).forEach(([k,v])=>bank[k]-=v); updateStash(Object.keys(rc.cost)); useRescue(true); };
 $('again').onclick=()=>{ clearBoardSave(); pieces=null; if(toolBroke){ toolBroke=false; showMap({broke:true}); return; } showMap({}); };
 
 // ---------- Hammer: shake the remaining blocks into a fresh, gap-free arrangement ----------
@@ -1182,6 +1224,14 @@ const anvilIcon=(()=>{ const c=$('anvilIcon'), x=c.getContext('2d'); x.imageSmoo
   P(1,4,13,3,'#9aa3ad'); P(0,5,3,1,'#9aa3ad'); P(2,4,12,1,'#c9d0d8'); P(1,7,13,1,'#5f666e');
   P(6,8,4,3,'#7d858e'); P(6,8,1,3,'#9aa3ad'); P(3,11,10,3,'#7d858e'); P(3,11,10,1,'#9aa3ad'); P(3,14,10,1,'#4a5057');
   P(12,2,1,1,'#ffd23f'); P(13,1,1,1,'#ffb03a'); P(11,1,1,1,'#ffe08a'); return c; })();
+// the brewing table: a little cauldron on legs with pink brew and bubbles (drawn to match the 16px sprites; no PNG in the design package)
+const brewIcon=(()=>{ const c=$('brewIcon'), x=c.getContext('2d'); x.imageSmoothingEnabled=false; const P=(i,j,w,h,col)=>{ x.fillStyle=col; x.fillRect(i,j,w,h); };
+  P(2,6,12,1,'#5f666e'); P(1,7,14,1,'#7d858e'); P(2,8,12,5,'#4a5057'); P(3,8,10,1,'#7d858e'); P(3,13,10,1,'#3a3f45'); P(3,14,2,2,'#3a3f45'); P(11,14,2,2,'#3a3f45');
+  P(3,5,10,2,'#ff6a9a'); P(4,5,8,1,'#ffb0c8'); P(5,3,2,2,'#ffd0e0'); P(9,2,2,2,'#ffd0e0'); P(7,1,1,1,'#ffffff'); P(12,3,1,1,'#ff9ab8');
+  P(4,9,1,3,'#5f666e'); P(6,13,4,1,'#ff8a3a'); P(7,14,2,1,'#ffd23f'); return c; })();
+// a second slot: a slot frame with a plus
+function slotIcon(id){ const c=document.createElement('canvas'); c.width=c.height=16; const x=c.getContext('2d'); const col=id==='equip2'?'#ffcf5c':'#ff9ab8';
+  x.fillStyle='#2a2f36'; x.fillRect(1,1,14,14); x.fillStyle=col; x.fillRect(1,1,14,1); x.fillRect(1,14,14,1); x.fillRect(1,1,1,14); x.fillRect(14,1,1,14); x.fillRect(7,4,2,8); x.fillRect(4,7,8,2); return c; }
 function buildStash(){
   const box=$('stashItems'); box.innerHTML='';
   STASH_KEYS.forEach((k,idx)=>{ if(GEM_KEYS.includes(k)&&!GEM_KEYS.includes(STASH_KEYS[idx-1])){ const dv=document.createElement('div'); dv.className='sdiv'; box.append(dv); }
@@ -1190,7 +1240,10 @@ function buildStash(){
     const t=document.createElement('div'); t.className='t'; const n=document.createElement('span'); n.className='n'; const pl=document.createElement('span'); pl.className='pl'; t.append(n,pl); d.append(cv,t); box.append(d); });
   updateStash();
 }
-function updateAnvilGlow(){ const b=$('anvilBtn'); if(b) b.classList.toggle('afford',!dockFull()&&RECIPES.some(r=>canAfford(r))); }
+// the anvil and brewing table glow when something there can be crafted now (a free slot, or an upgrade you can afford)
+const canMake=at=>RECIPES.some(r=>(r.slot==='equip')===(at==='anvil')&&capOf(r.slot)>0&&!kindFull(r.slot)&&canAfford(r)) || wsOpen(at).some(w=>canAfford(w));
+function updateAnvilGlow(){ const a=$('anvilBtn'), b=$('brewBtn'); if(a) a.classList.toggle('afford',canMake('anvil'));
+  if(b){ b.classList.toggle('locked',!wk().table); b.classList.toggle('afford',!!wk().table&&canMake('brew')); b.setAttribute('aria-label',wk().table?'Brewing table: brew potions':'Brewing table (not built yet: craft it at the anvil)'); } }
 // the strip has room for two digits: bigger counts read 99+ (the forge and craft panels show the real totals)
 const cap99=n=>n>99?'99+':String(n);
 function updateStash(bumped=[]){
@@ -1203,19 +1256,27 @@ function updateStash(bumped=[]){
 }
 // ---- the dock: three flat slots, one special each, no counts ----
 let dockAnim=null;   // {idx, old, phase:'crack'|'shatter'|'land'} while a destroyed special is being replaced
+const LOCK_SVG='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 function renderDock(){
-  const box=$('dockSlots'); box.innerHTML='';
-  for(let i=0;i<DOCK_SLOTS;i++){
-    const m=specials[i];
-    if(dockAnim&&dockAnim.idx===i){ box.append(animTile(i,m)); continue; }
-    if(!m){ const e=document.createElement('div'); e.className='tool empty'; e.setAttribute('aria-label','Empty special slot'); box.append(e); continue; }
-    const t=document.createElement('button'); t.type='button'; t.className='tool'; t.dataset.m=m; t.dataset.slot=i;
-    t.setAttribute('aria-label',MATS[m].name+(m==='rescue'?' (used automatically on a cave-in)':m==='luck'?' (tap to drink)':' (drag onto a piece)'));
-    const cv=document.createElement('canvas'); cv.className='px'+(m==='sledgehammer'?' swing':m==='luck'||m==='rescue'?' bob':''); cv.width=cv.height=T; cv.getContext('2d').drawImage(SPR[m]||TEX[m],0,0);
-    t.append(cv); if(m==='blast'){ const sp=document.createElement('span'); sp.className='spark'; t.append(sp); }
-    if(m==='luck') t.addEventListener('click',drinkLuck); else if(m!=='rescue') t.addEventListener('pointerdown',e=>startSpecialDrag(e,m,i));
-    box.append(t);
-  }
+  ['equip','potion'].forEach(kind=>{
+    const box=$(kind==='equip'?'eqSlots':'potSlots'); box.innerHTML=''; const h=heldOf(kind), cap=capOf(kind);
+    for(let k=0;k<MAX_SLOTS;k++){
+      const it=h[k], i=it?it.i:-1;
+      if(dockAnim&&it&&dockAnim.idx===i){ box.append(animTile(i,it.m)); continue; }
+      if(k>=cap){ const up=kind==='equip'?WORKSHOP.equip2:(wk().table?WORKSHOP.potion2:WORKSHOP.table);
+        const e=document.createElement('button'); e.type='button'; e.className='tool empty locked '+kind; e.innerHTML=LOCK_SVG; e.dataset.up=up.id;
+        e.setAttribute('aria-label',`Locked ${kind==='equip'?'equipment':'potion'} slot: ${up.name} at the ${up.at==='anvil'?'anvil':'brewing table'}`);
+        e.onclick=()=>openWorkshop(up.at,up.id); box.append(e); continue; }
+      if(!it){ const e=document.createElement('div'); e.className='tool empty '+kind; e.setAttribute('aria-label',`Empty ${kind==='equip'?'equipment':'potion'} slot`); box.append(e); continue; }
+      const m=it.m, t=document.createElement('button'); t.type='button'; t.className='tool '+kind; t.dataset.m=m; t.dataset.slot=i;
+      t.setAttribute('aria-label',MATS[m].name+(kind==='potion'?' (tap to drink)':' (drag onto the board)'));
+      const cv=document.createElement('canvas'); cv.className='px'+(m==='sledgehammer'?' swing':kind==='potion'?' bob':''); cv.width=cv.height=T; cv.getContext('2d').drawImage(SPR[m]||TEX[m],0,0);
+      t.append(cv); if(m==='blast'){ const sp=document.createElement('span'); sp.className='spark'; t.append(sp); }
+      if(kind==='potion') t.addEventListener('click',()=>drinkPotion(m)); else t.addEventListener('pointerdown',e=>startSpecialDrag(e,m,i));
+      box.append(t);
+    }
+  });
+  updateAnvilGlow();
 }
 // ---- all three slots full: pick a special to destroy so the new one fits ----
 const SHARD_CRACK='<svg class="crk" viewBox="0 0 16 16" shape-rendering="crispEdges"><path d="M8 2 L7 5 L9 7 L6 10 L8 12 L7 14 M9 7 L12 6 L13 8 M6 10 L3 11" fill="none" stroke="#ff8a7a" stroke-width=".7"></path></svg>';
@@ -1223,17 +1284,17 @@ const CRACK_DARK='<svg class="crk cracks" viewBox="0 0 16 16" shape-rendering="c
 const spriteCv=(m,cls)=>{ const cv=document.createElement('canvas'); cv.className='px'+(cls?' '+cls:''); cv.width=cv.height=T; cv.getContext('2d').drawImage(SPR[m]||TEX[m],0,0); return cv; };
 function closeSheet(){ $('sheetScrim').hidden=true; $('sheetScrim').classList.remove('center'); $('sheet').classList.remove('pop'); $('sheet').innerHTML=''; sheetMode=''; }
 function openMakeRoom(rc){
-  if(!dockFull()||!canAfford(rc)||dockAnim) return;
+  const kind=rc.slot; if(!kindFull(kind)||!capOf(kind)||!canAfford(rc)||dockAnim) return;
   const sh=$('sheet'); sh.innerHTML=''; let sel=-1; sheetMode='room';
   const el=(tag,cls,txt)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!==undefined) e.textContent=txt; return e; };
   A.track('make_room_open',{m:rc.m,held:specials.join('|')});
   sh.append(el('div','shHandle'));
   const head=el('div','shHead'), tool=el('div','tool'), hd=el('div'); tool.append(spriteCv(rc.m));
-  hd.append(el('div','shLabel',`ALL ${DOCK_SLOTS} SLOTS FULL`),el('div','shTitle',`Make room for a ${MATS[rc.m].name}`)); head.append(tool,hd); sh.append(head);
+  hd.append(el('div','shLabel',capOf(kind)>1?`BOTH ${kind==='equip'?'EQUIPMENT':'POTION'} SLOTS FULL`:`${kind==='equip'?'EQUIPMENT':'POTION'} SLOT FULL`),el('div','shTitle',`Make room for a ${MATS[rc.m].name}`)); head.append(tool,hd); sh.append(head);
   sh.append(el('div','shBody','Pick a special to destroy. Your ore is only spent if you go ahead.'));
   const picks=el('div','shPicks'); sh.append(picks);
   const btns=el('div','shBtns'), cancel=el('button',undefined,'CANCEL'), go=el('button',undefined,'DESTROY & CRAFT'); cancel.id='shCancel'; go.id='shGo'; cancel.type=go.type='button'; go.disabled=true; btns.append(cancel,go); sh.append(btns);
-  const draw=()=>{ picks.innerHTML=''; specials.forEach((m,i)=>{ const w=el('div','pickWrap'), b=el('button','pick'+(i===sel?' on':'')); b.type='button'; b.dataset.i=i; b.setAttribute('aria-label','Destroy '+MATS[m].name); b.setAttribute('aria-pressed',i===sel);
+  const draw=()=>{ picks.innerHTML=''; heldOf(kind).forEach(({m,i})=>{ const w=el('div','pickWrap'), b=el('button','pick'+(i===sel?' on':'')); b.type='button'; b.dataset.i=i; b.setAttribute('aria-label','Destroy '+MATS[m].name); b.setAttribute('aria-pressed',i===sel);
       b.append(spriteCv(m)); if(i===sel) b.insertAdjacentHTML('beforeend',SHARD_CRACK);
       b.onclick=()=>{ sel=i; go.disabled=false; draw(); };
       w.append(b,el('div','pickName'+(i===sel?' sel':''),i===sel?'DESTROY':MATS[m].name)); picks.append(w); }); };
@@ -1245,7 +1306,7 @@ function openMakeRoom(rc){
 $('sheetScrim').addEventListener('pointerdown',e=>{ if(e.target.id==='sheetScrim'&&(sheetMode==='room'||sheetMode==='pause')) closeSheet(); });
 function destroyAndCraft(rc,idx){
   closeSheet();
-  if(!dockFull()||!canAfford(rc)) return;
+  if(!kindFull(rc.slot)||!canAfford(rc)) return;
   Object.entries(rc.cost).forEach(([k,v])=>bank[k]-=v);
   const old=specials[idx]; specials[idx]=rc.m;
   A.track('special_destroyed',{destroyed:old,crafted:rc.m}); life.specialsCrafted++;
@@ -1270,26 +1331,59 @@ function playDestroy(idx,old){
   step(1850,()=>{ dockAnim=null; renderDock(); });
 }
 const canAfford=r=>Object.entries(r.cost).every(([k,v])=>(bank[k]||0)>=v);
+// the anvil (equipment, and the workshop upgrades built there) and the brewing table (potions, its second slot) share one panel
+let wsAt='anvil';
+const wsOpen=at=>Object.values(WORKSHOP).filter(w=>w.at===at&&!wk()[w.id]&&(!w.needs||wk()[w.needs]));
+function costEl(cost){ const c=document.createElement('div'); c.className='cost';
+  Object.entries(cost).forEach(([k,v])=>{ const sp=document.createElement('span'); const have=bank[k]||0; if(have<v) sp.className='short';
+    const cv=document.createElement('canvas'); cv.width=cv.height=T; cv.getContext('2d').drawImage(ITEM[k],0,0);
+    sp.append(cv, document.createTextNode(`${Math.min(have,v)}/${v}`)); sp.title=DROPS[k][0]; c.append(sp); }); return c; }
 function recipeRows(box){
-  RECIPES.forEach(rc=>{
-    const row=document.createElement('div'); row.className='recipe';
+  const h3=x=>{ const e=document.createElement('h3'); e.textContent=x; box.append(e); };
+  h3(wsAt==='anvil'?'EQUIPMENT':'POTIONS');
+  RECIPES.filter(rc=>(rc.slot==='equip')===(wsAt==='anvil')).forEach(rc=>{
+    const row=document.createElement('div'); row.className='recipe'; row.dataset.m=rc.m;
     const big=document.createElement('canvas'); big.className='big'; big.width=big.height=T; big.getContext('2d').drawImage(SPR[rc.m]||TEX[rc.m],0,0);
     const mid=document.createElement('div');
-    mid.innerHTML=`<div class="nm">${MATS[rc.m].name}</div><div class="ds">${rc.desc}</div>`;
-    const cost=document.createElement('div'); cost.className='cost';
-    Object.entries(rc.cost).forEach(([k,v])=>{ const sp=document.createElement('span'); const have=bank[k]||0; if(have<v) sp.className='short';
-      const cv=document.createElement('canvas'); cv.width=cv.height=T; cv.getContext('2d').drawImage(ITEM[k],0,0);
-      sp.append(cv, document.createTextNode(`${Math.min(have,v)}/${v}`)); sp.title=DROPS[k][0]; cost.append(sp); });
-    mid.append(cost);
+    mid.innerHTML=`<div class="nm">${MATS[rc.m].name}</div><div class="ds">${rc.desc}</div>`; mid.append(costEl(rc.cost));
     const right=document.createElement('div');
-    const full=dockFull(), can=canAfford(rc);
+    const full=kindFull(rc.slot), can=canAfford(rc);
     const b=document.createElement('button'); b.type='button'; b.textContent=full&&can?'Make room':'Craft'; b.className='go'; b.disabled=!can;
-    b.onclick=()=>{ if(dockFull()) openMakeRoom(rc); else smelt(rc); };
-    const own=document.createElement('div'); own.className='owned'; own.textContent= !can ? 'Need more' : full ? 'Dock is full' : 'Ready to craft';
+    b.onclick=()=>{ if(kindFull(rc.slot)) openMakeRoom(rc); else smelt(rc); };
+    const own=document.createElement('div'); own.className='owned'; own.textContent= !can ? 'Need more' : full ? (capOf(rc.slot)>1?'Slots are full':'Slot is full') : 'Ready to craft';
+    right.append(b,own); row.append(big,mid,right); box.append(row);
+  });
+  const ups=wsOpen(wsAt); if(ups.length) h3('WORKSHOP');
+  ups.forEach(w=>{
+    const row=document.createElement('div'); row.className='recipe ws'; row.dataset.ws=w.id;
+    const big=document.createElement('canvas'); big.className='big'; big.width=big.height=T; big.getContext('2d').drawImage(w.id==='table'?brewIcon:slotIcon(w.id),0,0);
+    const mid=document.createElement('div'); mid.innerHTML=`<div class="nm">${w.name}</div><div class="ds">${w.desc}</div>`; mid.append(costEl(w.cost));
+    const right=document.createElement('div'); const can=canAfford(w);
+    const b=document.createElement('button'); b.type='button'; b.className='go'; b.textContent='Build'; b.disabled=!can; b.onclick=()=>buildWorkshop(w.id);
+    const own=document.createElement('div'); own.className='owned'; own.textContent=can?'Ready to build':'Need more';
     right.append(b,own); row.append(big,mid,right); box.append(row);
   });
 }
-function renderAnvil(){ const box=$('recipes'); box.innerHTML=''; recipeRows(box); }
+function renderAnvil(){ const box=$('recipes'); box.innerHTML=''; $('anvilTitle').textContent=wsAt==='anvil'?'Anvil':'Brewing table';
+  $('anvilTag').textContent=wsAt==='anvil'?'Smelt ore into equipment, then drag it straight onto the board. Workshop upgrades are built here too.':`Brew potions, then tap one in its slot to drink it. Each lasts ${POTION_DEALS} deals.`; recipeRows(box); }
+function openWorkshop(at,focus){
+  if(busy&&!over||screen!=='game') return;
+  if(at==='brew'&&!wk().table){ at='anvil'; focus='table'; }
+  wsAt=at; renderAnvil(); $('anvil').hidden=false;
+  if(focus){ const r=document.querySelector(`#recipes [data-ws="${focus}"]`); if(r){ r.scrollIntoView({block:'nearest'}); r.classList.remove('flash'); void r.offsetWidth; r.classList.add('flash'); } }
+  if(at==='anvil') tipOnce('anvil',()=>toast(`Equipment costs ore. Drag a Blast Charge (+${SCORE.special.blast}) or Sledgehammer (+${SCORE.special.sledgehammer}) onto the board. Build a brewing table here to make potions.`,5200));
+  A.track('workshop_open',{at});
+}
+function buildWorkshop(id){
+  const w=WORKSHOP[id]; if(!w||wk()[id]||(w.needs&&!wk()[w.needs])||!canAfford(w)) return;
+  Object.entries(w.cost).forEach(([k,v])=>bank[k]-=v); wk()[id]=1; saveDay(); saveProfile();
+  A.track('workshop_built',{id,day:dayState.days,idx:level-1}); life.seen['ws_'+id]=true;
+  updateStash(Object.keys(w.cost)); renderDock(); renderAnvil();
+  [392,523,659,784,1047,1319].forEach((f,j)=>blip(f,.12,'triangle',.06,j*.07));
+  const tile=document.querySelector(id==='equip2'?'#eqSlots .tool:nth-child(2)':'#potSlots .tool:nth-child('+(id==='potion2'?2:1)+')'); if(tile){ tile.classList.add('land'); }
+  if(id==='table') tipOnce('brew',()=>toast(`Brewing table built! Tap BREW to make potions. Tap a potion in its slot to drink it: it lasts ${POTION_DEALS} deals.`,5600));
+  else showCombo(w.name+' built!');
+}
 const costChips=(cost)=>{ const c=document.createElement('div'); c.className='cost'; Object.entries(cost).forEach(([k,v])=>{ const sp=document.createElement('span'), have=bank[k]||0; if(have<v) sp.className='short'; sp.append(iconOf(ITEM[k]),document.createTextNode(`${Math.min(have,v)}/${v}`)); sp.title=DROPS[k][0]; c.append(sp); }); return c; };
 function refreshCraft(){ if(!$('anvil').hidden) renderAnvil(); if(!$('craftPanel').hidden) renderCraft(); }
 // the map's Forge: the next set of tools, and (with Galaxy Alloy) mending them with prism ore from the stash
@@ -1318,7 +1412,7 @@ function renderCraft(){
     const r2=document.createElement('div'); r2.className='row2'; const mb=document.createElement('button'); mb.type='button'; mb.className='go'; mb.id='mendBtn';
     mb.textContent=need<=0?'Fully mended':`Mend (${Math.min(have,need)} prism ore)`; mb.disabled=need<=0||have<=0; mb.onclick=mendTools; r2.append(mb); body.append(r2);
   }
-  body.append(note('Specials are crafted during a board, from the CRAFT button next to your dock.'));
+  body.append(note('Equipment and potions are crafted during a board, at the anvil (CRAFT) and brewing table (BREW) beside your dock.'));
 }
 const tcost=tier=>toolCost(tier,MOD());
 function forgeTool(tier){
@@ -1341,7 +1435,7 @@ $('craftPanel').addEventListener('pointerdown',e=>{ if(e.target.id==='craftPanel
 // day's end: what is left in the stash turns into bonus points at midnight, unless you spend it on specials first
 const stashPoints=()=>Object.entries(bank).reduce((a,[k,v])=>a+(v||0)*(VAL[k]||(k==='wood'?VAL.log:0)),0);
 function smelt(rc){
-  if(!canAfford(rc) || dockFull()) return;
+  if(!canAfford(rc) || kindFull(rc.slot)) return;
   A.track('craft',{m:rc.m}); life.specialsCrafted++;
   Object.entries(rc.cost).forEach(([k,v])=>bank[k]-=v);
   specials.push(rc.m);
@@ -1352,7 +1446,7 @@ function smelt(rc){
 // ---------- field guide (the info panel): content is generated from the game's own tables so the numbers never go stale ----------
 const RARITY={ coal:'Common', copper:'Common', ruby:'Unusual', iron:'Unusual', gold:'Rare', emerald:'Rare', diamond:'Rare' };
 const BASE_INFO=[['dirt','Dirt','dirt'],['wood','Wood','log'],['stone','Stone','stone'],['deep','Deep stone','deep'],['obsidian','Obsidian','obsidian'],['ember','Ember rock','ember']];
-function craftList(){ return [...RECIPES.map(r=>({name:MATS[r.m].name,cost:r.cost,mat:r.m,desc:r.desc})), ...TOOLS.slice(1).map((t,i)=>({name:t.name,cost:t.cost,item:'tool_'+t.id,desc:`Forged on the map. Opens ${ZONES[i+1].name}.`}))]; }
+function craftList(){ return [...RECIPES.map(r=>({name:MATS[r.m].name,cost:r.cost,mat:r.m,desc:r.desc})), ...Object.values(WORKSHOP).map(w=>({name:w.name,cost:w.cost,icon:w.id==='table'?brewIcon:slotIcon(w.id),desc:(w.at==='anvil'?'Built at the anvil. ':'Built at the brewing table. ')+w.desc})), ...TOOLS.slice(1).map((t,i)=>({name:t.name,cost:t.cost,item:'tool_'+t.id,desc:`Forged on the map. Opens ${ZONES[i+1].name}.`}))]; }
 function zonesFor(k){
   const names=ZONES.filter(z=>{ const mixes=z.mixes.some(m=>Object.keys(m).includes(k==='wood'?'log':k)); return mixes||z.ores.includes(k)||(z.gems&&z.gems[k]); }).map(z=>z.name);
   return names.length>3 ? names[0]+' to '+names[names.length-1] : names.join(', ');
@@ -1384,14 +1478,14 @@ const INFO_TABS={
     BASE_INFO.forEach(([d,name,m])=>b.append(resRow(iconOf(TEX[m]),name,'Common',VAL[m],d==='wood'?usesOf('wood'):'Points only','Found in: '+zonesFor(d==='wood'?'wood':d))));
   },
   Crafting(b){
-    b.append(infoEl('h3','TWO KINDS OF CRAFTING'),infoEl('p',`Tools are forged on the map (the Craft button at the top). Specials are crafted during a board, from the CRAFT button next to your dock, which holds three specials in any mix.`));
-    b.append(infoEl('h3','HOW'),infoList([`Tap CRAFT, then tap Craft on anything you can afford. Your specials dock holds three at a time (any mix).`,`Drag a Blast Charge onto the board to blow up the 3×3 patch under it, or a Sledgehammer to shake the blocks into a fresh layout. Tap a Potion of Luck to drink it.`]));
+    b.append(infoEl('h3','THREE KINDS OF CRAFTING'),infoEl('p',`Tools are forged on the map (the Craft button at the top). During a board, equipment is crafted at the anvil (CRAFT, left of your dock) and potions at the brewing table (BREW, on the right), once you've built one.`));
+    b.append(infoEl('h3','HOW'),infoList([`You start with one equipment slot. Build a brewing table at the anvil (${Object.entries(WORKSHOP.table.cost).map(([k,v])=>`${v} ${DROPS[k][0].toLowerCase()}`).join(', ')}) to unlock potions and a potion slot. A second slot of each kind is a big late-run goal.`,`Drag a Blast Charge onto the board to blow up the 3×3 patch under it, or a Sledgehammer to shake the blocks into a fresh layout.`,`Tap a potion to drink it. It lasts ${POTION_DEALS} deals; the pips over the tray count them down.`,`A full slot? Crafting another opens a sheet where you pick one to destroy. Your ore is only spent if you go ahead.`]));
     b.append(infoEl('h3','WHAT YOU CAN CRAFT'));
-    craftList().forEach(c=>{ const row=infoEl('div',undefined,'irow'); row.append(iconOf(c.item?ITEM[c.item]:(SPR[c.mat]||TEX[c.mat]))); const d=infoEl('div'); d.append(infoEl('div',c.name,'nm'),infoEl('div',c.desc,'meta'),
+    craftList().forEach(c=>{ const row=infoEl('div',undefined,'irow'); row.append(iconOf(c.icon||(c.item?ITEM[c.item]:(SPR[c.mat]||TEX[c.mat])))); const d=infoEl('div'); d.append(infoEl('div',c.name,'nm'),infoEl('div',c.desc,'meta'),
       infoEl('div','Costs: '+Object.entries(c.cost).map(([k,v])=>`${v} ${DROPS[k][0]}`).join(', '),'meta')); row.append(d); b.append(row); });
     b.append(infoEl('h3','TOOLS'),infoList([`Each layer is harder rock and needs better tools: branch tools for the Forest, then bone (from bones in the dirt), copper (Limestone), iron (Slate), steel (iron and coal from Granite) and Galaxy Alloy (meteorite from Basalt).`,`Short of something? Replay boards you have already cleared: replays give ore too.`,`Each layer's 8 boards rarely give quite enough for the next tools on their own: replay a few cleared boards to make up the rest.`]));
     b.append(infoEl('h3','THE ANCIENT CORE'),infoList([`Below the Crust lies the Core: one piece, one spot. What happens next is for you to find out.`]));
-    b.append(infoEl('h3','WHY IT HELPS'),infoList([`Blast Charge and Sledgehammer rescue a crowded board and score points. What a Blast Charge breaks is lost, not mined.`,`A Potion of Protection saves you from one cave-in: it undoes your last move and deals fresh pieces, and keeps your haul. It costs ${-SCORE.special.rescue} points.`,`A Potion of Luck: tap it in the dock to drink (it costs ${-SCORE.special.luck} points). For the next ${LUCK_DEALS} deals the dealer favours sets that clear rows and columns. A row of green dots shows how many are left.`]));
+    b.append(infoEl('h3','WHY IT HELPS'),infoList([`Blast Charge (+${SCORE.special.blast}) and Sledgehammer (+${SCORE.special.sledgehammer}) rescue a crowded board and score points. What a Blast Charge breaks is lost, not mined.`,`Potion of Protection (${SCORE.special.rescue} points): for ${POTION_DEALS} deals, a cave-in undoes your last move and deals fresh pieces, and you keep your haul. Drink it before you get stuck.`,`Potion of Luck (${SCORE.special.luck} points): for ${POTION_DEALS} deals the dealer favours pieces that fill gaps and clear lines, and random specials turn up twice as often.`]));
   },
   Specials(b){
     b.append(infoEl('p',`These appear on their own inside pieces, now and then, more often the deeper you go. You can't craft them. When the line they sit in clears, they pay out resources (no points).`));
@@ -1408,7 +1502,8 @@ function renderInfo(tab){
 $('infoBtn').onclick=()=>{ if(busy) return; renderInfo('Play'); $('info').hidden=false; A.track('info_open'); };
 $('infoClose').onclick=()=>{ $('info').hidden=true; };
 $('info').addEventListener('pointerdown',e=>{ if(e.target.id==='info') $('info').hidden=true; });
-$('anvilBtn').onclick=()=>{ if(busy||over) return; renderAnvil(); $('anvil').hidden=false; tipOnce('anvil',()=>toast(`Specials cost ore. Drag a Blast Charge (+${SCORE.special.blast}) or Sledgehammer (+${SCORE.special.sledgehammer}) onto the board; tap a potion to drink it.`,5200)); };
+$('anvilBtn').onclick=()=>{ if(busy||over) return; openWorkshop('anvil'); };
+$('brewBtn').onclick=()=>{ if(busy||over) return; openWorkshop('brew'); };
 $('anvilClose').onclick=()=>{ $('anvil').hidden=true; };
 $('anvil').addEventListener('pointerdown',e=>{ if(e.target.id==='anvil') $('anvil').hidden=true; });
 const uiOpen=()=>screen!=='game' || !$('anvil').hidden || !$('info').hidden || !$('sheetScrim').hidden || !$('askScrim').hidden;
@@ -1464,8 +1559,8 @@ const lsGet=k=>{ try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch
 let noSave=false;   // set just before a reload that has rewritten the saved data (restore / reset), so the closing page cannot overwrite it
 const lsSet=(k,v)=>{ if(noSave) return; try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
 const lsDel=k=>{ try{ localStorage.removeItem(k); }catch(e){} };
-function saveProfile(){ lsSet(K_PROFILE,{bank,specials,fragments,luck,luckLive}); saveLife(); }
-function loadProfile(){ const p=lsGet(K_PROFILE); if(p){ bank=p.bank||{}; specials=Array.isArray(p.specials)?p.specials.slice(0,DOCK_SLOTS):[]; fragments=Math.min(5,p.fragments||0); luck=p.luck||0; luckLive=!!p.luckLive;
+function saveProfile(){ lsSet(K_PROFILE,{bank,specials,fragments,luck,luckLive,prot,protLive}); saveLife(); }
+function loadProfile(){ const p=lsGet(K_PROFILE); if(p){ bank=p.bank||{}; specials=Array.isArray(p.specials)?p.specials.filter(m=>RECIPES.some(r=>r.m===m)):[]; fragments=Math.min(5,p.fragments||0); luck=p.luck||0; luckLive=!!p.luckLive; prot=p.prot||0; protLive=!!p.protLive;
     // lapis and quartz were retired: swap any held for copper so nothing is lost
     ['lapis','quartz'].forEach(k=>{ if(bank[k]){ bank.copper=(bank.copper||0)+bank[k]; } delete bank[k]; }); } }
 function saveDay(){ lsSet(K_DAY,dayState); }
@@ -2055,7 +2150,7 @@ function render(now){
 
 // ---------- boot ----------
 // Save format changes between versions. v2: granite zone added (boards renumbered) and cinnabar became ruby.
-const SCHEMA=5;
+const SCHEMA=6;
 function migrate(){
   let v=0; try{ v=+(localStorage.getItem('deepcore-schema')||0); }catch(e){}
   if(v>=SCHEMA) return;
@@ -2078,11 +2173,15 @@ function migrate(){
     d.done=done; d.stars=remap(d.stars); d.scores=remap(d.scores); d.attempts=remap(d.attempts); d.fails={}; d.camp=0; d.dur=DUR_MAX;
     d.campsMade=ZONES.map((z,i)=>i).filter(i=>i>0&&!ZONES[i].core&&done.includes(Z_START[i]));
     lsSet(K_DAY,d); } lsDel(K_BOARD); }
+  // v6 (2.2.0, F-10): equipment and potion slots. Anyone holding a potion keeps potion-making: their run gets the brewing table.
+  // Specials beyond the new slots go back to the stash as their ore (fitDock, at boot).
+  if(v>=4&&v<6){ const p6=lsGet(K_PROFILE), d6=lsGet(K_DAY);
+    if(p6&&d6&&(p6.specials||[]).some(m=>m==='rescue'||m==='luck')){ d6.wk={...(d6.wk||{}),table:1}; lsSet(K_DAY,d6); } }
   try{ localStorage.removeItem('deepcore-mode'); localStorage.setItem('deepcore-schema',String(SCHEMA)); }catch(e){}
 }
 function start(){
   window.__dcReady=true;
-  migrate(); loadSettings(); loadLife(); applyDisplaySettings(); setSoundUI(); loadProfile(); checkDay(); buildStash(); renderDock(); updateLuckUI();
+  migrate(); loadSettings(); loadLife(); applyDisplaySettings(); setSoundUI(); loadProfile(); checkDay(); fitDock(); buildStash(); renderDock(); updateLuckUI();
   grid=emptyGrid(); pieces=null; showHome();
   layout(); drawTray(); ensureLoop();
   if(document.fonts&&document.fonts.load) Promise.all(['20px "Jersey 10"','600 16px "Chakra Petch"'].map(f=>document.fonts.load(f))).catch(()=>{});
@@ -2092,7 +2191,7 @@ if(['localhost','127.0.0.1','[::1]'].includes(location.hostname) && /[?&]debug\b
   place:(i,r,c)=>place(i,r,c), state:()=>({reached,reachScore,clearBonus,decided,hintInfo,combo,sinceClear,grid,pieces,score,busy,over,bank,hand,luck,luckLive,specials,crafted:Object.fromEntries(RECIPES.map(r=>[r.m,dockCount(r.m)])),dealt,screen,level,dayState}),
   fits:(p,r,c)=>fitsAt(p,r,c), setCell:(r,c,m)=>{grid[r][c]=m;}, setPieces:(ps)=>{pieces=ps; drawTray();},
   give:(b)=>{Object.assign(bank,b); updateStash();}, def:()=>levelDef(level), start:(i)=>{show('game'); startBoard(i);},
-  setScore:(v)=>{score=v;}, bar:()=>{ shown=score; updateBar(); }, lastDeal:()=>{ dealsDone=levelDef(level).deals; }, deals:()=>({done:dealsDone,of:levelDef(level).deals,oreLeft}), setCollected:(o)=>{collected=o;}, collected:()=>collected, tickDay:()=>refreshIfNewDay(), fx:()=>({fxList:fxList.length,fxParts:fxParts.length,particles:particles.length}), setDayRaw:(d)=>{ dayState.day=d; saveDay(); }, musicOn:()=>!!(music&&music.isOn()), life:()=>life, settings:()=>settings, tut:()=>tut, fillHome:()=>fillHome(), showHome:()=>showHome(), resetText:()=>Meta.resetText(), share:()=>doShare(), reach:()=>reachTarget(), hint:()=>useHint(), mod:()=>modifierFor(dayState.day), tcost:(t)=>tcost(t), addSpecial:(m)=>{ specials.push(m); renderDock(); updateAnvilGlow(); }, tilt:()=>mercyTilt(), practice:()=>practice, previewDay:(d)=>{ dayState.day=d; buildMap(); }, setTool:(t,dur)=>{ dayState.tool=t; if(dur!==undefined) dayState.dur=dur; saveDay(); }, run:()=>dayState, forge:(t)=>forgeTool(t), mend:()=>mendTools(), settle:()=>{ settle(dayState.day); saveDay(); }, setRun:(o)=>{ Object.assign(dayState,o); saveDay(); }, frontier:()=>frontier(), openCore:()=>openCore(), placePortal:()=>placePortal(), fragments:(n)=>{ if(n!==undefined){ fragments=n; saveProfile(); } return fragments; }, markDone:(a)=>{ dayState.done=a.slice(); saveDay(); }, openMap:()=>showMap({}), buildMap:()=>buildMap(), mapInfo:()=>({maxY:mapState().maxY,map:MAP}), newDay:(d)=>{ const s0=lsGet(K_DAY); if(s0){ s0.day=d; lsSet(K_DAY,s0); } checkDay(); }, history:()=>({}), setBank:(b)=>{ bank=b; updateStash(); }, craftTool:(t)=>forgeTool(t),    allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:()=>drinkLuck(), deal:()=>dealSet(), complete:()=>{ if(!reached){ reached=true; reachScore=score; decided=false; } if(starsNow()<1) score=Math.max(score,starAt()[0]); bankBoard(); }, result:()=>showResult(), retry:()=>retryBoard(), audioState:()=>ac?ac.state:'none',
+  setScore:(v)=>{score=v;}, bar:()=>{ shown=score; updateBar(); }, lastDeal:()=>{ dealsDone=levelDef(level).deals; }, deals:()=>({done:dealsDone,of:levelDef(level).deals,oreLeft}), setCollected:(o)=>{collected=o;}, collected:()=>collected, tickDay:()=>refreshIfNewDay(), fx:()=>({fxList:fxList.length,fxParts:fxParts.length,particles:particles.length}), setDayRaw:(d)=>{ dayState.day=d; saveDay(); }, musicOn:()=>!!(music&&music.isOn()), life:()=>life, settings:()=>settings, tut:()=>tut, fillHome:()=>fillHome(), showHome:()=>showHome(), resetText:()=>Meta.resetText(), share:()=>doShare(), reach:()=>reachTarget(), hint:()=>useHint(), mod:()=>modifierFor(dayState.day), tcost:(t)=>tcost(t), addSpecial:(m)=>{ specials.push(m); renderDock(); updateAnvilGlow(); }, tilt:()=>mercyTilt(), practice:()=>practice, previewDay:(d)=>{ dayState.day=d; buildMap(); }, setTool:(t,dur)=>{ dayState.tool=t; if(dur!==undefined) dayState.dur=dur; saveDay(); }, run:()=>dayState, forge:(t)=>forgeTool(t), mend:()=>mendTools(), settle:()=>{ settle(dayState.day); saveDay(); }, setRun:(o)=>{ Object.assign(dayState,o); saveDay(); }, frontier:()=>frontier(), openCore:()=>openCore(), placePortal:()=>placePortal(), fragments:(n)=>{ if(n!==undefined){ fragments=n; saveProfile(); } return fragments; }, markDone:(a)=>{ dayState.done=a.slice(); saveDay(); }, openMap:()=>showMap({}), buildMap:()=>buildMap(), mapInfo:()=>({maxY:mapState().maxY,map:MAP}), newDay:(d)=>{ const s0=lsGet(K_DAY); if(s0){ s0.day=d; lsSet(K_DAY,s0); } checkDay(); }, history:()=>({}), setBank:(b)=>{ bank=b; updateStash(); }, craftTool:(t)=>forgeTool(t),    allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:(m)=>drinkPotion(m||'luck'), workshop:(id)=>{ if(id){ const w=WORKSHOP[id]; if(w&&!wk()[id]){ wk()[id]=1; saveDay(); renderDock(); } } return {...wk()}; }, build:(id)=>buildWorkshop(id), openWs:(at)=>openWorkshop(at), fitDock:()=>fitDock(), potions:()=>({luck,luckLive,prot,protLive}), deal:()=>dealSet(), complete:()=>{ if(!reached){ reached=true; reachScore=score; decided=false; } if(starsNow()<1) score=Math.max(score,starAt()[0]); bankBoard(); }, result:()=>showResult(), retry:()=>retryBoard(), audioState:()=>ac?ac.state:'none',
 }};
 start();
 })();

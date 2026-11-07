@@ -8,27 +8,27 @@ const tt = (f, ...a) => page.evaluate(([f, a]) => window.__deepcore.test[f](...a
 const st = () => T(() => { const s = window.__deepcore.test.state(); return { specials: s.specials, bank: s.bank, busy: s.busy }; });
 await tt('start', 4); await page.waitForTimeout(2600);
 await tt('give', { coal: 60, iron: 20, copper: 40, ruby: 80, gold: 10, emerald: 3, diamond: 3, bone: 20 });
+await tt('workshop', 'equip2'); await tt('workshop', 'table');
 for (const m of ['blast', 'sledgehammer', 'rescue']) await tt('addSpecial', m);
 
-// ---- the sheet ----
+// ---- the sheet (v2.2.0: per kind; both equipment slots full) ----
 await page.tap('#anvilBtn'); await page.waitForTimeout(250);
-const rows = await page.$$('.recipe button.go');
-const luckBtn = rows[3]; check(/Make room/.test(await luckBtn.textContent()) && !(await luckBtn.isDisabled()), 'with a full dock an affordable recipe offers "Make room"');
+const blastBtn = await page.$('.recipe[data-m="blast"] button'); check(/Make room/.test(await blastBtn.textContent()) && !(await blastBtn.isDisabled()), 'with both equipment slots full an affordable equipment recipe offers "Make room"');
 const bankBefore = (await st()).bank;
-await luckBtn.click(); await page.waitForTimeout(400);
+await blastBtn.click(); await page.waitForTimeout(400);
 check(await T(() => !document.getElementById('sheetScrim').hidden), 'the sheet opens');
 const txt = await T(() => document.getElementById('sheet').textContent);
-check(/ALL 3 SLOTS FULL/.test(txt) && /Make room for a Potion of Luck/.test(txt) && /Pick a special to destroy\. Your ore is only spent if you go ahead\./.test(txt), 'sheet copy matches the spec');
-check(await T(() => document.getElementById('shGo').disabled) && await T(() => document.querySelectorAll('.pick').length) === 3, 'DESTROY & CRAFT is disabled until a slot is picked; three tiles are offered');
+check(/BOTH EQUIPMENT SLOTS FULL/.test(txt) && /Make room for a Blast Charge/.test(txt) && /Pick a special to destroy\. Your ore is only spent if you go ahead\./.test(txt), 'sheet copy names the full equipment slots');
+check(await T(() => document.getElementById('shGo').disabled) && await T(() => document.querySelectorAll('.pick').length) === 2, 'DESTROY & CRAFT is disabled until a slot is picked; only the two equipment tiles are offered');
 await page.tap('#shCancel'); await page.waitForTimeout(200);
 let s = await st(); check(await T(() => document.getElementById('sheetScrim').hidden) && s.specials.join() === 'blast,sledgehammer,rescue' && JSON.stringify(s.bank) === JSON.stringify(bankBefore), 'cancel changes nothing and spends nothing');
-await luckBtn.click(); await page.waitForTimeout(300);
+await (await page.$('.recipe[data-m="blast"] button')).click(); await page.waitForTimeout(300);
 await page.tap('.pick[data-i="1"]'); await page.waitForTimeout(100);
-check(await T(() => document.getElementById('shGo').disabled === false && document.querySelector('.pick.on').dataset.i === '1' && /DESTROY/.test(document.querySelector('.pickName.sel').textContent) && !!document.querySelector('.pick.on .crk')), 'picking a tile enables the button and marks it with a red ring, cracks and DESTROY');
+check(await T(() => document.getElementById('shGo').disabled === false && document.querySelector('.pick.on').dataset.i === '1' && /DESTROY/.test(document.querySelector('.pickName.sel').textContent) && !!document.querySelector('.pick.on .crk')), 'picking a tile marks it for destruction');
 
 // ---- the destroy animation ----
 await page.tap('#shGo'); await page.waitForTimeout(150);
-s = await st(); check(s.specials.join() === 'blast,luck,rescue' && s.bank.ruby === bankBefore.ruby - 12 && s.bank.bone === bankBefore.bone - 4 && s.bank.diamond === bankBefore.diamond, `ore is spent and the new special takes the destroyed slot (${s.specials})`);
+s = await st(); check(s.specials.join() === 'blast,blast,rescue' && s.bank.coal === bankBefore.coal - 12 && s.bank.iron === bankBefore.iron - 3, `ore is spent and the new special takes the destroyed slot (${s.specials})`);
 check(await T(() => document.getElementById('sheetScrim').hidden && document.getElementById('anvil').hidden), 'the sheet and the anvil close');
 check(await T(() => !!document.querySelector('#dockSlots .tool.anim .shake') && !!document.querySelector('#dockSlots .tool.anim .crk')), 'phase 1: the old special cracks and shakes');
 await page.waitForTimeout(600);
@@ -36,8 +36,8 @@ check(await T(() => document.querySelectorAll('#dockSlots .shard').length === 4 
 await page.waitForTimeout(800);
 check(await T(() => !!document.querySelector('#dockSlots .tool.anim canvas.land')), 'phase 3: the new special lands with a bounce');
 await page.waitForTimeout(700);
-check(await T(() => !document.querySelector('#dockSlots .anim') && document.querySelector('#dockSlots .tool:nth-child(2)').dataset.m === 'luck'), 'the dock settles with the Potion of Luck in the second slot');
-check(await T(() => window.DCA.buffer.some(e => e.event === 'special_destroyed' && e.properties.destroyed === 'sledgehammer' && e.properties.crafted === 'luck')), 'analytics recorded the destroyed and crafted specials');
+check(await T(() => !document.querySelector('#dockSlots .anim') && document.querySelector('#eqSlots .tool:nth-child(2)').dataset.m === 'blast'), 'the dock settles with the new Blast Charge in the second equipment slot');
+check(await T(() => window.DCA.buffer.some(e => e.event === 'special_destroyed' && e.properties.destroyed === 'sledgehammer' && e.properties.crafted === 'blast')), 'analytics recorded the destroyed and crafted specials');
 // destroyed-slot cannot be used while the animation runs
 // ---- on the map the swap is immediate ----
 await tt('start', 0); await page.waitForTimeout(2500);

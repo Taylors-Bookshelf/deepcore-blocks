@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.2.0 — workshop and brewing (F-10)
+- The dock is split: equipment on the left beside the anvil (CRAFT), potions on the right beside the brewing table (BREW). They don't share slots.
+- You start with one equipment slot. Build a brewing table at the anvil (12 ruby, 1 emerald, 4 bone, 4 iron, 8 wood) to unlock potions and a potion slot.
+- A second equipment slot (20 gold, 4 diamond, 80 coal) and a second potion slot (8 prism ore, 6 emerald, 25 ruby) are late-run goals. Locked slots show a padlock; tap one to see what it needs.
+- Both potions are drunk on purpose and last 5 deals, with pips over the tray counting down.
+- Potion of Protection: covers the pieces you hold and the next deals. Every cave-in in that window undoes your last move and deals fresh pieces, with a shield and a big "Saved!". It no longer works by itself from the dock.
+- After a cave-in there's no potion to buy any more: the cave-in screen offers Retry and Map.
+- Potion of Luck: also doubles the chance of random specials (Fossils and Buried Treasure) while it lasts.
+- Your current run keeps what you hold: if you were carrying a potion, your run gets the brewing table. Anything beyond the new slots goes back to your stash as its ore.
+- The workshop belongs to the run, like your tools: a new run starts without it.
+
 ## 2.1.2 — potion fixes
 - Fixed: after a Rescue (now the Potion of Protection) saved you, the tray looked empty until you touched it, the used potion stayed in the dock, and a Blast Charge could refuse to drag. Broken since 2.0.4.
 - The potions are now the Potion of Luck and the Potion of Protection.

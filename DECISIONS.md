@@ -189,3 +189,14 @@ Your calls: keep 2.x version numbers ("v1" is a milestone name); no tool wear un
 
 ## v2.1.2 (2.1.1 playtest; built 2026-11-06)
 - **"Each potion lasts 5 deals":** the Potion of Luck now lasts 5 deals (`LUCK_DEALS` in data.js, was 7). The Potion of Protection still works automatically on a cave-in, because a timed Protection only makes sense once it's drunk on purpose, which is F-10. F-10's design now says 5 deals instead of 3.
+
+## v2.2.0 (F-10 workshop and brewing; built 2026-11-06)
+- **Costs** (simulated with `tools/experiments/workshop.mjs`): brewing table 12 ruby, 1 emerald, 4 bone, 4 iron, 8 wood; second equipment slot 20 gold, 4 diamond, 80 coal; second potion slot 8 prism ore, 6 emerald, 25 ruby. The table can't come at 30% of a descent as planned: emerald first appears in Granite Halls, so a player who spends as they go affords it at about 40% of play time (about 55% when saving for the next tools). A thrifty player (no specials) affords the second slots at about 77% and 83%.
+- **Protection covers the tray you hold when you drink it**, plus the next 4 deals (5 in all), since you drink it when you're in trouble. Luck starts with the next deal, as before. A Protection save's fresh pieces don't use up a deal of either potion.
+- **Protection's −250 points are paid when you drink it**; saves in its window are free.
+- **No rescue after a cave-in** (the user's call before release): the cave-in screen's old "Craft a Potion of Protection" button is gone; the screen offers Retry and Map. A separate after-the-fact potion (a "Potion of Resurrection") may come later.
+- **Luck's dealer lean is unchanged** (it already favours sets that fill gaps and clear lines); the new part is twice the random-special rate while it lasts.
+- **Layout:** six 56pt squares wouldn't fit a 375pt phone, so the anvil and brewing table are 36pt-wide buttons with small CRAFT / BREW labels. Locked slots show a padlock and open the upgrade.
+- **The workshop belongs to the run** (`dayState.wk`), like tools, so a new run after the Core starts without it. A missed day keeps it.
+- **Migration (schema 6):** a run whose player held a potion gets the brewing table. Specials beyond the new slots are refunded as their ore (`fitDock`).
+- **The simulator's player** still buys extras only after saving for the next tools, so `tools/run.mjs` builds the table late (around day 9). It now models the workshop and slot limits; the balance test is unchanged and passes.

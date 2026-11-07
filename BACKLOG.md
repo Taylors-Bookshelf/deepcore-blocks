@@ -102,7 +102,7 @@ Goal: **v1**, the build shared with family and friends. Version numbers keep cou
 - No automatic repair (prism ore no longer mends on its own); repair costs resources so it's a real decision.
 - Taught by F-12 from the start.
 
-**F-10 Workshop and brewing** (bundles with F-3 Crafting table)
+**F-10 Workshop and brewing** (bundles with F-3 Crafting table). **Done in 2.2.0** (2026-11-06); costs and choices in DECISIONS.md.
 - Two kinds of specials, two kinds of slots. Equipment (Blast Charge, Sledgehammer) on the left with the anvil; potions (Rescue, Luck) on the right with the brewing table. Not interchangeable.
 - Equipment: one slot to start; a second slot crafted for a very large cost that only a thrifty player reaches near the end of a descent.
 - Brewing table: crafted from the equipment menu for ruby, emerald, bone, iron and wood, affordable around 30% of a descent. It unlocks potion crafting and one potion slot; a second potion slot costs a late-game amount like the second equipment slot.

@@ -1,19 +1,21 @@
 // Plays whole descents (Forest to the Ancient Core) with a bot to check the pacing and the economy of a run:
 // tries per board, how many replays the next tool needs, days to reach each layer, time spent per layer,
 // and how often the Galaxy Alloy tools break in the Crust.
-// Usage: node tools/run.mjs [--runs 6] [--bot mid] [--perday 8] [--secs 5]
+// Usage: node tools/run.mjs [--runs 6] [--bot mid] [--perday 8] [--secs 5] [--ws '{"table":{cost}}']
 //   perday: boards a player attempts per day (about 30 minutes); secs: seconds per move, to turn moves into play time
 import { D, args, cfg, runBoard } from './simlib.mjs';
 const RUNS = +(args.runs || 6), PERDAY = +(args.perday || 8), SECS = +(args.secs || 5);
 const NZ = D.ZONES.length;
+// --ws '{"table":{cost},...}' tries other workshop costs (F-10 experiments)
+if (args.ws) Object.entries(JSON.parse(args.ws)).forEach(([k, c]) => { D.WORKSHOP[k] = { ...D.WORKSHOP[k], cost: c }; });
 const afford = (bank, cost) => Object.entries(cost).every(([k, v]) => (bank[k] || 0) >= v);
 const pay = (bank, cost) => Object.entries(cost).forEach(([k, v]) => bank[k] = (bank[k] || 0) - v);
 const add = (bank, got) => Object.entries(got).forEach(([k, v]) => { if (D.STASH_KEYS.includes(k)) bank[k] = (bank[k] || 0) + v; });
 const S = { tries: Array(NZ).fill(0), boards: Array(NZ).fill(0), moves: Array(NZ).fill(0), replays: Array(NZ).fill(0), short: Array(NZ).fill(0), zero: Array(NZ).fill(0), stars: Array(NZ).fill(0),
-  dayAt: Array(NZ).fill(0), crustTries: 0, breaks: 0, crafted: {}, left: {} };
+  dayAt: Array(NZ).fill(0), crustTries: 0, breaks: 0, crafted: {}, left: {}, built: {}, builtDay: {} };
 let seed = 1;
 for (let run = 0; run < RUNS; run++) {
-  const bank = {}; let tool = 0, dur = D.DUR_MAX, attemptsToday = 0, day = 1; const owned = {}; const seen = {};
+  const bank = {}; let tool = 0, dur = D.DUR_MAX, attemptsToday = 0, day = 1; const owned = {}; const seen = {}; const ws = {};   // ws: the workshop (F-10): brewing table and second slots
   const tick = () => { if (++attemptsToday >= PERDAY) { attemptsToday = 0; day++; } };
   const nextCost = z => z + 1 < D.TOOLS.length ? D.TOOLS[z + 1].cost : null;
   // one board, retried until cleared; with D.TOOL_WEAR on (off since v2.1.0) the Crust can break the tools, back to the start of Magmastone
@@ -45,8 +47,12 @@ for (let run = 0; run < RUNS; run++) {
       const res = play(z, j);
       if (res === 'broke') { S.breaks++; dur = D.DUR_AFTER_BREAK; restart = true; break; }   // back to the start of Magmastone
       const cost = nextCost(z);
-      // specials, only with what is left after the next tool
-      for (const rc of D.RECIPES) { if (owned[rc.m] || !afford(bank, rc.cost)) continue; const after = { ...bank }; pay(after, rc.cost); if (cost && !afford(after, cost)) continue; pay(bank, rc.cost); owned[rc.m] = 1; S.crafted[rc.m] = (S.crafted[rc.m] || 0) + 1; }
+      // the workshop first, then specials, only with what is left after the next tool
+      for (const w of Object.values(D.WORKSHOP || {})) { if (ws[w.id] || (w.needs && !ws[w.needs]) || !afford(bank, w.cost)) continue; const after = { ...bank }; pay(after, w.cost); if (cost && !afford(after, cost)) continue;
+        pay(bank, w.cost); ws[w.id] = 1; S.built[w.id] = (S.built[w.id] || 0) + 1; S.builtDay[w.id] = (S.builtDay[w.id] || 0) + day; }
+      const cap = slot => !D.WORKSHOP ? 3 : slot === 'equip' ? 1 + (ws.equip2 ? 1 : 0) : (ws.table ? 1 + (ws.potion2 ? 1 : 0) : 0);
+      const heldIn = slot => Object.keys(owned).filter(m => (D.RECIPES.find(r => r.m === m) || {}).slot === slot).length;
+      for (const rc of D.RECIPES) { if (owned[rc.m] || heldIn(rc.slot) >= cap(rc.slot) || !afford(bank, rc.cost)) continue; const after = { ...bank }; pay(after, rc.cost); if (cost && !afford(after, cost)) continue; pay(bank, rc.cost); owned[rc.m] = 1; S.crafted[rc.m] = (S.crafted[rc.m] || 0) + 1; }
       Object.keys(owned).forEach(k => { if (Math.random() < .3) delete owned[k]; });   // specials get used now and then
     }
     if (restart) { z = D.MAGMA_Z - 1; continue; }
@@ -70,4 +76,5 @@ console.log('still short after: ', D.ZONES.map((z, i) => (S.short[i] / RUNS).toF
 console.log('day you reach it:  ', D.ZONES.map((z, i) => (S.dayAt[i] / RUNS).toFixed(1).padEnd(9)).join(' '));
 console.log(`Crust: ${(S.crustTries / RUNS).toFixed(1)} board tries per run, tools broke ${(S.breaks / RUNS).toFixed(2)} times per run`);
 console.log('specials crafted per run:', JSON.stringify(Object.fromEntries(Object.entries(S.crafted).map(([k, v]) => [k, +(v / RUNS).toFixed(1)]))));
+console.log('workshop built (share of runs, average day):', JSON.stringify(Object.fromEntries(Object.keys(D.WORKSHOP || {}).map(k => [k, `${Math.round(100 * (S.built[k] || 0) / RUNS)}% day ${((S.builtDay[k] || 0) / Math.max(1, S.built[k] || 0)).toFixed(1)}`]))));
 console.log('stash at the Core:', JSON.stringify(Object.fromEntries(Object.entries(S.left).map(([k, v]) => [k, Math.round(v / RUNS)]))));

@@ -78,7 +78,7 @@ await ctx.addInitScript(() => { localStorage.clear(); localStorage.setItem('deep
 await page.reload(); await page.waitForTimeout(700);
 s = await st(); const mig = await T(() => ({ schema: localStorage.getItem('deepcore-schema'), mode: localStorage.getItem('deepcore-mode'), specials: window.__deepcore.test.state().specials }));
 check(Object.keys(s.bank).length === 0 && !s.bank.cinnabar, `an old save starts a fresh descent: empty stash (${JSON.stringify(s.bank)})`);
-check(mig.specials.length === 0 && mig.schema === '5' && mig.mode === null && s.day.done.length === 0 && s.day.tool === 0, 'specials cleared, schema 5 stamped, the run starts on the grass with branch tools');
+check(mig.specials.length === 0 && mig.schema === '6' && mig.mode === null && s.day.done.length === 0 && s.day.tool === 0, 'specials cleared, schema 6 stamped, the run starts on the grass with branch tools');
 check(s.day.done.length === 0, "today's map restarts because the boards were renumbered");
 check(errors.length === 0, 'no page errors ' + errors.join(' | '));
 await close();
@@ -90,7 +90,17 @@ await close();
     localStorage.setItem('deepcore-run', JSON.stringify({ v: 2, seed: 'mig', started: today, day: today, lastClear: today, days: 3, done: Array.from({ length: 43 }, (_, k) => k), scores: { 4: 900 }, stars: { 4: 3 }, attempts: {}, fails: {}, tool: 5, dur: 40, camp: 10 })); });
   await M.page.goto(M.base + '?debug'); await M.page.waitForTimeout(800);
   const r = await M.page.evaluate(() => ({ s: window.__deepcore.test.state().dayState, schema: localStorage.getItem('deepcore-schema') }));
-  check(r.schema === '5' && r.s.done.length === 44 && r.s.done.includes(43) && !r.s.done.includes(44) && r.s.tool === 5, `an old run keeps its depth on 8-board layers (${r.s.done.length} boards cleared, schema ${r.schema})`);
+  check(r.schema === '6' && r.s.done.length === 44 && r.s.done.includes(43) && !r.s.done.includes(44) && r.s.tool === 5, `an old run keeps its depth on 8-board layers (${r.s.done.length} boards cleared, schema ${r.schema})`);
   check(r.s.stars[8] === 3 && r.s.scores[8] === 900 && r.s.campsMade.includes(5) && r.s.dur === 100, 'stars and points move to the matching board; camps and tools carry over');
   check(M.errors.length === 0, 'no page errors after the migration ' + M.errors.join(' | ')); await M.close(); }
+// v6 (2.2.0, F-10): someone holding a potion gets the brewing table; specials beyond the new slots go back to the stash as ore
+{ const M = await phone(); await M.ctx.addInitScript(() => { if (sessionStorage.getItem('seeded')) return; sessionStorage.setItem('seeded', '1'); localStorage.clear();
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
+    localStorage.setItem('deepcore-schema', '5'); localStorage.setItem('deepcore-profile', JSON.stringify({ bank: { coal: 0, iron: 0 }, specials: ['blast', 'blast', 'luck'] }));
+    localStorage.setItem('deepcore-run', JSON.stringify({ v: 2, seed: 'mig6', started: today, day: today, lastClear: today, days: 3, done: [0, 1, 2], scores: {}, stars: {}, attempts: {}, fails: {}, tool: 1, dur: 100, camp: 0 })); });
+  await M.page.goto(M.base + '?debug'); await M.page.waitForTimeout(800);
+  const r = await M.page.evaluate(() => { const t = window.__deepcore.test, s = t.state(); return { wk: s.dayState.wk, specials: s.specials, bank: s.bank, schema: localStorage.getItem('deepcore-schema') }; });
+  check(r.schema === '6' && r.wk && r.wk.table === 1 && r.specials.join() === 'blast,luck', `a potion holder gets the brewing table and keeps one of each kind (${r.specials})`);
+  check(r.bank.coal === 12 && r.bank.iron === 3, `the extra Blast Charge goes back to the stash as its ore (${JSON.stringify(r.bank)})`);
+  check(M.errors.length === 0, 'no page errors after the v6 migration ' + M.errors.join(' | ')); await M.close(); }
 console.log(fails.length ? `R1 TESTS FAILED (${fails.length})` : 'R1 TESTS PASSED'); if (fails.length) process.exitCode = 1;

@@ -42,7 +42,6 @@
         <p id="finalNote"></p>
         <p id="overTip"></p>
         <div class="row">
-          <button id="rescueBtn" class="go" type="button" hidden>Craft a Potion of Protection</button>
           <button id="retry" class="go" type="button">Retry board</button>
           <button id="again" type="button">Map</button>
         </div>
@@ -50,13 +49,12 @@
     </div>
   </div>
   <div id="dock" aria-label="Specials">
-    <div id="dockSlots"></div>
-    <div class="dockSp"></div>
-    <div class="dockDiv"></div>
-    <button id="anvilBtn" type="button" aria-label="Open the anvil to craft specials"><canvas id="anvilIcon" width="16" height="16"></canvas><span>CRAFT</span></button>
+    <button id="anvilBtn" class="wsBtn" type="button" aria-label="Anvil: craft equipment"><canvas id="anvilIcon" width="16" height="16"></canvas><span>CRAFT</span></button>
+    <div id="dockSlots"><div id="eqSlots" class="dockGroup" aria-label="Equipment"></div><div class="dockDiv"></div><div id="potSlots" class="dockGroup" aria-label="Potions"></div></div>
+    <button id="brewBtn" class="wsBtn" type="button" aria-label="Brewing table: brew potions"><canvas id="brewIcon" width="16" height="16"></canvas><span>BREW</span></button>
   </div>
   <div id="trayWrap">
-    <div id="luckBadge" hidden><span class="pips"></span><span id="luckTxt"></span></div>
+    <div id="potionBadges"><div id="luckBadge" class="pBadge" hidden><span class="pips"></span><span id="luckTxt"></span></div><div id="protBadge" class="pBadge" hidden><span class="pips"></span><span id="protTxt"></span></div></div>
     <div id="tray">
       <div class="slot" data-i="0"><canvas></canvas></div>
       <div class="slot" data-i="1"><canvas></canvas></div>
@@ -91,7 +89,7 @@
 <div id="anvil" hidden>
   <div class="panel" role="dialog" aria-labelledby="anvilTitle">
     <div class="top"><h2 id="anvilTitle">Anvil</h2><button id="anvilClose" type="button">Close</button></div>
-    <p class="tag" style="margin:0;color:var(--muted);font-size:13px">Smelt ore and gems into specials. Drag a Blast Charge or Sledgehammer straight onto the board to use it.</p>
+    <p id="anvilTag" class="tag" style="margin:0;color:var(--muted);font-size:13px"></p>
     <div id="recipes"></div>
   </div>
 </div>
