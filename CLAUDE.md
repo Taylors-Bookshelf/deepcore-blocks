@@ -47,10 +47,10 @@ A mining-themed 8×8 block puzzle: drag 3-piece sets onto the board, clear rows 
 - "Perfect!" when the placement was the only one keeping the tray playable, "Great fit!" for one of 2–3 (praise only, no points). All Clear: +250 and a big easy set.
 - Layout is the design spec at 390pt: 44pt header, 36pt progress bar, 52pt resource strip (counts below the icons, 99+ above 99), 42pt blocks with 2pt seams, 56pt dock slots, 114pt tray slots with 20pt piece cells; `tests/spec.mjs` asserts it. Tray pieces never resize; a piece rides above the fingertip while dragging.
 
-## Screens (v2.1.0)
+## Screens (v2.1.1)
 
 - Home: Play / Continue, with Profile (podium), Settings (gear) and Sound icons. Settings fit one screen. The speaker on home, map and board opens the sound popover (music and effects, each with a switch and volume: `settings.musicVol`, `settings.sfxVol`).
-- Board header: Pause (`openPause`: Resume, Restart, Quit to map), the board's name, Hint, How to play, Sound. The score is a number with `Deal x of y` and the star meter. One tap on the next map board starts it.
+- Board header: Pause, the board's number (`boardName`: "Magmastone board #3", shown as the layer over "Board #3"), Hint (asks first via `ask()`, 5 coal fly from the stash into the button), Guide, Sound. Pause (`openPause`) is a centred card: next star line, layer stars, round Resume / Restart / Map buttons; Restart and Map ask first. The score is a number with `x/y placements left` (`placementsLeft`) and the star meter. One tap on the next map board starts it.
 - First-time tips show once each (`tipOnce`, `life.tips`); tests mark them seen unless `phone({ tips: true })`.
 
 ## Saving
@@ -59,7 +59,7 @@ A mining-themed 8×8 block puzzle: drag 3-piece sets onto the board, clear rows 
 
 ## Open items to raise with the designer
 
-- Rank thresholds, daily-twist strengths, hint price (3 coal), star bonus and the v2.0.4 scoring numbers and star lines are first-pass numbers.
+- Rank thresholds, daily-twist strengths, hint price (5 coal), star bonus and the v2.0.4 scoring numbers and star lines are first-pass numbers.
 - Ambient music is off by default (it would play with the iPhone silent switch on).
 - Art not from the design package: bone, meteorite and prism ore overlays, crust rock, tool icons, portal, camp, temple (drawn to match), plus the older procedural specials, potions, torch, lantern and wood.
 - Pacing (days to Magmastone, hours inside it, Crust break rate) is simulated, not yet measured with players.

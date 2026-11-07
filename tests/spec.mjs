@@ -24,7 +24,7 @@ const near = (a, b, tol = 1) => Math.abs(a - b) <= tol;
 // ---- reference size ----
 { const t = await setup(390, 844); const m = await measure(t.page);
   check(near(m.hdr.h, 44) && near(m.badge.w, 40) && near(m.badge.h, 44), `header row is 44 tall, the pause button 40x44 (${Math.round(m.hdr.h)}, ${Math.round(m.badge.w)})`);
-  check(m.ibtn.length === 3 && m.ibtn.every(([w, h]) => near(w, 40) && near(h, 44)) && near(m.hint.h, 44) && m.hint.w > 40, 'pause, how-to-play and sound are 40x44; the labelled hint is 44 tall');
+  check(m.ibtn.length === 2 && m.ibtn.every(([w, h]) => near(w, 40) && near(h, 44)) && near(m.hint.h, 44) && m.hint.w > 40, 'pause and sound are 40x44; the labelled Hint and Guide are 44 tall');
   check(near(m.hdr.x, 16) && near(m.vw - m.hdr.r, 16), 'side padding is 16');
   check(near(m.goals.h, 36), `score row is 36 tall (${m.goals.h})`);
   check(near(m.strip.h, 52), `resource strip is 52 tall (${m.strip.h})`);

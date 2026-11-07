@@ -74,6 +74,17 @@ Goal: **v1**, the build shared with family and friends. Version numbers keep cou
 | I-29 | Improvement | Luck Tonic renamed Luck Potion | Both potions are potions. |
 | B-7 | Bug | Tools broke without warning in the Crust and sent the run back 30 boards | Fixed by I-25 for now; F-9 is the real answer. |
 
+### Done in 2.1.1 (first 2.1.0 playtest)
+
+| Proposed ID | Type | Item | Notes |
+| --- | --- | --- | --- |
+| I-31 | Improvement | Hint asks first and costs more | A Yes/No before the coal is spent; 5 coal (was 3); the coal flies from the stash into the Hint button. |
+| I-32 | Improvement | "Guide" pill | The (?) becomes a labelled Guide button like Hint. |
+| I-33 | Improvement | Placements left | "14/21 placements left" replaces "Deal 2 of 7". |
+| I-34 | Improvement | Numbered boards | "Magmastone board #3" instead of names; the grid maps will have too many boards to name. |
+| I-35 | Improvement | Centred pause card | Next star line (or "All three stars! Finish strong."), layer stars, round Resume / Restart / Map icons; Map and Restart ask first. "Your best here" and the star lines are gone. |
+| B-8 | Bug | Hint stayed greyed out at the start of a board | Fixed: it wakes as soon as the opening banner ends. |
+
 ### Backlog features from this round
 
 **F-9 Tool durability and repair** (replaces today's Galaxy-Alloy-only wear)

@@ -428,3 +428,30 @@ label.tog input:checked::after{transform:translateX(18px);background:#fff}
 .recRow canvas{width:24px;height:24px;image-rendering:pixelated}
 .recs{display:flex;flex-direction:column;gap:6px}
 #profile .top .row{display:flex;gap:6px;align-items:center}
+
+/* v2.1.1: centred pause card, yes/no dialog, coal landing in the Hint button */
+#sheetScrim.center{justify-content:center;align-items:center;padding:16px}
+#sheet.pop{width:min(340px,100%);border-radius:16px;padding:22px 20px 20px;gap:16px;text-align:center;animation:popIn .2s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes popIn{from{transform:scale(.92);opacity:0}to{transform:none;opacity:1}}
+#sheet.pop .pauseInfo{align-items:center}
+.pauseInfo .allStars{color:var(--lamp);font-weight:700}
+.pauseBtns{display:flex;justify-content:center;gap:22px;margin-top:4px}
+.pbWrap{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.pbtn{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;padding:0}
+.pbtn.alt{background:var(--inset);color:var(--text);box-shadow:inset 0 0 0 1px var(--divider),inset 0 -3px 0 var(--seam)}
+.pbtn.go svg{margin-left:3px}
+#askScrim{position:fixed;inset:0;z-index:60;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:16px}
+#askScrim[hidden]{display:none}
+#ask{width:min(320px,100%);background:var(--panel);border-radius:16px;box-shadow:inset 0 1px 0 var(--handle);padding:22px 20px 18px;display:flex;flex-direction:column;gap:10px;text-align:center;animation:popIn .18s cubic-bezier(.2,.9,.3,1.2)}
+#askTitle{font-size:18px;font-weight:700}
+#askText{font-size:14px;color:var(--muted);line-height:1.4}
+.askBtns{display:flex;gap:10px;margin-top:8px}
+.askBtns button{flex:1;height:46px;border-radius:8px;font-size:15px;font-weight:700;letter-spacing:.5px}
+.askBtns .alt{background:var(--inset);color:var(--text);box-shadow:inset 0 0 0 1px var(--divider),inset 0 -3px 0 var(--seam)}
+#infoBtn{color:var(--text)}
+#hintBtn.gulp{animation:gulp .35s ease-out}
+@keyframes gulp{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
+#zoneName{display:flex;flex-direction:column;line-height:1.1;align-items:flex-start}
+#zoneName span{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+#zoneName b{font-size:15px;font-weight:700;color:var(--text);white-space:nowrap}
+#zoneName span:empty{display:none}

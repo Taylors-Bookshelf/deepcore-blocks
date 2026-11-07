@@ -50,7 +50,7 @@ await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ 
 await sleep();   // the phone sleeps mid-drag and the touch never ends
 check(await T(() => document.getElementById('ghost').hidden && [...document.querySelectorAll('.slot canvas')].every(c => c.style.opacity === '')), 'waking up drops the half-finished drag and shows every tray piece');
 await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
-await page.tap('#pauseBtn'); await page.waitForTimeout(300); await page.tap('#pauseQuit'); await page.waitForTimeout(500);
+await page.tap('#pauseBtn'); await page.waitForTimeout(300); await page.tap('#pauseQuit'); await page.waitForTimeout(250); await page.tap('#askYes'); await page.waitForTimeout(500);
 for (let k = 0; k < 3; k++) await sleep();
 await T(() => document.querySelector('#mapNodes .node').click()); await page.waitForTimeout(300);
 check(await T(() => !document.getElementById('nodeCard').hidden || window.__deepcore.test.state().screen === 'game'), 'after several sleeps the map still answers a tap on a board');

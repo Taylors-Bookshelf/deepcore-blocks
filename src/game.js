@@ -310,11 +310,12 @@ const _bd={};
 function boardDef(idx){
   const key=dayState.seed+':'+dayState.day+':'+idx; if(_bd[key]) return _bd[key];
   const zi=zoneOfIdx(idx), j=jOfIdx(idx), z=ZONES[zi];
-  const RZ=rng(hashStr(dayState.seed+'#zone'+zi)+7); const names=z.names.slice().sort(()=>RZ()-.5);
-  const nm=names[j%names.length]+(j>=names.length?' '+['','II','III','IV'][Math.floor(j/names.length)]:'');
+  const nm=boardName(zi,j);
   return _bd[key]={ idx, name:nm, goals:{}, ...DeepcoreData.boardParams(zi,j,modifierFor(dayState.day)) };
 }
 function levelDef(L){ return boardDef(L-1); }
+// v2.1.1: boards are numbered within their layer ("Magmastone board #3"); the grid maps (F-11) will have far too many to name
+function boardName(zi,j){ const z=ZONES[zi]; return z.core?'The Ancient Core':`${z.name.replace(/^The /,'')} board #${j+1}`; }
 const boardLabel=idx=>idx===CORE_IDX?'Core':`${zoneOfIdx(idx)+1}-${jOfIdx(idx)+1}`;
 
 const emptyGrid=()=>Array.from({length:N},()=>Array(N).fill(null));
@@ -422,10 +423,12 @@ const yieldNow=()=>score;
 const starsNow=()=>starsFromScore(score,starAt());
 function updateBar(){
   const el=$('pscore'); if(!el) return; const dd=levelDef(level), at=starAt();
-  el.textContent=shown.toLocaleString(); $('pgoal').textContent=dd.deals?`Deal ${Math.min(dealsDone,dd.deals)} of ${dd.deals}`:'';
+  el.textContent=shown.toLocaleString(); $('pgoal').textContent=dd.deals?`${placementsLeft()}/${dd.deals*3} placements left`:'';
   const chip=$('starChip'); if(chip&&at.length){ chip.hidden=false; updateStarMeter(chip,shown,at); } else if(chip) chip.hidden=true;
 }
 let shown=0;
+// placements still to make on this board: the pieces in the tray plus three for every deal still to come
+function placementsLeft(){ const dd=levelDef(level); return Math.max(0,(dd.deals-dealsDone)*3+(pieces?pieces.filter(Boolean).length:0)); }
 // the star meter: each star fills as the points climb from the previous star line to its own, and lights up once reached
 let meterLit=0;
 function updateStarMeter(chip,y,at){
@@ -436,8 +439,12 @@ function updateStarMeter(chip,y,at){
   const txt=`${y.toLocaleString()} points. ${at[0].toLocaleString()} earns one star, ${at[1].toLocaleString()} two, ${at[2].toLocaleString()} three.`; chip.setAttribute('aria-label',`${k} of 3 stars. ${txt}`); chip.title=txt;
 }
 function updateComboMeter(){}   // the multiplier is shown with the points when lines clear, not as a permanent badge
-function updateHUD(){ $('zoneName').textContent=level?levelDef(level).name:''; updateDur(); }   // the board header stays calm: details live in the pause sheet
-function tickScore(){ if(shown<score){ shown+=Math.max(1,Math.ceil((score-shown)/8)); if(shown>score) shown=score; } else if(shown>score) shown=score; updateBar(); }
+function updateHUD(){   // two lines so long layer names fit beside the buttons: "Limestone Caves" over "Board #2"
+  const zn=$('zoneName'), d=level?levelDef(level):null; zn.innerHTML=''; zn.setAttribute('aria-label',d?d.name:'');
+  if(d){ const a=document.createElement('span'), b=document.createElement('b'); a.textContent=d.core?'':d.zoneName.replace(/^The /,''); b.textContent=d.core?d.name:`Board #${d.j+1}`; zn.append(a,b); }
+  updateDur(); }   // the board header stays calm: details live in the pause sheet
+function tickScore(){ updateHintBtn();   // v2.1.1: every frame, so Hint wakes up as soon as a splash or banner ends
+  if(shown<score){ shown+=Math.max(1,Math.ceil((score-shown)/8)); if(shown>score) shown=score; } else if(shown>score) shown=score; updateBar(); }
 
 // pitch = distance between blocks, size = block size (a seam shows between them when size < pitch)
 function drawPiece(ctx,p,pitch,ox=0,oy=0,alpha=1,size=pitch){
@@ -544,6 +551,17 @@ function flyItem(img,res,x0,y0,delay,glowCol,onLand,toStash){
     ctx.save(); ctx.shadowColor=glowCol; ctx.shadowBlur=14; ctx.imageSmoothingEnabled=false;
     ctx.drawImage(img,x-s/2,y-s/2,s,s); ctx.restore();
     return true; }});
+}
+// an item flies on an arc from one element to another (v2.1.1: the hint's coal, stash to Hint button)
+function flyBetween(img,fromEl,toEl,delay,glowCol,onLand){
+  const t0=performance.now()+delay, D=REDUCE?260:520, mid=e=>{ const R=e.getBoundingClientRect(); return [R.left+R.width/2,R.top+R.height/2]; };
+  const [sx,sy]=mid(fromEl);
+  fxList.push({draw(ctx,now){
+    const t=(now-t0)/D; if(t<0) return true; const [tx,ty]=mid(toEl);
+    if(t>=1){ onLand&&onLand(); ring(tx,ty,glowCol,16,240); return false; }
+    const e=easeIn(t), cx=(sx+tx)/2+(sx<tx?-1:1)*40, cy=Math.min(sy,ty)-60;
+    const x=(1-e)*(1-e)*sx+2*(1-e)*e*cx+e*e*tx, y=(1-e)*(1-e)*sy+2*(1-e)*e*cy+e*e*ty, s=26*(1-.45*e);
+    ctx.save(); ctx.shadowColor=glowCol; ctx.shadowBlur=12; ctx.imageSmoothingEnabled=false; ctx.drawImage(img,x-s/2,y-s/2,s,s); ctx.restore(); return true; }});
 }
 function ring(x,y,col,maxR,D){
   const t0=performance.now();
@@ -752,8 +770,8 @@ function shake(big){ if(REDUCE) return; const w=$('boardWell'); w.classList.remo
 
 function showBanner(ms=2200){
   const def=levelDef(level);
-  $('bLvl').textContent=`${def.zoneName} · Board ${boardLabel(level-1)} · ${tierOf(def.d)}`; $('bName').textContent=def.name;
-  $('bGoals').textContent=`${def.deals} deals · ${def.target.toLocaleString()} points for a star`;
+  $('bLvl').textContent=def.core?'':`Layer ${def.zone+1} of ${ZONES.length-1}`; $('bName').textContent=def.name;
+  $('bGoals').textContent=`${def.deals*3} placements · ${def.target.toLocaleString()} points for a star`;
   $('banner').classList.add('show'); setTimeout(()=>$('banner').classList.remove('show'),ms);
 }
 
@@ -971,27 +989,44 @@ function showResult(){
   retry.onclick=retryBoard; other.onclick=stars?()=>{ closeSheet(); bankBoard(); }:leaveBoard;
   $('sheetScrim').hidden=false;
 }
-// ---- pause: the board's details, Resume, Restart and Quit to map (the board is saved and one tap on the map resumes it) ----
+// ---- pause (v2.1.1): a centred card with the board, the layer's stars, the next star line and three icon buttons ----
+const ICON={
+  play:'<svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>',
+  restart:'<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg>',
+  exit:'<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3.5h6.5v17H13"/><path d="M13 3.5 7.5 5v14l5.5 1.5z" fill="currentColor" fill-opacity=".18"/><path d="M10.5 12H2.5M5.5 9l-3 3 3 3"/></svg>'};
 function openPause(){
-  if(screen!=='game'||sheetMode||busy&&!over||!$('anvil').hidden||!$('info').hidden) return;
+  if(screen!=='game'||sheetMode||busy&&!over||!$('anvil').hidden||!$('info').hidden||!$('askScrim').hidden) return;
   const sh=$('sheet'); sh.innerHTML=''; sheetMode='pause'; A.track('pause_open',{idx:level-1});
   const el=(tag,cls,txt)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!==undefined) e.textContent=txt; return e; };
-  const dd=levelDef(level), z=zoneOfIdx(level-1), zs=zoneStars(z), best=(dayState.stars||{})[level-1]||0;
-  sh.append(el('div','shHandle'),el('div','shLabel','PAUSED'),el('div','shTitle',dd.name));
+  const dd=levelDef(level), z=zoneOfIdx(level-1), zs=zoneStars(z), at=dd.starAt, k=starsFromScore(score,at);
+  sh.append(el('div','shLabel','PAUSED'),el('div','shTitle',dd.name));
   const info=el('div','pauseInfo');
   const line=(k,v)=>{ const p=el('div'); p.append(document.createTextNode(k+' '),el('b',undefined,v)); info.append(p); };
-  line(dd.zoneName+',',`board ${jOfIdx(level-1)+1} of ${ZONES[z].boards}`);
-  if(dd.starAt.length) line('Star lines:',dd.starAt.map(v=>v.toLocaleString()).join(' / ')+' points');
-  if(zs.max) line('Stars in this layer:',`${zs.got} of ${zs.max}`);
-  if(best) line('Your best here:','★'.repeat(best));
+  if(at.length){ if(k<3) line('Next star at:',at[k].toLocaleString()+' points'); else info.append(el('div','allStars','All three stars! Finish strong.')); }
+  if(zs.max) line(`Stars in ${dd.zoneName.replace(/^The /,'')}:`,`${zs.got} of ${zs.max}`);
   sh.append(info);
-  const btns=el('div','shBtns col'), res=el('button','go','Resume'), rst=el('button','alt','Restart board'), quit=el('button','alt','Quit to map');
-  res.id='pauseResume'; rst.id='pauseRestart'; quit.id='pauseQuit'; [res,rst,quit].forEach(b=>b.type='button'); btns.append(res,rst,quit); sh.append(btns);
+  const btns=el('div','pauseBtns');
+  const mk=(id,icon,label,cls)=>{ const w=el('div','pbWrap'), b=el('button','pbtn '+cls); b.id=id; b.type='button'; b.innerHTML=ICON[icon]; b.setAttribute('aria-label',label); w.append(b,el('span',undefined,label)); btns.append(w); return b; };
+  const res=mk('pauseResume','play','Resume','go'), rst=mk('pauseRestart','restart','Restart','alt'), quit=mk('pauseQuit','exit','Map','alt');
+  sh.append(btns);
   res.onclick=closeSheet;
-  rst.onclick=()=>{ closeSheet(); A.track('board_restart',{idx:level-1,score,moves}); startBoard(level-1); };
-  quit.onclick=()=>{ closeSheet(); showMap({}); };
-  $('sheetScrim').hidden=false;
+  rst.onclick=async()=>{ if(!await ask('Restart this board?','Your points on this board start again from zero.','Restart')) return;
+    closeSheet(); A.track('board_restart',{idx:level-1,score,moves}); startBoard(level-1); };
+  quit.onclick=async()=>{ if(!await ask('Exit to map?','Your board is saved. Tap it on the map to carry on.','Exit')) return; closeSheet(); showMap({}); };
+  $('sheetScrim').classList.add('center'); sh.classList.add('pop');
+  $('sheetScrim').hidden=false; res.focus();
 }
+// a small centred yes/no dialog above everything else; resolves true for yes
+let askDone=null;
+function ask(title,text,yes='Yes',no='Cancel'){
+  if(askDone) askDone(false);
+  $('askTitle').textContent=title; $('askText').textContent=text||''; $('askText').hidden=!text; $('askYes').textContent=yes; $('askNo').textContent=no;
+  $('askScrim').hidden=false; $('askYes').focus();
+  return new Promise(res=>{ askDone=v=>{ askDone=null; $('askScrim').hidden=true; res(v); }; });
+}
+$('askYes').onclick=()=>askDone&&askDone(true);
+$('askNo').onclick=()=>askDone&&askDone(false);
+$('askScrim').addEventListener('click',e=>{ if(e.target===$('askScrim')&&askDone) askDone(false); });
 $('pauseBtn').onclick=openPause;
 // RETRY: a clean restart, nothing from this run is kept
 function retryBoard(){ if(!reached||decided) return; decided=true; closeSheet(); A.track('board_retry',{idx:level-1,stars:starsNow(),score,yield:yieldNow()}); hand={}; startBoard(level-1); }
@@ -1087,7 +1122,7 @@ function showOver(){
   const dd=levelDef(level), tg=dd.target||0; $('finalScore').textContent=score.toLocaleString();
   {
     const pct=dd.deals?Math.min(100,Math.round(100*(dealsDone-1)/dd.deals)):0, fails=(dayState.fails||{})[level-1]||0;
-    $('overWhy').textContent=dealsDone>=dd.deals?`So close! The cave gave way on the last deal.`:`The cave gave way on deal ${dealsDone} of ${dd.deals}.`;
+    $('overWhy').textContent=dealsDone>=dd.deals?`So close! The cave gave way on the last deal.`:`The cave gave way with ${placementsLeft()} of ${dd.deals*3} placements left.`;
     $('overBar').firstElementChild.style.width=pct+'%'; $('overBar').hidden=false;
     $('finalNote').textContent='Ore hauled on this attempt is lost. Your stash and crafted specials are safe.';
     $('overTip').textContent=caveInTip()+(fails>=2?' The dealer will go easier on your next try.':''); $('retry').textContent='Retry board';
@@ -1185,7 +1220,7 @@ function renderDock(){
 const SHARD_CRACK='<svg class="crk" viewBox="0 0 16 16" shape-rendering="crispEdges"><path d="M8 2 L7 5 L9 7 L6 10 L8 12 L7 14 M9 7 L12 6 L13 8 M6 10 L3 11" fill="none" stroke="#ff8a7a" stroke-width=".7"></path></svg>';
 const CRACK_DARK='<svg class="crk cracks" viewBox="0 0 16 16" shape-rendering="crispEdges"><path d="M8 2 L7 5 L9 7 L6 10 L8 12 L7 14 M9 7 L12 6 L13 8 M6 10 L3 11" fill="none" stroke="#111" stroke-width="1.6"></path><path d="M8 2 L7 5 L9 7 L6 10 L8 12 L7 14 M9 7 L12 6 L13 8 M6 10 L3 11" fill="none" stroke="#fff" stroke-width=".6"></path></svg>';
 const spriteCv=(m,cls)=>{ const cv=document.createElement('canvas'); cv.className='px'+(cls?' '+cls:''); cv.width=cv.height=T; cv.getContext('2d').drawImage(SPR[m]||TEX[m],0,0); return cv; };
-function closeSheet(){ $('sheetScrim').hidden=true; $('sheet').innerHTML=''; sheetMode=''; }
+function closeSheet(){ $('sheetScrim').hidden=true; $('sheetScrim').classList.remove('center'); $('sheet').classList.remove('pop'); $('sheet').innerHTML=''; sheetMode=''; }
 function openMakeRoom(rc){
   if(!dockFull()||!canAfford(rc)||dockAnim) return;
   const sh=$('sheet'); sh.innerHTML=''; let sel=-1; sheetMode='room';
@@ -1375,7 +1410,7 @@ $('info').addEventListener('pointerdown',e=>{ if(e.target.id==='info') $('info')
 $('anvilBtn').onclick=()=>{ if(busy||over) return; renderAnvil(); $('anvil').hidden=false; tipOnce('anvil',()=>toast(`Specials cost ore. Drag a Blast Charge (+${SCORE.special.blast}) or Sledgehammer (+${SCORE.special.sledgehammer}) onto the board; tap a potion to drink it.`,5200)); };
 $('anvilClose').onclick=()=>{ $('anvil').hidden=true; };
 $('anvil').addEventListener('pointerdown',e=>{ if(e.target.id==='anvil') $('anvil').hidden=true; });
-const uiOpen=()=>screen!=='game' || !$('anvil').hidden || !$('info').hidden || !$('sheetScrim').hidden;
+const uiOpen=()=>screen!=='game' || !$('anvil').hidden || !$('info').hidden || !$('sheetScrim').hidden || !$('askScrim').hidden;
 
 // drag a crafted special straight onto the board: a Blast Charge blows up the 3×3 patch under your finger, a Sledgehammer shakes the board
 let spDrag=null, spAim=null;
@@ -1927,18 +1962,31 @@ function outlinePiece(ctx,p,ox,oy,pitch,size,color,w){
   ctx.stroke(); ctx.restore();
 }
 // ---- hint: costs a little coal, glows the tray piece and outlines where the best placement is for a few seconds ----
-const HINT_COST=3;
+let hintFlying=false;
+const HINT_COST=5;   // v2.1.1: was 3; coal piles up over a descent
 function clearHint(){ hintInfo=null; if(typeof slots!=='undefined') slots.forEach(sl=>sl.classList.remove('hint')); }
-function updateHintBtn(){ const b=$('hintBtn'); if(!b) return; b.disabled=!((bank.coal||0)>=HINT_COST&&!busy&&!over&&pieces&&pieces.some(Boolean)&&screen==='game'); b.title=`Hint (${HINT_COST} coal)`; }
-function useHint(){
-  if(busy||over||uiOpen()||!pieces) return;
+function updateHintBtn(){ const b=$('hintBtn'); if(!b) return; const off=!((bank.coal||0)>=HINT_COST&&!busy&&!over&&!hintFlying&&pieces&&pieces.some(Boolean)&&screen==='game'); if(b.disabled!==off) b.disabled=off; b.title=`Hint (${HINT_COST} coal)`; }
+// asks first; on yes the coal flies from the stash into the Hint button, and the hint shows when the last piece lands
+async function askHint(){
+  if(busy||over||uiOpen()||!pieces||hintFlying) return;
   if((bank.coal||0)<HINT_COST){ showCombo(`A hint costs ${HINT_COST} coal`); return; }
+  if(!await ask(`Use a hint for ${HINT_COST} coal?`,`You have ${bank.coal} coal. The best move glows for a few seconds.`,'Use hint')) return;
+  if(busy||over||uiOpen()||!pieces||(bank.coal||0)<HINT_COST) return;
+  hintFlying=true; bank.coal-=HINT_COST; saveProfile();
+  const from=document.querySelector('.si[data-k="coal"] canvas')||$('stash'), to=$('hintBtn');
+  let landed=0; const n=REDUCE?1:HINT_COST;
+  for(let q=0;q<n;q++) flyBetween(ITEM.coal,from,to,q*70,'#ffd27a',()=>{ if(q===0) updateStash(['coal']); blip(700+q*90,.05,'sine',.04);
+    if(++landed===n){ hintFlying=false; to.classList.remove('gulp'); void to.offsetWidth; to.classList.add('gulp'); useHint(true); } });
+}
+function useHint(paid){
+  if(busy||over||(!paid&&uiOpen())||!pieces) return;
+  if(!paid){ if((bank.coal||0)<HINT_COST){ showCombo(`A hint costs ${HINT_COST} coal`); return; } bank.coal-=HINT_COST; updateStash(['coal']); saveProfile(); }
   const [lo,hi]=occBits(grid), ranked=rankMoves(lo,hi,pieces.map(p=>p?SHAPES[p.sid]:null)); if(!ranked.length) return;
-  const best=ranked[0]; bank[ 'coal']-=HINT_COST; updateStash(['coal']); saveProfile(); clearHint();
+  const best=ranked[0]; clearHint();
   hintInfo={i:best.i,r0:best.pl.r0,c0:best.pl.c0}; slots[best.i].classList.add('hint'); updateHintBtn(); blip(988,.08,'triangle',.05); blip(1319,.1,'triangle',.05,.08);
   life.hints++; A.track('hint_used',{idx:level-1,score,moves,sid:pieces[best.i].sid,lines:best.nb[2]}); setTimeout(()=>{ if(hintInfo&&hintInfo.i===best.i) clearHint(); },4500);
 }
-$('hintBtn').onclick=useHint;
+$('hintBtn').onclick=askHint;
 // ---- guided first board: a scripted first set that fills the bottom row, with the glowing hint and short captions ----
 const tut={active:false,stage:0,placed:0}, TUT_SET=['###','###','##'], TUT_TARGETS=[[7,0],[7,3],[7,6]];
 function showTutor(text,withNext){ $('tutorText').textContent=text; $('tutorNext').hidden=!withNext; $('tutor').style.top='calc(max(env(safe-area-inset-top,0px),14px) + 54px)'; $('tutor').hidden=false; }

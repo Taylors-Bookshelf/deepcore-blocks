@@ -27,21 +27,14 @@ const tierOf=d=> d<.2?'Easy' : d<.5?'Medium' : d<.8?'Hard' : 'Expert';
 // The descent: one row per layer, dug in order over several days. boards: how many boards the layer has (8 each since v2.1.0); d: dealer difficulty from its
 // first board to its last; pre: starter blocks; mixes: base blocks, first board to last.
 const ZONES=[
-  {name:'The Forest', rock:'dirt', boards:8, d:[0,.14], pre:[0,1], mixes:[{log:1,grass:1},{log:.7,grass:1,dirt:.5},{log:.5,dirt:2,grass:.6},{dirt:1,log:.2}], ores:['bone','coal'], oreFrom:{coal:1}, boost:{coal:1.6,bone:.8},
-   names:['Birch Glade','Mossy Hollow','Fern Ridge','Old Stump','Sandy Bank','Pine Clearing','Root Cellar','Brook Bend']},
-  {name:'Limestone Caves', rock:'stone', boards:8, d:[.2,.34], pre:[2,4], mixes:[{dirt:1,stone:1},{stone:2,dirt:.8},{stone:3,dirt:.5},{stone:6,dirt:.25}], ores:['coal','copper','ruby'], boost:{coal:1.1,copper:1.15},
-   names:['Echo Tunnel','Coal Face','Drip Gallery','Lantern Shaft','Chalk Bend','Bat Roost','Copper Seam','Rubble Hall']},
-  {name:'Slate Caverns', rock:'deep', boards:8, d:[.32,.46], pre:[4,6], mixes:[{stone:1,deep:1},{deep:2,stone:.8},{deep:3,stone:.5},{deep:6,stone:.25}], ores:['coal','copper','iron','ruby'], boost:{iron:4.2,copper:.8,coal:.9},
-   names:['Split Seam','Silent Chasm','Iron Stair','Grey Shelf','Slate Stair','Hollow Deep','Layer Walk','Pale Grotto']},
-  {name:'Granite Halls', rock:'granite', boards:8, d:[.44,.58], pre:[5,7], mixes:[{deep:1,granite:1},{granite:2,deep:.8},{granite:3,deep:.5},{granite:6,deep:.25}], ores:['coal','iron','copper','ruby','gold'], boost:{coal:1.25,iron:4.3,copper:.6}, gems:{emerald:{p:.008,cap:1}},
-   names:['Pink Vein','Mica Gallery','Feldspar Ledge','Granite Gate','Heavy Stone','Blush Hollow','Pillar Walk','Grey Atrium']},
-  {name:'Basalt Depths', rock:'obsidian', boards:8, d:[.56,.7], pre:[6,8], mixes:[{granite:1,obsidian:1},{obsidian:2,granite:.8},{obsidian:3,granite:.5},{obsidian:6,granite:.25}], ores:['coal','iron','gold','ruby','meteorite'], boost:{meteorite:1.85,iron:1.4,coal:.8}, gems:{emerald:{p:.014,cap:2}, diamond:{p:.01,cap:1}},
-   names:['Column Hall','Glass Vault','Star Fall','Dark Facet','Basalt Shelf','Sky Iron','Black Lens','Comet Cradle']},
-  {name:'Magmastone', rock:'ember', boards:8, d:[.66,.76], pre:[7,9], mixes:[{obsidian:1,ember:1},{ember:2,obsidian:.6},{ember:4,obsidian:.3},{ember:6,obsidian:.15}], ores:['coal','iron','gold','ruby','prismore'], boost:{prismore:1.3,coal:.6}, gems:{emerald:{p:.016,cap:2}, diamond:{p:.012,cap:2}},
-   names:['Ember Gate','Ash Bridge','Magma Gallery','Ruby Spire','Cinder Throne','Molten Steps','Sulfur Hall','Flame Rift','Glow Vault','Prism Lode','Heat Shimmer','Lava Lattice']},
-  {name:'The Crust', rock:'crust', boards:8, d:[.82,.88], pre:[9,10], mixes:[{ember:1,crust:1},{crust:3,ember:.5},{crust:1}], ores:['iron','gold','prismore'], boost:{prismore:1.25,gold:.6},
-   names:['Searing Gate','White Heat','Last Wall']},
-  {name:'Ancient Core', rock:'crust', boards:1, core:true, d:[0,0], pre:[0,0], mixes:[{crust:1}], ores:[], names:['The Ancient Core']},
+  {name:'The Forest', rock:'dirt', boards:8, d:[0,.14], pre:[0,1], mixes:[{log:1,grass:1},{log:.7,grass:1,dirt:.5},{log:.5,dirt:2,grass:.6},{dirt:1,log:.2}], ores:['bone','coal'], oreFrom:{coal:1}, boost:{coal:1.6,bone:.8}},
+  {name:'Limestone Caves', rock:'stone', boards:8, d:[.2,.34], pre:[2,4], mixes:[{dirt:1,stone:1},{stone:2,dirt:.8},{stone:3,dirt:.5},{stone:6,dirt:.25}], ores:['coal','copper','ruby'], boost:{coal:1.1,copper:1.15}},
+  {name:'Slate Caverns', rock:'deep', boards:8, d:[.32,.46], pre:[4,6], mixes:[{stone:1,deep:1},{deep:2,stone:.8},{deep:3,stone:.5},{deep:6,stone:.25}], ores:['coal','copper','iron','ruby'], boost:{iron:4.2,copper:.8,coal:.9}},
+  {name:'Granite Halls', rock:'granite', boards:8, d:[.44,.58], pre:[5,7], mixes:[{deep:1,granite:1},{granite:2,deep:.8},{granite:3,deep:.5},{granite:6,deep:.25}], ores:['coal','iron','copper','ruby','gold'], boost:{coal:1.25,iron:4.3,copper:.6}, gems:{emerald:{p:.008,cap:1}}},
+  {name:'Basalt Depths', rock:'obsidian', boards:8, d:[.56,.7], pre:[6,8], mixes:[{granite:1,obsidian:1},{obsidian:2,granite:.8},{obsidian:3,granite:.5},{obsidian:6,granite:.25}], ores:['coal','iron','gold','ruby','meteorite'], boost:{meteorite:1.85,iron:1.4,coal:.8}, gems:{emerald:{p:.014,cap:2}, diamond:{p:.01,cap:1}}},
+  {name:'Magmastone', rock:'ember', boards:8, d:[.66,.76], pre:[7,9], mixes:[{obsidian:1,ember:1},{ember:2,obsidian:.6},{ember:4,obsidian:.3},{ember:6,obsidian:.15}], ores:['coal','iron','gold','ruby','prismore'], boost:{prismore:1.3,coal:.6}, gems:{emerald:{p:.016,cap:2}, diamond:{p:.012,cap:2}}},
+  {name:'The Crust', rock:'crust', boards:8, d:[.82,.88], pre:[9,10], mixes:[{ember:1,crust:1},{crust:3,ember:.5},{crust:1}], ores:['iron','gold','prismore'], boost:{prismore:1.25,gold:.6}},
+  {name:'Ancient Core', rock:'crust', boards:1, core:true, d:[0,0], pre:[0,0], mixes:[{crust:1}], ores:[]},
 ];
 // board numbering: every board of the descent has one index, layer after layer
 const Z_START=[]; { let n=0; ZONES.forEach((z,i)=>{ Z_START[i]=n; n+=z.boards; }); }

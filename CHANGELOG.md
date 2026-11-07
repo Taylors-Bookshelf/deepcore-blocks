@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.1 — first 2.1.0 playtest fixes
+- Hint asks before spending coal, and now costs 5 coal (was 3). When you say yes, the coal flies from your stash into the Hint button and the best move then glows.
+- Hint wakes up as soon as a board's opening banner ends; it could stay greyed out until your first placement.
+- The "?" button is now a "Guide" pill, like Hint, and opens the Guide.
+- The score shows "14/21 placements left" instead of "Deal 2 of 7". The cave-in screen counts placements too.
+- Boards are numbered instead of named: "Magmastone board #3". The top bar shows the layer above "Board #3" so long layer names fit.
+- Pause is a centred card: the board, the next star line (or "All three stars! Finish strong." once you have them) and your stars in the layer, with round Resume, Restart and Map buttons. Map and Restart ask first.
+
 ## 2.1.0 — toward v1: cleaner screens, even layers, no surprise tool breaks
 - Home: a single Play button, with small Profile, Settings and Sound icons at the top. The stats card is gone.
 - Profile: your rank, three headline numbers and your records as cards, with Share at the top.

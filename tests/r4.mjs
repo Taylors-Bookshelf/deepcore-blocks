@@ -70,7 +70,7 @@ check(s.screen === 'map' && s.day.done.includes(9) && s.day.stars[9] === 2 && s.
 check(s.day.scores[9] >= tg + D.starBonus(2, tg), 'the star bonus is part of the board score');
 // 4. three stars: still the same choice, and the bonus is paid
 await board(10); await page.tap('#pauseBtn'); await page.waitForTimeout(300);
-check(await T(() => /Stars in this layer: 2 of 24/.test(document.getElementById('sheet').textContent) && !!document.getElementById('pauseResume') && !!document.getElementById('pauseQuit')), 'the pause sheet shows the stars earned in the layer (2 of 24 in the Limestone Caves)');
+check(await T(() => /Stars in Limestone Caves: 2 of 24/.test(document.getElementById('sheet').textContent) && !!document.getElementById('pauseResume') && !!document.getElementById('pauseQuit')), 'the pause sheet shows the stars earned in the layer (2 of 24 in the Limestone Caves)');
 await page.tap('#pauseResume'); await page.waitForTimeout(200);
 const tg5 = await target(), sa5 = await T(() => window.__deepcore.test.def().starAt);
 await finish(sa5[2]);
@@ -104,7 +104,7 @@ check(await T(() => !document.getElementById('comboMeter')), 'there is no perman
 // 7. near-miss cave-in screen
 await board(10); await tt('gameOver'); await page.waitForTimeout(1500);
 const over = await T(() => [document.getElementById('overWhy').textContent, document.getElementById('overTip').textContent, document.getElementById('overBar').firstElementChild.style.width]);
-check(/deal 1 of 5/.test(over[0]) && over[1].length > 20 && over[2] === '0%', `the cave-in screen says which deal caved in and gives a tip (${over[0]})`);
+check(/1[2-5] of 15 placements left/.test(over[0]) && over[1].length > 20 && over[2] === '0%', `the cave-in screen says how many placements were left and gives a tip (${over[0]})`);
 check(!/easier/.test(over[1]), 'no mercy note after the first cave-in');
 for (let k = 0; k < 2; k++) { await page.tap('#retry'); await page.waitForTimeout(2600); await tt('gameOver'); await page.waitForTimeout(1500); }
 check(await T(() => /go easier/.test(document.getElementById('overTip').textContent)), 'after repeated cave-ins the screen tells you the dealer will ease up');
@@ -112,10 +112,10 @@ check(await T(() => /go easier/.test(document.getElementById('overTip').textCont
 // 8. hint
 await page.tap('#retry'); await page.waitForTimeout(2600); await tt('give', { coal: 5 });
 check(await T(() => !document.getElementById('hintBtn').disabled), 'hint is available when you hold coal');
-const coal0 = (await st()).bank.coal; await page.tap('#hintBtn'); await page.waitForTimeout(300); s = await st();
-check(s.bank.coal === coal0 - 3 && s.hintInfo && await T(() => !!document.querySelector('.slot.hint')), 'a hint costs 3 coal and marks a piece and a spot');
+const coal0 = (await st()).bank.coal; await page.tap('#hintBtn'); await page.waitForTimeout(250); await page.tap('#askYes'); await page.waitForTimeout(1300); s = await st();
+check(s.bank.coal === coal0 - 5 && s.hintInfo && await T(() => !!document.querySelector('.slot.hint')), 'a hint costs 5 coal and marks a piece and a spot');
 check(await T(() => { const t = window.__deepcore.test, s2 = t.state(); const p = s2.pieces[s2.hintInfo.i]; return t.fits(p, s2.hintInfo.r0, s2.hintInfo.c0); }), 'the hinted spot is a legal placement');
-await tt('setBank', { coal: 2 }); await page.waitForTimeout(100);
+await tt('setBank', { coal: 4 }); await page.waitForTimeout(100);
 check(await T(() => document.getElementById('hintBtn').disabled), 'hint is disabled without enough coal');
 check(await T(() => window.DCA.buffer.some(e => e.event === 'hint_used')), 'analytics recorded the hint');
 

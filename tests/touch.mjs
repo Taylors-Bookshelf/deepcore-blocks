@@ -12,7 +12,7 @@ await page.evaluate(() => document.getElementById('tutorSkip').click()); await p
 // header controls and the score bar
 check(await page.evaluate(() => ['pauseBtn', 'hintBtn', 'infoBtn', 'sound', 'anvilBtn'].every(id => !!document.getElementById(id)) && !document.getElementById('homeBtn') && !document.getElementById('tier')), 'header has pause, hint, how to play and sound (no map button, no difficulty label); the dock has CRAFT');
 check(await page.evaluate(() => !document.getElementById('score') && !document.querySelector('.btns') && !document.getElementById('crafted')), 'old big score, footer buttons and hint line are gone');
-check(await page.evaluate(() => /\d/.test(document.getElementById('pscore').textContent) && /Deal \d+ of \d+/.test(document.getElementById('pgoal').textContent) && !document.querySelector('.pbar')), 'the score is a number with the deal count, no bar');
+check(await page.evaluate(() => /\d/.test(document.getElementById('pscore').textContent) && /^\d+\/\d+ placements left$/.test(document.getElementById('pgoal').textContent) && !document.querySelector('.pbar')), 'the score is a number with the placements left, no bar');
 
 // tray: one fixed piece size even with a 1x5 bar; sizes never change when a piece is placed
 await page.evaluate(() => { const t = window.__deepcore.test; const mk = (cells, w, h) => ({ cells, h, w, mats: cells.map(() => 'dirt'), sid: 0 });

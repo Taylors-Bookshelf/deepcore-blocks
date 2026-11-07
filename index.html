@@ -22,8 +22,8 @@
   <header id="hdr">
     <button id="pauseBtn" class="ibtn" type="button" aria-label="Pause"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
     <div class="hmid"><div id="zoneName"></div></div>
-    <button id="hintBtn" class="ibtn pill" type="button" aria-label="Hint: show a good move for 3 coal" title="Show a good move (3 coal)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19h6M10 22h4M12 2.5a6.5 6.5 0 0 0-3.7 11.8c.6.5 1 1.1 1 1.9v.3h5.4v-.3c0-.8.4-1.4 1-1.9A6.5 6.5 0 0 0 12 2.5z"/><path d="M10.2 8.2a1.9 1.9 0 1 1 2.8 1.7c-.7.4-1 .8-1 1.5"/><path d="M12 13.4v.1" stroke-width="2.2"/></svg><span>Hint</span></button>
-    <button id="infoBtn" class="ibtn" type="button" aria-label="How to play" title="How to play"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.6"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg></button>
+    <button id="hintBtn" class="ibtn pill" type="button" aria-label="Hint: show a good move for 5 coal" title="Show a good move (5 coal)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19h6M10 22h4M12 2.5a6.5 6.5 0 0 0-3.7 11.8c.6.5 1 1.1 1 1.9v.3h5.4v-.3c0-.8.4-1.4 1-1.9A6.5 6.5 0 0 0 12 2.5z"/><path d="M10.2 8.2a1.9 1.9 0 1 1 2.8 1.7c-.7.4-1 .8-1 1.5"/><path d="M12 13.4v.1" stroke-width="2.2"/></svg><span>Hint</span></button>
+    <button id="infoBtn" class="ibtn pill" type="button" aria-label="Guide: how to play" title="Guide"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6.5C10.3 5 7.7 4.5 4 4.5v13c3.7 0 6.3.5 8 2 1.7-1.5 4.3-2 8-2v-13c-3.7 0-6.3.5-8 2z"/><path d="M12 6.5v13"/></svg><span>Guide</span></button>
     <button id="sound" class="ibtn soundBtn" type="button" aria-label="Sound"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="wv" d="M16 9.5a3.5 3.5 0 0 1 0 5M18.5 7a7 7 0 0 1 0 10"/><path class="mx" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg></button>
   </header>
   <div id="goalsBar"></div>
@@ -64,6 +64,7 @@
     </div>
   </div>
 </div>
+<div id="askScrim" hidden><div id="ask" role="alertdialog" aria-labelledby="askTitle" aria-describedby="askText"><div id="askTitle"></div><div id="askText"></div><div class="askBtns"><button id="askNo" class="alt" type="button">Cancel</button><button id="askYes" class="go" type="button">Yes</button></div></div></div>
 <div id="sheetScrim" hidden><div id="sheet" class="sheet" role="dialog" aria-label="No free special slot"></div></div>
 <div id="craftPanel" hidden>
   <div class="panel" role="dialog" aria-labelledby="craftTitle">
@@ -82,7 +83,7 @@
 </div>
 <div id="info" hidden>
   <div class="panel" role="dialog" aria-labelledby="infoTitle">
-    <div class="top"><h2 id="infoTitle">How to play</h2><button id="infoClose" type="button">Close</button></div>
+    <div class="top"><h2 id="infoTitle">Guide</h2><button id="infoClose" type="button">Close</button></div>
     <div id="infoTabs" role="tablist"></div>
     <div id="infoBody"></div>
   </div>

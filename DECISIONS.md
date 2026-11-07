@@ -179,3 +179,10 @@ Your calls: keep 2.x version numbers ("v1" is a milestone name); no tool wear un
 - **Map:** no lamps, rails, crystals, lava, mushrooms, pebbles or lake, and no ore textures painted into the rock. Kept: sky, trees, rock, tunnels, boards, camps, the Core.
 - **Basalt's 1-star line 2000 → 2100** so a typical player's tries per board still rise layer by layer with 8 boards (1.04, 1.20, 1.23, 1.45, 1.50, 1.75, 2.18). Simulated descent: about 121 minutes (was about 178 in 2.0.4), the Core on about day 11 (was about 14).
 - **First-time tips** (once each, `life.tips`): your first haul (a toast), your first map visit, your first locked layer, your first anvil. The map's top bar now shows what the next tools still need.
+
+## v2.1.1 (first 2.1.0 playtest; built 2026-11-06)
+- **Hint price 3 → 5 coal.** The simulated stash reaches the Core with about 270 coal, so 5 still allows plenty of hints; it stays a first-pass number.
+- **Header name on two lines** ("Limestone Caves" over "Board #2"): "Limestone Caves board #2" doesn't fit beside Pause, Hint, Guide and Sound at 390pt. The pause card and the board's opening banner show the full "Limestone Caves board #2"; "The" is dropped from "The Forest" and "The Crust".
+- **Restart asks first too**, not only Map: Restart throws away the board's points, so it gets the same Yes/No as Exit to map.
+- **Small labels under the pause icons** (Resume, Restart, Map), so the icons read without guessing.
+- **"Placements left" counts the pieces in the tray plus three for every deal still to come**, so it drops by one with every placement (a Rescue Potion's fresh set doesn't change it).
