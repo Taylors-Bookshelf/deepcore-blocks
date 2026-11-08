@@ -1,13 +1,13 @@
 // Specials dock (v2.2.0, F-10): equipment slots with the anvil on the left, potion slots with the brewing table on the right.
 // One equipment slot to start; the brewing table (built at the anvil) unlocks potions and a potion slot; second slots are upgrades.
-// Equipment is dragged onto the board; potions are drunk on purpose and last POTION_DEALS deals; Protection saves you from cave-ins.
+// Equipment is dragged onto the board; potions are drunk on purpose and last POTION_MOVES placements (v2.3.0); Protection saves you from cave-ins.
 import { phone, touchDrag, makeChecker } from './helpers.mjs';
 const { check, fails } = makeChecker();
 const { page, cdp, base, errors, close } = await phone();
 await page.goto(base + '?debug'); await page.waitForTimeout(500);
 const tt = (f, ...a) => page.evaluate(([f, a]) => window.__deepcore.test[f](...a), [f, a]);
 const st = () => page.evaluate(() => { const t = window.__deepcore.test, s = t.state(); return { specials: s.specials, bank: s.bank, over: s.over, pieces: s.pieces, score: s.score, ...t.potions(), wk: t.workshop() }; });
-const D = await page.evaluate(() => ({ deals: window.DeepcoreData.POTION_DEALS, ws: window.DeepcoreData.WORKSHOP, sc: window.DeepcoreData.SCORE }));
+const D = await page.evaluate(() => ({ moves: window.DeepcoreData.POTION_MOVES, ws: window.DeepcoreData.WORKSHOP, sc: window.DeepcoreData.SCORE }));
 await tt('start', 4); await page.waitForTimeout(2600);
 await tt('give', { coal: 200, iron: 30, copper: 40, ruby: 120, gold: 30, emerald: 12, diamond: 6, bone: 30, wood: 20, prismore: 10 });
 const dockTiles = () => page.evaluate(() => ({ eq: [...document.querySelectorAll('#eqSlots .tool')].map(e => e.dataset.m || (e.classList.contains('locked') ? 'locked' : 'empty')),
@@ -62,10 +62,10 @@ s = await st(); const grid = await page.evaluate(() => window.__deepcore.test.st
 check(!s.specials.includes('blast') && [2, 3, 4].every(r => [2, 3, 4].every(c => !grid[r][c])) && grid[7][7], 'dropping it on the board clears exactly the 3x3 patch and frees its slot');
 d = await dockTiles(); check(d.eq.join() === 'sledgehammer,empty', `the dock redraws (${d.eq})`);
 
-// ---- Potion of Luck: drunk on purpose, POTION_DEALS deals ----
+// ---- Potion of Luck: drunk on purpose, POTION_MOVES placements ----
 const score0 = (await st()).score;
 await page.tap('#potSlots .tool[data-m="luck"]'); await page.waitForTimeout(1500);
-s = await st(); check(s.luck === D.deals && !s.specials.includes('luck') && s.score === Math.max(0, score0 + D.sc.special.luck), `drinking Luck starts ${D.deals} lucky deals and costs its points`);
+s = await st(); check(s.luck === D.moves && s.luckLive && !s.specials.includes('luck') && s.score === Math.max(0, score0 + D.sc.special.luck), `drinking Luck starts ${D.moves} lucky placements and costs its points`);
 
 // ---- cave-in without protection while holding a Potion of Protection: no automatic save ----
 await tt('gameOver'); await page.waitForTimeout(1500); s = await st();
@@ -73,15 +73,15 @@ check(s.over && s.specials.includes('rescue') && /holding a Potion of Protection
 check(await page.evaluate(() => !document.getElementById('rescueBtn') && [...document.querySelectorAll('#over .row button')].map(b => b.id).join() === 'retry,again'), 'after a cave-in the only choices are Retry and Map');
 await page.tap('#retry'); await page.waitForTimeout(2600);
 
-// ---- Potion of Protection: covers the pieces you hold now and the next deals; every cave-in in that window is undone ----
+// ---- Potion of Protection: covers the next POTION_MOVES placements; every cave-in in that window is undone ----
 await page.evaluate(() => { const t = window.__deepcore.test, s = t.state(); s.specials.splice(0, s.specials.length, 'rescue', 'sledgehammer'); t.addSpecial('blast'); });
 await page.waitForTimeout(150);
 const score1 = (await st()).score;
 await page.tap('#potSlots .tool[data-m="rescue"]'); await page.waitForTimeout(2200);
 s = await st();
-check(s.protLive && s.prot === D.deals - 1 && !s.specials.includes('rescue') && s.score === Math.max(0, score1 + D.sc.special.rescue), 'drinking Protection covers this tray and the next deals, and costs its points');
-check(await page.evaluate(() => !document.getElementById('protBadge').hidden && document.querySelectorAll('#protBadge .pips i.on').length === window.DeepcoreData.POTION_DEALS), 'the Protection badge shows a pip for each covered deal');
-await page.evaluate(() => window.__deepcore.test.setPieces([{ cells: [[0, 0]], h: 1, w: 1, mats: ['stone'], sid: 0 }, null, null]));
+check(s.protLive && s.prot === D.moves && !s.specials.includes('rescue') && s.score === Math.max(0, score1 + D.sc.special.rescue), 'drinking Protection covers the next placements and costs its points');
+check(await page.evaluate(() => !document.getElementById('protBadge').hidden && document.querySelectorAll('#protBadge .pips i.on').length === Math.ceil(window.DeepcoreData.POTION_MOVES / 3) && /15 placements/.test(document.getElementById('protTxt').textContent)), 'the Protection badge shows five pips and the placements left');
+await page.evaluate(() => { const t = window.__deepcore.test; t.setPieces([{ cells: [[0, 0]], h: 1, w: 1, mats: ['stone'], sid: 0 }, null, null]); t.setNext(null); });
 const before = await st();
 await tt('gameOver'); await page.waitForTimeout(750);
 check(await page.evaluate(() => window.__deepcore.test.fx().fxList) > 0, 'the save plays its shield animation');
@@ -93,9 +93,9 @@ check(await page.evaluate(() => { const p = window.__deepcore.test.state().piece
 await page.evaluate(() => { const t = window.__deepcore.test; for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) t.setCell(r, c, null); t.setCell(3, 3, 'stone'); });
 g = await geo(); await touchDrag(page, cdp, g.blast, [g.left + 3.5 * g.cell, g.top + 3.5 * g.cell + g.cell * 1.2]); await page.waitForTimeout(3500);
 s = await st(); check(!s.specials.includes('blast') && !(await page.evaluate(() => window.__deepcore.test.state().grid[3][3])), 'after a save the Blast Charge still drags onto the board');
-// it wears off after its deals
-for (let k = 0; k < D.deals; k++) await tt('deal');
-s = await st(); check(!s.protLive && s.prot === 0, 'Protection wears off after its deals');
+// it wears off after its placements
+await tt('tickPotions', D.moves);
+s = await st(); check(!s.protLive && s.prot === 0, 'Protection wears off after its placements');
 await tt('gameOver'); await page.waitForTimeout(1500); s = await st(); check(s.over, 'once it has worn off a cave-in ends the board');
 
 // ---- an old save with too many specials: extras go back to the stash ----

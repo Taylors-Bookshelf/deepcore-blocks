@@ -1,9 +1,9 @@
 (function(){
 const N = 8, T = 16;
 const A = window.DCA || { track(){}, attempt(){}, setScreen(){}, setBoard(){}, isOn:()=>false, canConfigure:()=>false, setOptOut(){} };
-const {TOOL_WEAR,POTION_DEALS,WORKSHOP,FOSSIL_BONE,specialHaul,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS,GEM_KEYS,lineName,STAR_ORES,SCORE,placePoints,starsFromScore,starBonus,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf}=DeepcoreData;
+const {TOOL_WEAR,POTION_MOVES,WORKSHOP,FOSSIL_BONE,specialHaul,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS,GEM_KEYS,lineName,STAR_ORES,SCORE,placePoints,starsFromScore,starBonus,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf}=DeepcoreData;
 const M=DeepcoreMaps, Meta=DeepcoreMeta;
-const {SHAPES,SHAPE_STRS,SHAPE_BY_KEY,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,getBit,bitOf,chooseSet,BIG_IDS,pickWeighted,rankMoves,rollBudget,spreadOre}=DeepcoreCore;
+const {SHAPES,SHAPE_STRS,SHAPE_BY_KEY,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,getBit,bitOf,chooseSet,chooseNext,chooseTray,BIG_IDS,pickWeighted,rankMoves,rollBudget,spreadOre}=DeepcoreCore;
 const FONT_D = '"Jersey 10", "Courier New", monospace';
 
 // ---------- texture helpers (procedural, original 16×16 pixel art) ----------
@@ -337,57 +337,71 @@ function occBits(g){ let lo=0,hi=0; for(let r=0;r<N;r++)for(let c=0;c<N;c++) if(
 // ---------- dealer: every set is solver-checked ----------
 function specialOnField(){
   for(let r=0;r<N;r++)for(let c=0;c<N;c++) if(grid[r][c] && MATS[grid[r][c]].kind==='special') return true;
-  return (pieces||[]).some(p=>p && p.mats.some(m=>MATS[m].kind==='special'));
+  return (pieces||[]).concat([nextPiece]).some(p=>p && p.mats.some(m=>MATS[m].kind==='special'));
 }
 function pickBase(){ return DeepcoreCore.pickBase(levelDef(level)); }
 function dressPiece(s,setSoFar){
   const def=levelDef(level), d2=luckLive?{...def,specialMul:(def.specialMul||1)*2}:def;   // a Potion of Luck doubles random specials
   return DeepcoreCore.dressPiece(s,d2,{dealt,budgeted:true,specialBlocked:specialOnField()||setSoFar.some(p=>p.mats.some(m=>MATS[m].kind==='special'))});
 }
-// both potions count deals: the number is the deals still to come, Live means the pieces in the tray are covered
-function potionBadge(id,txt,left,live,word,last){
-  const lit=left+(live?1:0), b=$(id); b.hidden=lit<=0;
-  b.querySelector('.pips').innerHTML=Array.from({length:POTION_DEALS},(_,i)=>`<i class="${i<lit?'on':''}"></i>`).join('');
-  $(txt).textContent=left>0?`${word}: ${left} more deal${left===1?'':'s'}`:last; return lit>0; }
+// both potions count placements (v2.3.0, the rolling tray): five pips, each worth three placements
+function potionBadge(id,txt,left,word,last){
+  const lit=Math.ceil(left/3), b=$(id); b.hidden=left<=0;
+  b.querySelector('.pips').innerHTML=Array.from({length:Math.ceil(POTION_MOVES/3)},(_,i)=>`<i class="${i<lit?'on':''}"></i>`).join('');
+  $(txt).textContent=left>1?`${word}: ${left} placements`:last; return left>0; }
 function updateLuckUI(){
-  const a=potionBadge('luckBadge','luckTxt',luck,luckLive,'Luck','Last lucky deal'), b=potionBadge('protBadge','protTxt',prot,protLive,'Protected','Last protected deal');
+  luckLive=luck>0; protLive=prot>0;
+  const a=potionBadge('luckBadge','luckTxt',luck,'Luck','Last lucky placement'), b=potionBadge('protBadge','protTxt',prot,'Protected','Last protected placement');
   $('potionBadges').classList.toggle('both',a&&b);
   $('tray').classList.toggle('lucky',luckLive); $('tray').classList.toggle('guarded',protLive);
 }
-// tap a potion in the dock to drink it. Luck starts with the next deal; Protection covers the pieces you hold now and the next deals.
+// tap a potion in the dock to drink it: it lasts POTION_MOVES placements. Luck leans the pieces dealt in that time; Protection undoes any cave-in in it.
 function drinkPotion(m){
   if(dockAnim) return;
   const i=specials.indexOf(m); if(busy||over||uiOpen()||i<0) return;
   if(m==='luck'&&luck>0 || m==='rescue'&&prot>0){ showCombo(m==='luck'?'Luck is already working':'You are already protected'); return; }
   dockRemove(i); score=Math.max(0,score+SCORE.special[m]); shown=score; updateBar();
-  if(m==='luck'){ luck=POTION_DEALS; } else { prot=POTION_DEALS-1; protLive=true; }
+  if(m==='luck') luck=POTION_MOVES; else prot=POTION_MOVES;
   renderDock(); updateLuckUI(); updateAnvilGlow(); saveProfile(); saveBoard();
   A.track(m==='luck'?'luck_drunk':'protection_drunk',{idx:level-1,score,moves}); life.seen[m]=true;
-  busy=true; const d=m==='luck'?playSplash('Potion of Luck',`The next ${POTION_DEALS} deals favour you · ${SCORE.special.luck}`,'luck')
-    :playSplash('Potion of Protection',`Safe from cave-ins for ${POTION_DEALS} deals · ${SCORE.special.rescue}`,'rescue');
+  busy=true; const d=m==='luck'?playSplash('Potion of Luck',`The next ${POTION_MOVES} placements favour you · ${SCORE.special.luck}`,'luck')
+    :playSplash('Potion of Protection',`Safe from cave-ins for ${POTION_MOVES} placements · ${SCORE.special.rescue}`,'rescue');
   setTimeout(()=>{ busy=false; },d);
 }
 const drinkLuck=()=>drinkPotion('luck');
-let bigNext=false;
+let bigNext=0;   // after an All Clear: the next few pieces dealt lean big (a count; old saves have true)
 // after 2 cave-ins on the same board today the dealer starts leaning your way (0, 0, .35, .7, then .75)
 const mercyTilt=()=>Math.min(.75,Math.max(0,((dayState.fails||{})[level-1]||0)-1)*.35);
-function dealSet(fresh){   // fresh: a Protection's replacement set, which is not a new deal and doesn't use up a potion
-  const [lo,hi]=occBits(grid); let set;
-  if(tut.active&&tut.stage===0){ set=TUT_SET.map(str=>SHAPES[SHAPE_STRS.indexOf(str)]); tut.stage=1; }
-  else if(bigNext && lo===0 && hi===0){ set=BIG_IDS.map(ids=>SHAPES[ids[Math.floor(Math.random()*ids.length)]]).sort(()=>Math.random()-.5); bigNext=false; }
-  else set=chooseSet(lo,hi,difficulty(),{luck:luck>0?1:0,tilt:mercyTilt()});
-  if(!fresh){
-    if(luck>0){ luck--; luckLive=true; } else if(luckLive){ luckLive=false; showCombo('Potion of Luck wore off'); blip(330,.2,'sine',.05); }
-    if(prot>0){ prot--; protLive=true; } else if(protLive){ protLive=false; setTimeout(()=>showCombo('Protection wore off'),luckLive?0:200); blip(300,.2,'sine',.05); }
-  }
-  updateLuckUI();
-  const out=[]; set.forEach(s=>out.push(dressPiece(s,out)));
-  // the board's ore budget: this deal's share of what is left goes into the plain blocks
-  // the budget is used up one deal early: ore in the last deal would rarely be cleared before the board ends
-  spreadOre(out,oreLeft,Math.max(1,levelDef(level).deals-dealsDone-1)); dealsDone++; pieces=out;
+// v2.3.0, the rolling tray: a board deals deals×3 pieces, one at a time. Each placement is refilled at once with the "next" piece
+// shown beside the score, and a new next piece is dealt so the tray plus it can all be placed: a cave-in is still always the player's doing.
+// dealtN counts the pieces dealt so far (tray and next), oreLeft is the ore budget still to hand out.
+let dealtN=0, nextPiece=null, oreLeft={};
+const boardTotal=()=>levelDef(level).deals*3;
+const dealOpts=()=>({luck:luck>0?1:0,tilt:mercyTilt(),big:bigNext>0});
+// dress a dealt shape and give it its share of the ore budget (used up a deal early: ore in the last pieces would rarely be cleared)
+function dealPiece(s){ dealtN++; const p=dressPiece(s,(pieces||[]).filter(Boolean)); spreadOre([p],oreLeft,Math.max(1,boardTotal()-dealtN-2)); return p; }
+function dealOne(){
+  if(dealtN>=boardTotal()) return null;
+  const [lo,hi]=occBits(grid), held=(pieces||[]).filter(Boolean).map(p=>SHAPES[p.sid]);
+  const s=chooseNext(lo,hi,held,difficulty(),dealOpts()); if(bigNext>0) bigNext--;
+  return dealPiece(s);
 }
-// v2.0.4: a board is a fixed number of deals; dealsDone counts the ones dealt so far, oreLeft is the ore budget still to hand out
-let dealsDone=0, oreLeft={};
+// a whole tray: the start of a board, or a Protection save's fresh pieces (fresh: they replace what you held, not new pieces)
+function dealSet(fresh){
+  const [lo,hi]=occBits(grid); let set;
+  if(fresh) dealtN=Math.max(0,dealtN-(pieces||[]).filter(Boolean).length-(nextPiece?1:0));   // what you held goes back to the board's supply
+  const k=Math.max(1,Math.min(3,boardTotal()-dealtN));
+  if(tut.active&&tut.stage===0){ set=TUT_SET.map(str=>SHAPES[SHAPE_STRS.indexOf(str)]); tut.stage=1; }
+  else set=chooseTray(lo,hi,k,difficulty(),dealOpts());
+  nextPiece=null; pieces=[null,null,null]; set.forEach((sh,i)=>{ pieces[i]=dealPiece(sh); });
+  nextPiece=dealOne(); updateLuckUI();
+}
+// each placement uses up a placement of any potion working
+function tickPotions(){
+  if(luck>0&&!--luck){ showCombo('Potion of Luck wore off'); blip(330,.2,'sine',.05); }
+  if(prot>0&&!--prot){ setTimeout(()=>showCombo('Protection wore off'),luck?0:200); blip(300,.2,'sine',.05); }
+  updateLuckUI();
+}
 // Starter blocks: scattered clumps, never a locked hole or a tiny sealed pocket
 function prefill(){
   const def=levelDef(level); if(!def.pre) return;
@@ -440,7 +454,7 @@ window.addEventListener('resize',layout);
 if(window.ResizeObserver) new ResizeObserver(()=>{ if(!$('app').clientHeight) return; layout(); }).observe($('app'));
 
 function buildGoals(){
-  $('goalsBar').innerHTML='<div id="scoreBox" aria-label="Board points"><b id="pscore">0</b><span id="pgoal"></span></div><div id="starChip" role="img" aria-label="Stars"><i>★</i><i>★</i><i>★</i></div>';
+  $('goalsBar').innerHTML='<div id="scoreBox" aria-label="Board points"><b id="pscore">0</b><span id="pgoal"></span></div><div id="nextBox" aria-label="Next piece"><span>NEXT</span><div><canvas></canvas></div></div><div id="starChip" role="img" aria-label="Stars"><i>★</i><i>★</i><i>★</i></div>';
   updateBar();
 }
 function updateGoals(){}
@@ -454,8 +468,8 @@ function updateBar(){
   const chip=$('starChip'); if(chip&&at.length){ chip.hidden=false; updateStarMeter(chip,shown,at); } else if(chip) chip.hidden=true;
 }
 let shown=0;
-// placements still to make on this board: the pieces in the tray plus three for every deal still to come
-function placementsLeft(){ const dd=levelDef(level); return Math.max(0,(dd.deals-dealsDone)*3+(pieces?pieces.filter(Boolean).length:0)); }
+// placements still to make on this board: the tray, the next piece and the pieces still to be dealt
+function placementsLeft(){ return Math.max(0,boardTotal()-dealtN+(pieces?pieces.filter(Boolean).length:0)+(nextPiece?1:0)); }
 // the star meter: each star fills as the points climb from the previous star line to its own, and lights up once reached
 let meterLit=0;
 function updateStarMeter(chip,y,at){
@@ -481,7 +495,18 @@ function drawPiece(ctx,p,pitch,ox=0,oy=0,alpha=1,size=pitch){
 }
 function fitsAt(p,r0,c0){ for(const [r,c] of p.cells){ const R=r0+r,C=c0+c; if(R<0||C<0||R>=N||C>=N||grid[R][C]) return false; } return true; }
 function canPlaceAnywhere(p){ for(let r=0;r<=N-p.h;r++)for(let c=0;c<=N-p.w;c++) if(fitsAt(p,r,c)) return true; return false; }
+// the slot you just emptied takes the next piece with a small drop
+function dropIn(i){ const sl=slots[i]; if(!sl) return; sl.classList.remove('drop'); void sl.offsetWidth; sl.classList.add('drop'); setTimeout(()=>sl.classList.remove('drop'),300); }
+// the next piece, small, beside the score: it drops into the slot you empty with your next placement
+function drawNext(){
+  const box=$('nextBox'); if(!box) return; const cv=box.querySelector('canvas'), p=nextPiece;
+  box.classList.toggle('none',!p); if(!p){ cv.hidden=true; return; }
+  const c=6, pitch=c+1, w=p.w*pitch-1, h=p.h*pitch-1;
+  cv.hidden=false; cv.style.width=w+'px'; cv.style.height=h+'px'; cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr);
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); drawPiece(ctx,p,pitch,0,0,1,c);
+}
 function drawTray(){
+  drawNext();
   if(!pieces) return;
   // one fixed piece size for every piece (20pt on a 390pt screen), big enough that a 1x5 bar fits its slot: nothing ever resizes
   const sw=slots[0].clientWidth, sh=slots[0].clientHeight; trayCell=sw>0?Math.max(12,Math.min(20,Math.floor((sw-12)/5),Math.floor((sh-4)/5)-2)):20;
@@ -815,7 +840,7 @@ function startBoard(idx){
   practice=false; reached=false; reachScore=0; clearBonus=0; decided=true; clearHint(); closeSheet();   // replays give ore again: the stash is kept for the whole descent
   life.zones[boardDef(idx).zone]=true;
   const att=dayState.attempts=dayState.attempts||{}; att[idx]=(att[idx]||0)+1; saveDay();
-  undo=null; hand={}; dealt={}; meterLit=0; dealsDone=0; oreLeft=rollBudget(boardDef(idx).budget); level=idx+1; score=0; shown=0; collected={}; shownCol={}; since={}; bigNext=false; grid=emptyGrid(); pieces=null; combo=0; sinceClear=0; over=false; moves=0; busy=false;
+  undo=null; hand={}; dealt={}; meterLit=0; dealtN=0; nextPiece=null; oreLeft=rollBudget(boardDef(idx).budget); level=idx+1; score=0; shown=0; collected={}; shownCol={}; since={}; bigNext=0; grid=emptyGrid(); pieces=null; combo=0; sinceClear=0; over=false; moves=0; busy=false;
   prefill();
   updateStash(); $('over').hidden=true; buildGoals(); updateHUD(); dealSet(); drawTray(); showBanner(); saveBoard();
   if(tut.active) setTimeout(()=>{ if(tut.active&&screen==='game') tutorStart(); },2300);
@@ -902,7 +927,7 @@ let boardFlash=null;
 function rateMove(i,r0,c0){
   const p=pieces[i], s=SHAPES[p.sid]; if(!s) return null;
   const [lo,hi]=occBits(grid), base=countHoles(lo,hi);
-  const rest=pieces.filter((q,j)=>q&&j!==i).map(q=>SHAPES[q.sid]).filter(Boolean);
+  const rest=pieces.filter((q,j)=>q&&j!==i).concat(nextPiece?[nextPiece]:[]).map(q=>SHAPES[q.sid]).filter(Boolean);   // the next piece drops in after this placement
   const fits=s.pl.filter(q=>!(lo&q.lo)&&!(hi&q.hi));
   if(fits.length<4) return null;
   let good=[];
@@ -931,7 +956,7 @@ async function place(i,r0,c0){
   skipFlag=false; $('skipHint').hidden=true;
   const p=pieces[i];
   const rating=rateMove(i,r0,c0);
-  undo=JSON.parse(JSON.stringify({grid,pieces,score,combo,sinceClear,collected,hand,since,bigNext,moves,dealt,dealsDone,oreLeft}));
+  undo=JSON.parse(JSON.stringify({grid,pieces,nextPiece,score,combo,sinceClear,collected,hand,since,bigNext,moves,dealt,dealtN,oreLeft}));
   p.cells.forEach(([r,c],k)=>grid[r0+r][c0+c]=p.mats[k]);
   score+=SCORE.block*p.cells.length; pieces[i]=null; blip(140,.07,'square',.06); moves++;
   if(rating){ const B=boardC.getBoundingClientRect(); floatText(B.left+(c0+p.w/2)*cell,B.top+(r0+p.h/2)*cell,rating.word,rating.col); blip(1175,.08,'triangle',.05); blip(1568,.1,'triangle',.05,.07); }
@@ -971,18 +996,18 @@ async function place(i,r0,c0){
       if(sp.m==='sledgehammer'){ doShake(); await skippable(REDUCE?400:900); }
     }
     if(grid.every(row=>row.every(v=>!v))){
-      const ac=allClearBonus(); score+=ac; bigNext=true; A.track('all_clear',{bonus:ac,score_after:score,target:levelDef(level).target});
+      const ac=allClearBonus(); score+=ac; bigNext=3; A.track('all_clear',{bonus:ac,score_after:score,target:levelDef(level).target});
       showSkip(); playAllClear(ac); await skippable(REDUCE?600:1300);
     }
   } else { sinceClear++; combo=0; }   // the streak breaks on any placement that clears nothing
   busy=false; $('skipHint').hidden=true; skipFlag=false; updateDur();
   if(toolBreakable()&&dayState.dur<=0&&zoneOfIdx(level-1)===CRUST_Z){ toolBreak(); return; }
-  // the tray is empty: deal the next set, or, after the board's last deal, the board is done
-  if(pieces.every(q=>!q)){ if(dealsDone>=levelDef(level).deals){ drawTray(); updateHUD(); reachTarget(); return; } dealSet(); }
-  drawTray();
+  // the rolling tray: the emptied slot takes the next piece and a new next piece is dealt; once every piece is placed the board is done
+  pieces[i]=nextPiece; nextPiece=dealOne(); if(pieces[i]) dropIn(i);
+  if(pieces.every(q=>!q)){ tickPotions(); drawTray(); updateHUD(); reachTarget(); return; }
   updateHUD(); drawTray(); updateComboMeter(); clearHint(); updateHintBtn(); tutorAfterPlace(n);
-  if(pieces.every(q=>!q||!canPlaceAnywhere(q))) gameOver();
-  saveBoard(); saveProfile();
+  if(pieces.every(q=>!q||!canPlaceAnywhere(q))){ gameOver(); saveBoard(); saveProfile(); return; }   // a protected cave-in is undone before the potion ticks
+  tickPotions(); saveBoard(); saveProfile();
 }
 // Placing every piece of the board's last deal ends it (v2.0.4). Its stars come from its points against the layer's star lines.
 // The results sheet offers CONTINUE (bank the haul, the points and the stars) or RETRY, a clean restart: this run's ore, points
@@ -1129,9 +1154,9 @@ function updateDur(){ const c=$('durChip'); if(!c) return; const z=level?zoneOfI
 // Nothing saves you after a cave-in has happened (v2.2.0): the cave-in screen offers only Retry and Map.
 function useRescue(mode){
   A.track('rescue_used',{idx:level-1,score,moves,mode}); life.seen.rescue=true;
-  if(undo){ ({grid,pieces,score,combo,sinceClear,collected,hand,since,bigNext,moves,dealt}=JSON.parse(JSON.stringify(undo))); dealsDone=undo.dealsDone??dealsDone; oreLeft=undo.oreLeft||oreLeft; hand=hand||{}; shownCol={...collected}; }
+  if(undo){ ({grid,pieces,score,combo,sinceClear,collected,hand,since,bigNext,moves,dealt}=JSON.parse(JSON.stringify(undo))); nextPiece=undo.nextPiece||null; dealtN=undo.dealtN??dealtN; oreLeft=undo.oreLeft||oreLeft; hand=hand||{}; shownCol={...collected}; }
   shown=score; undo=null; over=false; $('over').hidden=true; updateComboMeter();
-  dealsDone=Math.max(0,dealsDone-1); dealSet(true);   // the fresh set replaces the tray, it is not an extra deal
+  dealSet(true);   // fresh pieces replace the tray and the next piece; they are not extra placements
   buildGoals(); updateHUD(); updateStash(); renderDock(); drawTray(); updateAnvilGlow();
   busy=true; const d=playSaved('Last move undone · fresh pieces'); setTimeout(()=>{ busy=false; },d);
   saveBoard(); saveProfile();
@@ -1165,12 +1190,12 @@ function caveInTip(){
 function showOver(){
   const dd=levelDef(level), tg=dd.target||0; $('finalScore').textContent=score.toLocaleString();
   {
-    const pct=dd.deals?Math.min(100,Math.round(100*(dealsDone-1)/dd.deals)):0, fails=(dayState.fails||{})[level-1]||0;
-    $('overWhy').textContent=dealsDone>=dd.deals?`So close! The cave gave way on the last deal.`:`The cave gave way with ${placementsLeft()} of ${dd.deals*3} placements left.`;
+    const pct=dd.deals?Math.min(100,Math.round(100*(1-placementsLeft()/boardTotal()))):0, fails=(dayState.fails||{})[level-1]||0;
+    $('overWhy').textContent=placementsLeft()<=3?`So close! The cave gave way with ${placementsLeft()} placement${placementsLeft()===1?'':'s'} to go.`:`The cave gave way with ${placementsLeft()} of ${dd.deals*3} placements left.`;
     $('overBar').firstElementChild.style.width=pct+'%'; $('overBar').hidden=false;
     $('finalNote').textContent='Ore hauled on this attempt is lost. Your stash and crafted specials are safe.';
     $('overTip').textContent=caveInTip()+(fails>=2?' The dealer will go easier on your next try.':''); $('retry').textContent='Retry board';
-    if(dockCount('rescue')) $('overTip').textContent='You were holding a Potion of Protection. Tap it in the dock to drink it before you get stuck: it guards you for '+POTION_DEALS+' deals.';
+    if(dockCount('rescue')) $('overTip').textContent='You were holding a Potion of Protection. Tap it in the dock to drink it before you get stuck: it guards you for '+POTION_MOVES+' placements.';
   }
   $('over').hidden=false; blip(110,.4,'sawtooth',.05);
 }
@@ -1366,7 +1391,7 @@ function recipeRows(box){
   });
 }
 function renderAnvil(){ const box=$('recipes'); box.innerHTML=''; $('anvilTitle').textContent=wsAt==='anvil'?'Anvil':'Brewing table';
-  $('anvilTag').textContent=wsAt==='anvil'?'Smelt ore into equipment, then drag it straight onto the board. Workshop upgrades are built here too.':`Brew potions, then tap one in its slot to drink it. Each lasts ${POTION_DEALS} deals.`; recipeRows(box); }
+  $('anvilTag').textContent=wsAt==='anvil'?'Smelt ore into equipment, then drag it straight onto the board. Workshop upgrades are built here too.':`Brew potions, then tap one in its slot to drink it. Each lasts ${POTION_MOVES} placements.`; recipeRows(box); }
 function openWorkshop(at,focus){
   if(busy&&!over||screen!=='game') return;
   if(at==='brew'&&!wk().table){ at='anvil'; focus='table'; }
@@ -1382,7 +1407,7 @@ function buildWorkshop(id){
   updateStash(Object.keys(w.cost)); renderDock(); renderAnvil();
   [392,523,659,784,1047,1319].forEach((f,j)=>blip(f,.12,'triangle',.06,j*.07));
   const tile=document.querySelector(id==='equip2'?'#eqSlots .tool:nth-child(2)':'#potSlots .tool:nth-child('+(id==='potion2'?2:1)+')'); if(tile){ tile.classList.add('land'); }
-  if(id==='table') tipOnce('brew',()=>toast(`Brewing table built! Tap BREW to make potions. Tap a potion in its slot to drink it: it lasts ${POTION_DEALS} deals.`,5600));
+  if(id==='table') tipOnce('brew',()=>toast(`Brewing table built! Tap BREW to make potions. Tap a potion in its slot to drink it: it lasts ${POTION_MOVES} placements.`,5600));
   else showCombo(w.name+' built!');
 }
 const costChips=(cost)=>{ const c=document.createElement('div'); c.className='cost'; Object.entries(cost).forEach(([k,v])=>{ const sp=document.createElement('span'), have=bank[k]||0; if(have<v) sp.className='short'; sp.append(iconOf(ITEM[k]),document.createTextNode(`${Math.min(have,v)}/${v}`)); sp.title=DROPS[k][0]; c.append(sp); }); return c; };
@@ -1462,12 +1487,12 @@ function resRow(cv,name,rarity,pts,line1,line2){
 function iconOf(src){ const cv=document.createElement('canvas'); cv.width=cv.height=T; cv.getContext('2d').drawImage(src,0,0); return cv; }
 const INFO_TABS={
   Play(b){
-    b.append(infoEl('h3','THE GOAL'),infoEl('p',`Drag the three pieces onto the 8×8 board. Fill a whole row or column and it clears, mining every block in it. Each board deals a set number of sets of pieces: place them all, scoring enough points for at least one star, and the board is cleared. Board by board you dig down through seven layers to the Ancient Core at the heart of the world. It takes a couple of weeks of daily play.`));
-    b.append(infoEl('h3','CAVE-IN'),infoEl('p',`If none of your three pieces can fit anywhere before the last deal is placed, the cave collapses and the board ends. Ore you hauled on that attempt is lost, so keep your options open.`));
+    b.append(infoEl('h3','THE GOAL'),infoEl('p',`Drag the three pieces onto the 8×8 board. Fill a whole row or column and it clears, mining every block in it. Each piece you place is replaced at once by the NEXT piece shown beside the score, so you can plan ahead. A board has a set number of placements: make them all, scoring enough points for at least one star, and the board is cleared. Board by board you dig down through seven layers to the Ancient Core at the heart of the world. It takes a couple of weeks of daily play.`));
+    b.append(infoEl('h3','CAVE-IN'),infoEl('p',`If none of your three pieces can fit anywhere before the last placement, the cave collapses and the board ends. Ore you hauled on that attempt is lost, so keep your options open.`));
     b.append(infoEl('h3','HAULING ORE'),infoList([`Ore, gems and wood you mine on a board show up in the stash strip as a green +number. That's your haul for this attempt.`,`Clear the board and the haul joins your stash, which you keep for the whole descent. Cave in without a Potion of Protection and that haul is lost.`,`Replaying a board you've already cleared gives ore too, so you can always gather more.`]));
-    b.append(infoEl('h3','SCORING'),infoList([`Every block you place scores ${SCORE.block}. Every line you clear scores ${SCORE.line}. Mining ore and gems gives resources, not points.`,`Clear 2, 3 or 4 lines with one piece for a Double (+${SCORE.combo[2]}), Triple (+${SCORE.combo[3]}) or Quad (+${SCORE.combo[4]}).`,`Streak: clear on back-to-back placements. Each clear in a row after the first adds +${SCORE.streakStep}, up to +${SCORE.streakMax}. A placement that clears nothing ends the streak.`,`All Clear (an empty board) adds +${SCORE.allClear}, then deals a big easy set.`,`Blast Charge +${SCORE.special.blast}, Sledgehammer +${SCORE.special.sledgehammer}. A Potion of Luck costs ${-SCORE.special.luck} points and a Potion of Protection ${-SCORE.special.rescue}.`,`"Perfect!" means yours was the only placement that kept the whole tray playable; "Great fit!" one of two or three.`,`If you cave in twice on the same board, the dealer starts to go easier on you.`]));
-    b.append(infoEl('h3','STARS'),infoList([`A board is a fixed number of deals. Place every piece and its points earn 0 to 3 stars; the star lines rise layer by layer.`,`The three stars next to the score bar fill up as you score and light up as you earn them.`,`Deep down, stars come from combos and streaks: the blocks and the lines you have to clear anyway are not enough.`,`At the end, CONTINUE banks your haul and stars, or RETRY plays the board again for more stars. A retry starts over: that run's haul is not kept. Stars you already earned on a board stay.`,`Score too little for one star and the board is not cleared: retry it. Each star after the first adds bonus points to your day.`]));
-    b.append(infoEl('h3','HINT AND DAILY TWIST'),infoList([`The bulb with a question mark in the top bar spends 3 coal to show a good move.`,`Every day has one twist, such as Gold Rush or Forge Day. It's shown on the map and the home screen.`]));
+    b.append(infoEl('h3','SCORING'),infoList([`Every block you place scores ${SCORE.block}. Every line you clear scores ${SCORE.line}. Mining ore and gems gives resources, not points.`,`Clear 2, 3 or 4 lines with one piece for a Double (+${SCORE.combo[2]}), Triple (+${SCORE.combo[3]}) or Quad (+${SCORE.combo[4]}).`,`Streak: clear on back-to-back placements. Each clear in a row after the first adds +${SCORE.streakStep}, up to +${SCORE.streakMax}. A placement that clears nothing ends the streak.`,`All Clear (an empty board) adds +${SCORE.allClear}, and the next pieces are big easy ones.`,`Blast Charge +${SCORE.special.blast}, Sledgehammer +${SCORE.special.sledgehammer}. A Potion of Luck costs ${-SCORE.special.luck} points and a Potion of Protection ${-SCORE.special.rescue}.`,`"Perfect!" means yours was the only placement that kept the whole tray playable; "Great fit!" one of two or three.`,`If you cave in twice on the same board, the dealer starts to go easier on you.`]));
+    b.append(infoEl('h3','STARS'),infoList([`A board is a fixed number of placements. Make them all and your points earn 0 to 3 stars; the star lines rise layer by layer. Three stars are within reach on every board if you plan ahead with the next piece.`,`The three stars next to the score bar fill up as you score and light up as you earn them.`,`Deep down, stars come from combos and streaks: the blocks and the lines you have to clear anyway are not enough.`,`At the end, CONTINUE banks your haul and stars, or RETRY plays the board again for more stars. A retry starts over: that run's haul is not kept. Stars you already earned on a board stay.`,`Score too little for one star and the board is not cleared: retry it. Each star after the first adds bonus points to your day.`]));
+    b.append(infoEl('h3','HINT AND DAILY TWIST'),infoList([`Hint, in the top bar, spends ${HINT_COST} coal to show a good move. It asks first.`,`Every day has one twist, such as Gold Rush or Forge Day. It's shown on the map and the home screen.`]));
     b.append(infoEl('h3','HOW TO GET BETTER'),infoList([`Look at all three pieces before you place any. Plan the order.`,`Keep one row and one column mostly open so long bars still fit.`,`Avoid sealing off single empty cells or tiny pockets; they can only be filled by a matching piece, if one ever comes.`,`Build rows and columns up to one piece away from full, then finish several at once for a combo.`,`Gold glow under your piece means the drop will clear a line.`,`Save Blast Charges and Jackhammers for tight spots, not to pad your score.`]));
     b.append(infoEl('h3','EVERY DAY COUNTS'),infoList([`Clear at least one board each day (Pacific time) to keep your depth.`,`Miss a whole day and the cave settles: you drop back to your layer's camp (its first board, once you've cleared it). Your tools and stash are always kept.`,`Each day also brings a new twist.`]));
   },
@@ -1480,13 +1505,13 @@ const INFO_TABS={
   },
   Crafting(b){
     b.append(infoEl('h3','THREE KINDS OF CRAFTING'),infoEl('p',`Tools are forged on the map (the Craft button at the top). During a board, equipment is crafted at the anvil (CRAFT, left of your dock) and potions at the brewing table (BREW, on the right), once you've built one.`));
-    b.append(infoEl('h3','HOW'),infoList([`You start with one equipment slot. Build a brewing table at the anvil (${Object.entries(WORKSHOP.table.cost).map(([k,v])=>`${v} ${DROPS[k][0].toLowerCase()}`).join(', ')}) to unlock potions and a potion slot. A second slot of each kind is a big late-run goal.`,`Drag a Blast Charge onto the board to blow up the 3×3 patch under it, or a Sledgehammer to shake the blocks into a fresh layout.`,`Tap a potion to drink it. It lasts ${POTION_DEALS} deals; the pips over the tray count them down.`,`A full slot? Crafting another opens a sheet where you pick one to destroy. Your ore is only spent if you go ahead.`]));
+    b.append(infoEl('h3','HOW'),infoList([`You start with one equipment slot. Build a brewing table at the anvil (${Object.entries(WORKSHOP.table.cost).map(([k,v])=>`${v} ${DROPS[k][0].toLowerCase()}`).join(', ')}) to unlock potions and a potion slot. A second slot of each kind is a big late-run goal.`,`Drag a Blast Charge onto the board to blow up the 3×3 patch under it, or a Sledgehammer to shake the blocks into a fresh layout.`,`Tap a potion to drink it. It lasts ${POTION_MOVES} placements; the pips over the tray count them down.`,`A full slot? Crafting another opens a sheet where you pick one to destroy. Your ore is only spent if you go ahead.`]));
     b.append(infoEl('h3','WHAT YOU CAN CRAFT'));
     craftList().forEach(c=>{ const row=infoEl('div',undefined,'irow'); row.append(iconOf(c.icon||(c.item?ITEM[c.item]:(SPR[c.mat]||TEX[c.mat])))); const d=infoEl('div'); d.append(infoEl('div',c.name,'nm'),infoEl('div',c.desc,'meta'),
       infoEl('div','Costs: '+Object.entries(c.cost).map(([k,v])=>`${v} ${DROPS[k][0]}`).join(', '),'meta')); row.append(d); b.append(row); });
     b.append(infoEl('h3','TOOLS'),infoList([`Each layer is harder rock and needs better tools: branch tools for the Forest, then bone (from bones in the dirt), copper (Limestone), iron (Slate), steel (iron and coal from Granite) and Galaxy Alloy (meteorite from Basalt).`,`Short of something? Replay boards you have already cleared: replays give ore too.`,`Each layer's 8 boards rarely give quite enough for the next tools on their own: replay a few cleared boards to make up the rest.`]));
     b.append(infoEl('h3','THE ANCIENT CORE'),infoList([`Below the Crust lies the Core: one piece, one spot. What happens next is for you to find out.`]));
-    b.append(infoEl('h3','WHY IT HELPS'),infoList([`Blast Charge (+${SCORE.special.blast}) and Sledgehammer (+${SCORE.special.sledgehammer}) rescue a crowded board and score points. What a Blast Charge breaks is lost, not mined.`,`Potion of Protection (${SCORE.special.rescue} points): for ${POTION_DEALS} deals, a cave-in undoes your last move and deals fresh pieces, and you keep your haul. Drink it before you get stuck.`,`Potion of Luck (${SCORE.special.luck} points): for ${POTION_DEALS} deals the dealer favours pieces that fill gaps and clear lines, and random specials turn up twice as often.`]));
+    b.append(infoEl('h3','WHY IT HELPS'),infoList([`Blast Charge (+${SCORE.special.blast}) and Sledgehammer (+${SCORE.special.sledgehammer}) rescue a crowded board and score points. What a Blast Charge breaks is lost, not mined.`,`Potion of Protection (${SCORE.special.rescue} points): for ${POTION_MOVES} placements, a cave-in undoes your last move and deals fresh pieces, and you keep your haul. Drink it before you get stuck.`,`Potion of Luck (${SCORE.special.luck} points): for ${POTION_MOVES} placements the dealer favours pieces that fill gaps and clear lines, and random specials turn up twice as often.`]));
   },
   Specials(b){
     b.append(infoEl('p',`These appear on their own inside pieces, now and then, more often the deeper you go. You can't craft them. When the line they sit in clears, they pay out resources (no points).`));
@@ -1541,7 +1566,7 @@ async function useSpecial(m,r,c){
     grid[r][c]='blast'; const count=await detonate(r,c,hit); const pts=SCORE.special.blast*count; score+=pts;
     for(const sp of hit){ showSkip(); await skippable(playSpecial(sp)); }
     showSkip(); await skippable(playSplash('Blast Charge',`+${pts}`,'blast'));
-    if(grid.every(row=>row.every(v=>!v))){ const ac=allClearBonus(); score+=ac; bigNext=true; showSkip(); playAllClear(ac); await skippable(REDUCE?600:1300); }
+    if(grid.every(row=>row.every(v=>!v))){ const ac=allClearBonus(); score+=ac; bigNext=3; showSkip(); playAllClear(ac); await skippable(REDUCE?600:1300); }
   } else if(m==='sledgehammer'){
     score+=SCORE.special.sledgehammer; doShake(); showSkip(); await skippable(playSplash('Sledgehammer',`+${SCORE.special.sledgehammer}`,'sledgehammer')); await skippable(REDUCE?300:700);
   }
@@ -1589,7 +1614,7 @@ function checkDay(){
   }
   life.twists[modifierFor(today).id]=true;
 }
-function saveBoard(){ if(!pieces) return; lsSet(K_BOARD,{seed:dayState.seed,day:dayState.day,idx:level-1,practice,reached,reachScore,clearBonus,decided,grid,pieces,score,combo,sinceClear,collected,hand,since,bigNext,moves,over,undo,dealt,dealsDone,oreLeft}); saveProfile(); }
+function saveBoard(){ if(!pieces) return; lsSet(K_BOARD,{seed:dayState.seed,day:dayState.day,idx:level-1,practice,reached,reachScore,clearBonus,decided,grid,pieces,nextPiece,score,combo,sinceClear,collected,hand,since,bigNext,moves,over,undo,dealt,dealtN,oreLeft}); saveProfile(); }
 function clearBoardSave(){ lsDel(K_BOARD); }
 // a saved board is only trusted if it has the right shape; anything else (an old format, a damaged save) is discarded
 function validBoard(b){
@@ -1601,7 +1626,7 @@ const okMat=m=>MATS[m]?m:(m==='cinnabar'?'ruby':m==='jackhammer'?'sledgehammer':
 function restoreBoard(b){
   level=b.idx+1; ({grid,pieces,score,combo,sinceClear,collected}=b);
   grid=grid.map(row=>row.map(m=>m&&okMat(m))); pieces=pieces.map(p=>p&&{...p,mats:p.mats.map(okMat)});
-  hand=b.hand||{}; practice=!!b.practice; reached=!!b.reached; reachScore=b.reachScore||0; clearBonus=b.clearBonus||0; decided=b.decided!==false; clearHint(); since=b.since||{}; bigNext=!!b.bigNext; moves=b.moves||0; over=!!b.over; undo=b.undo||null; dealt=b.dealt||{}; dealsDone=b.dealsDone??levelDef(level).deals; oreLeft=b.oreLeft||{}; shownCol={...collected}; shown=score; busy=false;
+  hand=b.hand||{}; practice=!!b.practice; reached=!!b.reached; reachScore=b.reachScore||0; clearBonus=b.clearBonus||0; decided=b.decided!==false; clearHint(); since=b.since||{}; bigNext=+b.bigNext||0; moves=b.moves||0; over=!!b.over; undo=b.undo||null; dealt=b.dealt||{}; dealtN=b.dealtN??Math.min(boardTotal(),(b.dealsDone??levelDef(level).deals)*3); nextPiece=b.nextPiece?{...b.nextPiece,mats:b.nextPiece.mats.map(okMat)}:null; oreLeft=b.oreLeft||{}; if(!nextPiece&&!over&&!reached) nextPiece=dealOne();   // a pre-2.3.0 save gets its next piece now shownCol={...collected}; shown=score; busy=false;
   $('over').hidden=true; buildGoals(); updateHUD(); updateStash(); renderDock(); drawTray();
   updateLuckUI(); renderDock(); updateComboMeter(); if(reached&&!decided){ busy=true; setTimeout(()=>{ if(reached&&!decided&&screen==='game') showResult(); },500); }
   boardT0=lastAct=performance.now(); A.setBoard(boardLabel(b.idx)); A.track('board_resume',{idx:b.idx,label:boardLabel(b.idx),score,moves});
@@ -1866,7 +1891,7 @@ function openCard(i){
     if(can){ go.textContent=`Forge ${T0.name}`; note.textContent=`${ZONES[z].name} is too hard for your ${TOOLS[tool()].short.toLowerCase()} tools.`; go.dataset.gate='forge'; }
     else { go.textContent='Open the Forge'; note.textContent=`Not enough yet. Replay boards in ${ZONES[prevZ].name} to gather more (replays give ore).`; go.dataset.gate='craft'; }
   } else {
-    const tgt=document.createElement('span'); tgt.className='tgt'; tgt.textContent=`${def.deals} deals · ★ ${def.starAt.map(v=>v.toLocaleString()).join(' / ')}`; g.append(tgt);
+    const tgt=document.createElement('span'); tgt.className='tgt'; tgt.textContent=`${def.deals*3} placements · ★ ${def.starAt.map(v=>v.toLocaleString()).join(' / ')}`; g.append(tgt);
     [...def.ores, ...Object.keys(def.gems||{})].forEach(res=>{ const s=document.createElement('span'); s.title=DROPS[res][0]; s.append(iconOf(ITEM[res])); g.append(s); });
     if(!open){ go.disabled=true; go.textContent='Locked'; note.textContent=`Mine board ${boardLabel(i-1)} first.`; }
     else { go.disabled=false; go.textContent=(sb&&sb.idx===i)?'Continue':done?'Mine again':'Mine this board';
@@ -2093,8 +2118,8 @@ function tutorFinish(skipped){ if(!tut.active&&life.tutorialDone) return; tut.ac
 function tutorAfterPlace(n){
   if(!tut.active) return; tut.placed++;
   if(n>0){ showTutor('Row cleared! Every block in it was mined, and the ore goes to your haul (the green +numbers). Place every piece the board deals you, scoring enough for a star, to clear it. If no piece fits, the cave collapses.',true); clearHint(); return; }
-  const next=pieces.findIndex(p=>p);
-  if(next>=0&&tutorHintFor(next)) showTutor(tut.placed===1?'Nice! Fill the rest of the bottom row.':'One more piece completes the row.',false);
+  const next=tut.placed;   // the scripted pieces go in slot order; the slots they leave are refilled
+  if(next<3&&tutorHintFor(next)) showTutor(tut.placed===1?'Nice! Fill the rest of the bottom row.':'One more piece completes the row.',false);
   else { clearHint(); showTutor('Fill a whole row or a whole column to clear it.',false); }
 }
 const tutorBlocks=(i,t)=>tut.active&&!!hintInfo&&(i!==hintInfo.i||t.r0!==hintInfo.r0||t.c0!==hintInfo.c0);
@@ -2192,7 +2217,7 @@ if(['localhost','127.0.0.1','[::1]'].includes(location.hostname) && /[?&]debug\b
   place:(i,r,c)=>place(i,r,c), state:()=>({reached,reachScore,clearBonus,decided,hintInfo,combo,sinceClear,grid,pieces,score,busy,over,bank,hand,luck,luckLive,specials,crafted:Object.fromEntries(RECIPES.map(r=>[r.m,dockCount(r.m)])),dealt,screen,level,dayState}),
   fits:(p,r,c)=>fitsAt(p,r,c), setCell:(r,c,m)=>{grid[r][c]=m;}, setPieces:(ps)=>{pieces=ps; drawTray();},
   give:(b)=>{Object.assign(bank,b); updateStash();}, def:()=>levelDef(level), start:(i)=>{show('game'); startBoard(i);},
-  setScore:(v)=>{score=v;}, bar:()=>{ shown=score; updateBar(); }, lastDeal:()=>{ dealsDone=levelDef(level).deals; }, deals:()=>({done:dealsDone,of:levelDef(level).deals,oreLeft}), setCollected:(o)=>{collected=o;}, collected:()=>collected, tickDay:()=>refreshIfNewDay(), fx:()=>({fxList:fxList.length,fxParts:fxParts.length,particles:particles.length}), setDayRaw:(d)=>{ dayState.day=d; saveDay(); }, musicOn:()=>!!(music&&music.isOn()), life:()=>life, settings:()=>settings, tut:()=>tut, fillHome:()=>fillHome(), showHome:()=>showHome(), resetText:()=>Meta.resetText(), share:()=>doShare(), reach:()=>reachTarget(), hint:()=>useHint(), mod:()=>modifierFor(dayState.day), tcost:(t)=>tcost(t), addSpecial:(m)=>{ specials.push(m); renderDock(); updateAnvilGlow(); }, tilt:()=>mercyTilt(), practice:()=>practice, previewDay:(d)=>{ dayState.day=d; buildMap(); }, setTool:(t,dur)=>{ dayState.tool=t; if(dur!==undefined) dayState.dur=dur; saveDay(); }, run:()=>dayState, forge:(t)=>forgeTool(t), mend:()=>mendTools(), settle:()=>{ settle(dayState.day); saveDay(); }, setRun:(o)=>{ Object.assign(dayState,o); saveDay(); }, frontier:()=>frontier(), openCore:()=>openCore(), placePortal:()=>placePortal(), fragments:(n)=>{ if(n!==undefined){ fragments=n; saveProfile(); } return fragments; }, markDone:(a)=>{ dayState.done=a.slice(); saveDay(); }, openMap:()=>showMap({}), buildMap:()=>buildMap(), mapInfo:()=>({maxY:mapState().maxY,map:MAP}), newDay:(d)=>{ const s0=lsGet(K_DAY); if(s0){ s0.day=d; lsSet(K_DAY,s0); } checkDay(); }, history:()=>({}), setBank:(b)=>{ bank=b; updateStash(); }, craftTool:(t)=>forgeTool(t),    allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:(m)=>drinkPotion(m||'luck'), workshop:(id)=>{ if(id){ const w=WORKSHOP[id]; if(w&&!wk()[id]){ wk()[id]=1; saveDay(); renderDock(); } } return {...wk()}; }, build:(id)=>buildWorkshop(id), openWs:(at)=>openWorkshop(at), fitDock:()=>fitDock(), potions:()=>({luck,luckLive,prot,protLive}), deal:()=>dealSet(), complete:()=>{ if(!reached){ reached=true; reachScore=score; decided=false; } if(starsNow()<1) score=Math.max(score,starAt()[0]); bankBoard(); }, result:()=>showResult(), retry:()=>retryBoard(), audioState:()=>ac?ac.state:'none',
+  setScore:(v)=>{score=v;}, bar:()=>{ shown=score; updateBar(); }, lastDeal:()=>{ dealtN=boardTotal(); nextPiece=null; drawTray(); }, deals:()=>({dealt:dealtN,total:boardTotal(),of:levelDef(level).deals,left:placementsLeft(),next:nextPiece,oreLeft}), setNext:(p)=>{ nextPiece=p; drawTray(); }, tickPotions:(n=1)=>{ for(let k=0;k<n;k++) tickPotions(); }, setCollected:(o)=>{collected=o;}, collected:()=>collected, tickDay:()=>refreshIfNewDay(), fx:()=>({fxList:fxList.length,fxParts:fxParts.length,particles:particles.length}), setDayRaw:(d)=>{ dayState.day=d; saveDay(); }, musicOn:()=>!!(music&&music.isOn()), life:()=>life, settings:()=>settings, tut:()=>tut, fillHome:()=>fillHome(), showHome:()=>showHome(), resetText:()=>Meta.resetText(), share:()=>doShare(), reach:()=>reachTarget(), hint:()=>useHint(), mod:()=>modifierFor(dayState.day), tcost:(t)=>tcost(t), addSpecial:(m)=>{ specials.push(m); renderDock(); updateAnvilGlow(); }, tilt:()=>mercyTilt(), practice:()=>practice, previewDay:(d)=>{ dayState.day=d; buildMap(); }, setTool:(t,dur)=>{ dayState.tool=t; if(dur!==undefined) dayState.dur=dur; saveDay(); }, run:()=>dayState, forge:(t)=>forgeTool(t), mend:()=>mendTools(), settle:()=>{ settle(dayState.day); saveDay(); }, setRun:(o)=>{ Object.assign(dayState,o); saveDay(); }, frontier:()=>frontier(), openCore:()=>openCore(), placePortal:()=>placePortal(), fragments:(n)=>{ if(n!==undefined){ fragments=n; saveProfile(); } return fragments; }, markDone:(a)=>{ dayState.done=a.slice(); saveDay(); }, openMap:()=>showMap({}), buildMap:()=>buildMap(), mapInfo:()=>({maxY:mapState().maxY,map:MAP}), newDay:(d)=>{ const s0=lsGet(K_DAY); if(s0){ s0.day=d; lsSet(K_DAY,s0); } checkDay(); }, history:()=>({}), setBank:(b)=>{ bank=b; updateStash(); }, craftTool:(t)=>forgeTool(t),    allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:(m)=>drinkPotion(m||'luck'), workshop:(id)=>{ if(id){ const w=WORKSHOP[id]; if(w&&!wk()[id]){ wk()[id]=1; saveDay(); renderDock(); } } return {...wk()}; }, build:(id)=>buildWorkshop(id), openWs:(at)=>openWorkshop(at), fitDock:()=>fitDock(), potions:()=>({luck,luckLive,prot,protLive}), deal:()=>dealSet(), complete:()=>{ if(!reached){ reached=true; reachScore=score; decided=false; } if(starsNow()<1) score=Math.max(score,starAt()[0]); bankBoard(); }, result:()=>showResult(), retry:()=>retryBoard(), audioState:()=>ac?ac.state:'none',
 }};
 start();
 })();

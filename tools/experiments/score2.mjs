@@ -5,7 +5,7 @@
 //   a board is a fixed number of deals; placing every piece completes it, a cave-in fails it
 //   stars: bonus points (score minus the 10/block base) against 300 / 600 / 900 x the layer's star scale
 // Usage: node tools/experiments/score2.mjs [--runs 40] [--zones 0,1,3,5,6] [--deals 6] [--bots mid,good,skilled]
-import { D, C, args, prefill, bitsOf } from '../simlib.mjs';
+import { D, C, args, prefill, bitsOf, ROLLING, roller } from '../simlib.mjs';
 const RUNS = +(args.runs || 40), ZS = String(args.zones || '0,1,2,3,4,5,6').split(',').map(Number);
 const BOTS = String(args.bots || 'mid,good,skilled').split(',');
 const DEALS = args.deals ? String(args.deals).split(',').map(Number) : null;   // one value, or one per zone
@@ -53,11 +53,13 @@ function setupVal(lo, hi) { let v = 0;   // lines one or two blocks from full ar
   for (let r = 0; r < 8; r++) { let f = 0; for (let c = 0; c < 8; c++) f += C.getBit(lo, hi, r, c); if (f >= 6 && f < 8) v += f - 5; }
   for (let c = 0; c < 8; c++) { let f = 0; for (let r = 0; r < 8; r++) f += C.getBit(lo, hi, r, c); if (f >= 6 && f < 8) v += f - 5; }
   return v; }
-function skilledPlan(lo, hi, pcs, streak) {
+function skilledPlan(lo, hi, pcs, streak, next = null) {
+  if (next) pcs = [...pcs, next];   // the preview: plannable, but it can't be the first placement
+  const late = next ? pcs.length - 1 : -1;
   let best = null;
   const leaf = (s) => s.pts / PW + HEALTH * C.evalBoard(s.lo, s.hi) + SETUP * setupVal(s.lo, s.hi) / 4 + (s.streak ? 2 : 0);
   const rec = (s, left, first, depth) => {
-    const os = moves(s.lo, s.hi, left);
+    const os = moves(s.lo, s.hi, left).filter(o => depth > 0 || o.i !== late);
     if (!left.some(Boolean)) { const v = leaf(s); if (!best || v > best.v) best = { ...first, v }; return; }
     if (!os.length) { const v = leaf(s) - 400; if (!best || v > best.v) best = { ...first, v }; return; }
     const kids = os.map(o => { const r = play(s.lo, s.hi, o.sh, o.pl, s.streak); return { o, st: { lo: r.lo, hi: r.hi, pts: s.pts + r.pts, streak: r.streak } }; });
@@ -73,6 +75,20 @@ function skilledPlan(lo, hi, pcs, streak) {
 function runBoard(zi, j, seed, bot, deals) {
   const def = D.boardParams(zi, j), rnd = D.rng(seed * 7919 + 13); let [lo, hi] = bitsOf(prefill(def, rnd));
   let parts = [0, 0, 0, 0, 0], base = 0, bonus = 0, streak = 0, lines = 0, clears = 0, multi = 0, acs = 0, best = 0, tiers = [0, 0, 0, 0], bigNext = false;
+  if (ROLLING) {   // v2.3.0: one piece per placement, the next one shown
+    const R = roller({ ...def, deals }, rnd); let pcs = R.tray(lo, hi), next = R.next(lo, hi, pcs);
+    pcs.forEach(sh => tiers[tierOf(C.SHAPE_STRS[sh.id])]++); if (next) tiers[tierOf(C.SHAPE_STRS[next.id])]++;
+    while (pcs.some(Boolean)) {
+      const mv = bot === 'skilled' ? skilledPlan(lo, hi, pcs, streak, args.nopeek ? null : next) : bot === 'good' ? goodMove(lo, hi, pcs, streak, rnd) : midMove(lo, hi, pcs, streak, rnd);
+      if (!mv || !mv.pl || mv.i >= 3 || (lo & mv.pl.lo) || (hi & mv.pl.hi)) return { caved: true, parts, bonus, base, lines, clears, multi, acs, best, tiers };
+      const r = play(lo, hi, mv.sh, mv.pl, streak); lo = r.lo; hi = r.hi; streak = r.streak; base += 10 * mv.sh.n; bonus += r.pts; r.parts.forEach((v, i) => parts[i] += v);
+      if (r.n) { lines += r.n; clears++; if (r.n > 1) multi++; best = Math.max(best, streak); } if (r.ac) { acs++; R.allClear(); }
+      pcs = pcs.map((p, k) => k === mv.i ? next : p);
+      const held = pcs.filter(Boolean); next = held.length ? R.next(lo, hi, held) : null; if (next) tiers[tierOf(C.SHAPE_STRS[next.id])]++;
+      if (pcs.some(Boolean) && pcs.every(p => !p || !p.pl.some(pl => !(lo & pl.lo) && !(hi & pl.hi)))) return { caved: true, parts, bonus, base, lines, clears, multi, acs, best, tiers };
+    }
+    return { caved: false, parts, bonus, base, lines, clears, multi, acs, best, tiers };
+  }
   for (let s = 0; s < deals; s++) {
     let set; if (bigNext && !lo && !hi) { set = C.BIG_IDS.map(ids => C.SHAPES[ids[Math.floor(rnd() * ids.length)]]); bigNext = false; } else set = C.chooseSet(lo, hi, def.d, { rnd });
     set.forEach(sh => tiers[tierOf(C.SHAPE_STRS[sh.id])]++);
@@ -108,14 +124,27 @@ if (args.calibrate) { const n = ZS.length; console.log('\nCALIBRATION (skilled t
     const rate = (bot, k) => R[bot].filter(r => !r.caved && r.bonus >= lines[k]).length / R[bot].length;
     const row = bot => [0, 1, 2].map(k => pct(rate(bot, k) * 100, 100)).join('/');
     console.log(`${z.name.padEnd(16)} ${dealsFor(zi)} deals  lines ${lines.join('/')} (${lines.map(v => (v / 100).toFixed(1)).join('/')} line-eq)  skilled ${row('skilled')}  mid ${row('mid')}  mid tries/board ${(1 / Math.max(.01, rate('mid', 0))).toFixed(2)}`); } }
-// --even: 1★ at the skilled bot's 3rd percentile (a pass mark), 3★ at its percentile ramp (p10 in the Forest to p50 from Magmastone),
+// --even: 1★ at the skilled bot's 3rd percentile (a pass mark), 3★ at its percentile ramp (p10 in the Forest to p50 from Magmastone; --p3 .18 since 2.3.0),
 // 2★ halfway between. Lines are printed as bonus points and as total points (bonus + the layer's average 10/block base).
 if (args.even) { console.log('\nEVEN SPACING');
   for (const zi of ZS) { const z = D.ZONES[zi]; if (z.core) continue; const js = [...new Set([0, Math.floor(z.boards / 2), z.boards - 1])], f = Math.min(1, zi / D.MAGMA_Z), R = {};
     for (const bot of BOTS) { R[bot] = []; for (const j of js) for (let k = 0; k < RUNS; k++) R[bot].push(runBoard(zi, j, 7000 + 1000 * zi + 100 * j + k, bot, dealsFor(zi))); }
     const sk = R.skilled.map(r => r.caved ? -1 : r.bonus), r50 = x => Math.round(x / 50) * 50;
-    const l1 = r50(q(sk.filter(x => x >= 0), .03)), l3 = r50(q(sk, .1 + .4 * f)), lines = [l1, r50((l1 + l3) / 2), l3];
+    const l1 = r50(q(sk.filter(x => x >= 0), .03)), l3 = r50(q(sk, args.p3 !== undefined ? +args.p3 : .1 + .4 * f)), lines = [l1, r50((l1 + l3) / 2), l3];   // --p3: one 3-star percentile for every layer (2.3.0: .18)
     const base = r50(R.skilled.filter(r => !r.caved).reduce((a, r) => a + r.base, 0) / Math.max(1, R.skilled.filter(r => !r.caved).length));
     const rate = (bot, k) => R[bot].filter(r => !r.caved && r.bonus >= lines[k]).length / R[bot].length;
     const row = bot => [0, 1, 2].map(k => pct(rate(bot, k) * 100, 100)).join('/');
     console.log(`${z.name.padEnd(16)} ${dealsFor(zi)} deals  bonus lines ${lines.join('/')}  base ~${base}  total lines ${lines.map(v => v + base).join('/')}  skilled ${row('skilled')}  mid ${row('mid')}  mid tries ${(1 / Math.max(.01, rate('mid', 0))).toFixed(2)}`); } }
+// --mix p1,p3 (2.3.0, the rolling tray): 1★ at the typical (mid) bot's p1 percentile, cave-ins counted as misses, so a typical player
+// passes about (1 - p1) of tries; 3★ at the skilled bot's p3 percentile; 2★ halfway. The preview widened the skill gap, so one bot
+// can't set both ends any more.
+if (args.mix) { const [p1a, p3] = String(args.mix).split(',').map(Number), p1z = zi => args.ramp ? +args.ramp + (p1a - +args.ramp) * Math.min(1, zi / D.MAGMA_Z) : p1a, p1 = p1a;   // --ramp p: 1★ percentile from p in the Forest up to p1 at Magmastone console.log(`\nMIX (1★ at mid p${p1 * 100}, 3★ at skilled p${p3 * 100})`);
+  for (const zi of ZS) { const z = D.ZONES[zi]; if (z.core) continue; const js = [...new Set([0, Math.floor(z.boards / 2), z.boards - 1])], R = {};
+    for (const bot of BOTS) { R[bot] = []; for (const j of js) for (let k = 0; k < RUNS; k++) R[bot].push(runBoard(zi, j, 7000 + 1000 * zi + 100 * j + k, bot, dealsFor(zi))); }
+    const sc = bot => R[bot].map(r => r.caved ? -1 : r.bonus), r50 = x => Math.round(x / 50) * 50;
+    const l1 = r50(q(sc('mid'), p1z(zi))), l3 = Math.max(l1 + 200, r50(q(sc('skilled'), p3))), lines = [l1, r50((l1 + l3) / 2), l3];
+    const ok = R.skilled.filter(r => !r.caved), base = r50(ok.reduce((a, r) => a + r.base, 0) / Math.max(1, ok.length));
+    const rate = (bot, k) => R[bot].filter(r => !r.caved && r.bonus >= lines[k]).length / R[bot].length;
+    const row = bot => [0, 1, 2].map(k => pct(rate(bot, k) * 100, 100)).join('/');
+    console.log(`${z.name.padEnd(16)} ${dealsFor(zi)} deals  bonus lines ${lines.join('/')}  base ~${base}  total lines ${lines.map(v => v + base).join('/')}  skilled ${row('skilled')}  good ${row('good')}  mid ${row('mid')}  mid tries ${(1 / Math.max(.01, rate('mid', 0))).toFixed(2)}`); } }
+

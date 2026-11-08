@@ -60,4 +60,16 @@ check(Object.keys(D.SPECIAL_MIX).join() === 'fossil,treasure', 'the random speci
 check(D.specialHaul('treasure', 5).pts === 0, 'random specials pay resources only, never points');
 check(D.SPECIAL_RATE.Easy > 0 && D.SPECIAL_RATE.Easy < D.SPECIAL_RATE.Medium, 'random specials turn up in the Forest too, less often than below it');
 { const r = D.rng(7), ks = new Set(); for (let k = 0; k < 400; k++) ks.add(D.specialHaul('treasure', 0, r).k); check(['iron', 'gold', 'emerald', 'diamond'].every(k => ks.has(k)), 'a Forest Buried Treasure can hold iron, gold or gems, like anywhere else'); }
+// ---- the rolling tray (v2.3.0): the tray plus the next piece can always all be placed, the next one after a tray piece ----
+{ const r = D.rng(11); let ok = 0, n = 0, bad = 0, big = 0;
+  for (let k = 0; k < 60; k++) { const zi = k % 7, def = D.boardParams(zi, k % 8); let [lo, hi] = bitsOf(prefill(def, r));
+    for (let m = 0; m < 6; m++) { lo = (lo | (C.SHAPES[2].pl[Math.floor(r() * C.SHAPES[2].pl.length)].lo)) >>> 0; }   // crowd it a little
+    if (C.hasLockedHole(lo, hi)) continue;
+    const tray = C.chooseTray(lo, hi, 3, def.d, { rnd: r }); if (C.solveCount(lo, hi, tray, 1, 50000, false, false).count === 0) continue;
+    const next = C.chooseNext(lo, hi, tray, def.d, { rnd: r }); n++;
+    if (C.solveCount(lo, hi, [...tray, next], 1, 200000, false, false, 3).count > 0) ok++; else bad++; }
+  check(n >= 40 && bad === 0, `a solvable tray plus its next piece can always be placed, next piece not first (${ok}/${n})`);
+  for (let k = 0; k < 20; k++) { const s = C.chooseNext(0, 0, [C.SHAPES[0]], .3, { rnd: r, big: true }); if (C.BIG_IDS.some(o => o.includes(s.id))) big++; }
+  check(big >= 18, `after an All Clear the next pieces are the big ones (${big}/20)`);
+  check(C.solveCount(0, 0, [C.SHAPES[C.SHAPE_STRS.indexOf('###/###/###')], C.SHAPES[0]], 5, 1e5, false, false, 0).count > 0 && C.solveCount(0xFFFFFFFF >>> 0, 0x00FFFFFF, [C.SHAPES[0], C.SHAPES[0]], 1, 1e5, false, false, 1).count >= 0, 'solveCount takes a piece that may not go first'); }
 console.log(fails ? `RULES TESTS FAILED (${fails})` : 'RULES TESTS PASSED'); if (fails) process.exitCode = 1;

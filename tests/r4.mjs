@@ -16,13 +16,14 @@ const { check, fails } = makeChecker();
 check(D.ZONES.every((z, zi) => z.core || Array.from({ length: z.boards }, (_, j) => D.boardParams(zi, j)).every(p => p.starAt.length === 3 && p.starAt[0] < p.starAt[1] && p.starAt[1] < p.starAt[2] && p.target === p.starAt[0] && p.deals >= 4)), 'every board has three rising star lines, a 1-star pass mark and at least 4 deals');
 check(D.boardParams(D.ZONES.length - 1, 0).starAt.length === 0, 'the Ancient Core has no stars');
 check(D.boardParams(0, 0).starAt[0] < D.boardParams(0, 1).starAt[0], 'board 1-1 (the tutorial) has a lower 1-star line');
-{ const sp = i => D.boardParams(i, 1).starAt[2] - D.boardParams(i, 1).starAt[0]; check(sp(D.MAGMA_Z) >= 2 * sp(3) * .9 && sp(D.CRUST_Z) > sp(3) && sp(3) > sp(0), `the star lines spread further apart the deeper you go (${[0, 3, D.MAGMA_Z, D.CRUST_Z].map(sp)})`); }
+{ const at = i => D.boardParams(i, 1).starAt; check([1, 2, 3, 4, 5, 6].every(i => [0, 1, 2].every(k => at(i)[k] >= at(i - 1)[k])), `every star line rises or holds layer by layer (v2.3.0: the 1-star pass mark ramps, 3 stars track a planner)`); }
 check(D.DEALS.slice(0, D.CRUST_Z + 1).every((n, i) => i === 0 || n >= D.DEALS[i - 1]), 'boards get more deals layer by layer');
 { const r = D.rng(3), b = D.boardParams(2, 3).budget, runs = Array.from({ length: 400 }, () => C.rollBudget(b, r));
   check(runs.every(x => x.coal === Math.floor(b.coal)) && Math.abs(runs.reduce((a, x) => a + (x.iron || 0), 0) / 400 - b.iron) < .1, 'the ore budget is exact for whole numbers and a chance for the fraction');
   const def = D.boardParams(2, 3), left = C.rollBudget(def.budget, r), want = Object.values(left).reduce((a, x) => a + x, 0); let lo = 0, hi = 0, got = 0;
-  for (let d = def.deals; d >= 1; d--) { const set = C.chooseSet(lo, hi, def.d, { rnd: r }).map(sh => C.dressPiece(sh, def, { rnd: r, budgeted: true })); C.spreadOre(set, left, Math.max(1, d - 1), r); set.forEach(p => p.mats.forEach(m => { if (D.STAR_ORES.includes(m)) got++; })); }
-  check(got === want, `a board deals exactly its ore budget over its deals (${got} of ${want})`); }
+  // v2.3.0: one piece at a time, as the rolling tray deals them (game.js dealPiece)
+  const total = def.deals * 3; for (let n = 1; n <= total; n++) { const p = C.dressPiece(C.chooseNext(lo, hi, [], def.d, { rnd: r }), def, { rnd: r, budgeted: true }); C.spreadOre([p], left, Math.max(1, total - n - 2), r); p.mats.forEach(m => { if (D.STAR_ORES.includes(m)) got++; }); }
+  check(got === want, `a board deals exactly its ore budget over its pieces (${got} of ${want})`); }
 check(D.starBonus(1, 2400) === 0 && D.starBonus(2, 2400) === 240 && D.starBonus(3, 2400) === 480, 'each extra star is worth 10% of the 1-star line');
 const days = Array.from({ length: 90 }, (_, i) => `2026-${String(1 + Math.floor(i / 28)).padStart(2, '0')}-${String(1 + i % 28).padStart(2, '0')}`);
 const mods = days.map(d => D.modifierFor(d).id);

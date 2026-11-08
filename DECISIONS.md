@@ -204,3 +204,18 @@ Your calls: keep 2.x version numbers ("v1" is a milestone name); no tool wear un
 ## v2.2.1 (dock redesign; built 2026-11-06)
 - **Dock layout chosen by the user** from four mock-ups: two panels, CRAFT left of the tool slots and BREW right of the potion slots, no group labels, the game's own sprites. Slots stay 56pt; the two panels fill a 375pt phone exactly (15pt gap), wider phones get a bigger gap.
 - **Naming:** the user called the left group "Tools". With the labels removed this name isn't shown; the anvil panel still heads its list "Equipment", because "tools" already means the mining tools you forge on the map.
+
+## v2.3.0 (rolling tray and star lines; released 2026-11-07)
+Your calls: fix luck-driven 3 stars; let the player see what's coming; recommended a rolling refill with a one-piece preview. The rest are mine:
+- **The preview piece is dealt with the tray in mind:** `chooseNext` (core.js) picks the next piece so the three you hold plus it can all be placed with it not first (`solveCount`'s new `late` argument). Same weights, mercy, tilt, Luck and All Clear hunt as the 3-piece dealer. A whole tray (start of a board, a Protection save) still comes from `chooseSet`.
+- **Dealer kindness for 4 pieces:** `ROLL.ways=4` (the number of ways the 4 pieces can be placed is aimed at `targetWays × 4`). With 2.2 the typical bot caved in more than with 3-piece deals (Crust board completion 70% vs 83%); with 4 it is about the same or better (Granite 96%, Magmastone 88%, Crust 90% vs 90 / 85 / 81%).
+- **Star lines from two bots, not one** (`score2.mjs --mix .4,.18 --ramp .03`): 1★ at the typical (mid) bot's percentile with cave-ins counted as misses, ramping from the 3rd in the Forest to the 40th from Magmastone on (typical tries a board 1.0 / 1.1 / 1.2 / 1.3 / 1.5 / 1.6 / 1.55; a flat 40th made the Forest 1.7 tries and failed the balance test), 3★ at the skilled bot's 18th percentile (it gets 3★ 82–86% in every layer, was ~53% deep down), 2★ halfway. With the preview the skilled planner pulls far ahead (half its clears are multi-line), so lines set from it alone would have passed a typical player on only 12–22% of tries.
+- **Typical-player 3★ is rare in the sim (1–7%)**, but the mid bot ignores the preview and the scoring. A player who plans with NEXT sits between it and the skilled bot. Worth watching in playtests; 2★ (typical 16–38%) is the realistic goal for most.
+- **Board 1-1** keeps a lower 1★ line: 600 / 1,150 / 1,550.
+- **Basalt uses Granite's lines** (1,900 / 2,450 / 3,000; the sim said 2,950 for 3★): lines never fall from one layer to the next.
+- **Potions last 15 placements** (5 deals × 3). Both count down per placement; a protected cave-in is undone before its placement counts. Five pips, each worth three placements.
+- **All Clear:** the next three pieces dealt lean to the big set (they were a whole big set).
+- **NEXT sits in the score row** (a 40×36 box with the piece at 6pt cells), not beside the tray: a fourth tray column would have shrunk the 20pt tray pieces below the spec at 375pt. The score now stacks over "placements left".
+- **Speed:** `chooseNext` takes ~12 ms (worst ~80 ms) on a desktop per placement.
+- **Old saved boards** get their next piece when loaded; their deals become placements (deals × 3).
+- **F-13 Pack before you mine** (crafting between boards) is defined in BACKLOG.md with mock-ups; not built.

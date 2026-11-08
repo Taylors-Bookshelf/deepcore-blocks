@@ -76,13 +76,13 @@ function specialHaul(m,zi,rnd){
   return {k:pick.k, n:pick.lo+Math.min(pick.hi-pick.lo,Math.floor(v*(pick.hi-pick.lo+1))), pts};
 }
 // how many deals a potion lasts once drunk (v2.2.0: both potions; v2.1.2: Luck 7 -> 5)
-const POTION_DEALS=5;
+const POTION_MOVES=15;   // v2.3.0: potions last 15 placements (5 deals before the rolling tray)
 // slot: which dock slots hold it. Equipment is crafted at the anvil, potions at the brewing table (F-10, v2.2.0).
 const RECIPES=[
   {m:'blast',      slot:'equip',  cost:{coal:12, iron:3},                    desc:'Drag it onto the board: it blows up a 3×3 patch. What it breaks is lost, not mined.'},
   {m:'sledgehammer', slot:'equip', cost:{copper:10, ruby:8, iron:8, gold:4}, desc:'Drag it onto the board: it shakes the blocks into a fresh arrangement with no trapped gaps.'},
-  {m:'rescue',     slot:'potion', cost:{ruby:20, emerald:1, bone:4},         desc:'Tap to drink. For '+POTION_DEALS+' deals, a cave-in undoes your last placement and deals fresh pieces.'},
-  {m:'luck',       slot:'potion', cost:{ruby:12, bone:4},                    desc:'Tap to drink. For '+POTION_DEALS+' deals, the dealer favours pieces that fill gaps and clear lines, and random specials turn up twice as often.'},
+  {m:'rescue',     slot:'potion', cost:{ruby:20, emerald:1, bone:4},         desc:'Tap to drink. For '+POTION_MOVES+' placements, a cave-in undoes your last placement and deals fresh pieces.'},
+  {m:'luck',       slot:'potion', cost:{ruby:12, bone:4},                    desc:'Tap to drink. For '+POTION_MOVES+' placements, the dealer favours pieces that fill gaps and clear lines, and random specials turn up twice as often.'},
 ];
 // The workshop (F-10, v2.2.0): one equipment slot to start; the brewing table unlocks potions and one potion slot; a second slot of
 // each kind is a late-game goal. Kept for the whole run (reset by a new run, like tools). Costs from tools/experiments/workshop.mjs:
@@ -126,10 +126,11 @@ function placePoints(cells,lines,streak,allClear){
 }
 // A board is a fixed number of deals (3 pieces each). Place them all and the board is done; a cave-in before that fails it.
 const DEALS=[4,5,5,6,6,7,7,0];
-// Star lines in board points, per layer. 1 star is the pass mark; 3 stars sits at a skilled player's median deep down; 2 halfway.
+// Star lines in board points, per layer (v2.3.0, the rolling tray; tools/experiments/score2.mjs --mix .4,.18 --ramp .03). 1 star: a typical player
+// passes nearly every Forest try, falling to about 60% from Magmastone on; 3 stars: a player who plans with the next piece gets it about 85% of the time, in every layer; 2 halfway.
 // Board 1-1 (the tutorial board) has a lower 1-star line so it can't realistically fail.
-const STAR_LINES=[[900,1000,1100],[1350,1550,1700],[1500,1700,1850],[2050,2300,2550],[2100,2400,2750],[2500,3000,3550],[2700,3150,3600],[]];
-const FIRST_BOARD_STARS=[700,1000,1100];
+const STAR_LINES=[[750,1150,1550],[1150,1750,2300],[1300,1850,2350],[1900,2450,3000],[1900,2450,3000],[2350,2850,3350],[2350,2900,3450],[]];
+const FIRST_BOARD_STARS=[600,1150,1550];
 const starsFromScore=(score,at)=>at.reduce((n,v)=>n+(score>=v?1:0),0);
 // each star after the first adds 10% of the 1-star line to the day's points when the board is banked
 const starBonus=(stars,line1)=>Math.max(0,stars-1)*Math.round(line1*.1/10)*10;
@@ -168,6 +169,6 @@ function boardParams(zi,j,mod){
     target:starAt[0]||0, core:!!z.core, d:Math.min(.97,z.d[0]+(z.d[1]-z.d[0])*f), pre:Math.round(z.pre[0]+(z.pre[1]-z.pre[0])*f) };
 }
 const lineName=n=> n>=5?'Mega!' : n===4?'Quad!' : n===3?'Triple!' : n===2?'Double!' : '';
-const api={TOOL_WEAR,POTION_DEALS,WORKSHOP,SCORE,comboBonus,streakBonus,placePoints,DEALS,STAR_LINES,FIRST_BOARD_STARS,starsFromScore,ORE_BUDGET,FOSSIL_BONE,TREASURE,specialHaul,MODIFIERS,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf,STAR_ORES,starBonus,lineName,GEM_KEYS,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS};
+const api={TOOL_WEAR,POTION_MOVES,WORKSHOP,SCORE,comboBonus,streakBonus,placePoints,DEALS,STAR_LINES,FIRST_BOARD_STARS,starsFromScore,ORE_BUDGET,FOSSIL_BONE,TREASURE,specialHaul,MODIFIERS,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf,STAR_ORES,starBonus,lineName,GEM_KEYS,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.DeepcoreData=api;
 })(typeof self!=='undefined'?self:globalThis);

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3.0 — rolling tray and fairer stars
+- **Rolling tray:** every piece you place is replaced at once by the next one, so you always hold three. The piece after that shows in a small NEXT box beside the score, so you can plan ahead.
+- Every piece is still checked: the three you hold plus the next one can always all be placed, so a cave-in is always down to your moves.
+- **Star lines redone for every layer.** Three stars are now within reach on every board if you plan ahead (about 85% of the time for a player who plans with the next piece, in every layer; before, deep layers were about a coin flip even for an expert). One star stays a pass mark. One star stays easy early and gets firmer deeper down. Forest 750 / 1,150 / 1,550 up to the Crust 2,350 / 2,900 / 3,450.
+- Potions last 15 placements (was 5 deals); the five pips each stand for three placements.
+- After an All Clear the next three pieces are the big easy ones.
+- Board cards on the map count placements ("18 placements") instead of deals. The Guide explains the NEXT piece.
+- The score sits above "placements left" to make room for NEXT.
+
 ## 2.2.1 — a clearer dock
 - The dock is two panels: tools on the left with CRAFT (the anvil) beside them, potions on the right with BREW (the brewing table) beside them. The tools panel has a faint amber outline, the potions panel a pink one.
 - Before the brewing table is built, the whole potions panel is greyed out.

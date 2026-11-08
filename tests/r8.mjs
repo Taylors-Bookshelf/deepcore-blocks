@@ -44,7 +44,7 @@ await page.click('#pauseBtn'); await page.waitForTimeout(350);
 const p = await page.evaluate(() => { const sh = document.getElementById('sheet').getBoundingClientRect(); return { cx: sh.left + sh.width / 2, cy: sh.top + sh.height / 2, w: sh.width, vw: innerWidth, vh: innerHeight,
   text: document.getElementById('sheet').innerText, btnW: document.getElementById('pauseResume').getBoundingClientRect().width }; });
 check(Math.abs(p.cx - p.vw / 2) < 2 && Math.abs(p.cy - p.vh / 2) < 40 && p.w < p.vw - 20, 'pause is a centred card, not a full-width tray');
-check(/Limestone Caves board #2/.test(p.text) && /Next star at: 1,350 points/.test(p.text) && !/best here|Star lines/i.test(p.text), 'pause shows the numbered name and the next star line only');
+check(/Limestone Caves board #2/.test(p.text) && new RegExp(`Next star at: ${(await page.evaluate(() => window.DeepcoreData.STAR_LINES[1][0])).toLocaleString('en-US')} points`).test(p.text) && !/best here|Star lines/i.test(p.text), 'pause shows the numbered name and the next star line only');
 check(p.btnW <= 70, 'the pause buttons are round icons');
 if (shots) await page.screenshot({ path: shots + '/pause.png' });
 await T('setScore', 5000); await page.click('#pauseResume'); await page.click('#pauseBtn'); await page.waitForTimeout(300);

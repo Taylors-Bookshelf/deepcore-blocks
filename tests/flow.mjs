@@ -44,13 +44,12 @@ s = await st(); check(s.crafted.luck === 1 && s.bank.ruby === 12 && s.bank.bone 
 check(await T(() => document.querySelectorAll('#dockSlots .tool:not(.empty)').length) === 1, 'the crafted Potion of Luck sits in a dock slot');
 await page.tap('#anvilClose');
 await page.tap('.tool[data-m="luck"]'); await page.waitForTimeout(1400);
-s = await st(); check(s.luck === 5, "drinking starts 5 lucky deals");
+s = await st(); check(s.luck === 15, "drinking starts 15 lucky placements");
 check(await T(() => !document.getElementById('luckBadge').hidden && document.querySelectorAll('#luckBadge .pips i.on').length === 5), "luck badge shows 5 lit pips");
-await T(() => { const t = window.__deepcore.test; t.deal(); }); s = await st(); check(s.luck === 4 && s.luckLive, 'each deal uses one lucky set');
-for (let i = 0; i < 4; i++) await T(() => window.__deepcore.test.deal());
-s = await st(); check(s.luck === 0 && s.luckLive, 'after the 5th lucky deal the last one is still live');
-check(await T(() => document.getElementById('luckTxt').textContent) === "Last lucky deal", "badge says it is the last lucky deal");
-await T(() => window.__deepcore.test.deal()); s = await st(); check(!s.luckLive && await T(() => document.getElementById('luckBadge').hidden), 'luck expires with a clear indicator going away');
+await T(() => window.__deepcore.test.tickPotions(1)); s = await st(); check(s.luck === 14 && s.luckLive, 'each placement uses one lucky placement');
+await T(() => window.__deepcore.test.tickPotions(13)); s = await st(); check(s.luck === 1 && s.luckLive, 'one lucky placement left');
+check(await T(() => document.getElementById('luckTxt').textContent) === "Last lucky placement", "badge says it is the last lucky placement");
+await T(() => window.__deepcore.test.tickPotions(1)); s = await st(); check(!s.luckLive && await T(() => document.getElementById('luckBadge').hidden), 'luck expires with a clear indicator going away');
 
 check(errors.length === 0, 'no page errors ' + errors.join(' | '));
 await close();

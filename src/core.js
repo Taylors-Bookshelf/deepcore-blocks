@@ -61,25 +61,25 @@ function healthy(lo,hi,baseHoles){
 }
 // Count the ways a set of pieces can all be placed (any order, with line clears between placements).
 // Also reports the most lines any solution clears and whether the set can wipe the board.
-function solveCount(lo,hi,set,cap,budget,needHealthy,ordered){
+function solveCount(lo,hi,set,cap,budget,needHealthy,ordered,late=-1){
   let count=0,nodes=0,maxLines=0,allClear=false; const baseHoles=needHealthy?countHoles(lo,hi):0;
-  const rec=(lo,hi,rem,lines)=>{
+  const rec=(lo,hi,rem,lines,top)=>{
     if(!rem.length){ if(!needHealthy||(lo===0&&hi===0)||healthy(lo,hi,baseHoles)){ count++; if(lines>maxLines) maxLines=lines; } return; }
     const seen={};
     for(let i=0;i<rem.length;i++){
-      const s=rem[i]; if(seen[s.id]) continue; seen[s.id]=1;
+      const s=rem[i]; if(top&&i===late) continue; if(seen[s.id]) continue; seen[s.id]=1;
       const rest=rem.slice(0,i).concat(rem.slice(i+1));
       const moves=ordered?[]:null;
       for(const p of s.pl){
         if((lo&p.lo)||(hi&p.hi)) continue;
         if(++nodes>budget) return;
         const nb=applyMove(lo,hi,p.lo,p.hi); if(nb[0]===0&&nb[1]===0) allClear=true;
-        if(ordered) moves.push(nb); else { rec(nb[0],nb[1],rest,lines+nb[2]); if(nodes>budget||count>=cap) return; }
+        if(ordered) moves.push(nb); else { rec(nb[0],nb[1],rest,lines+nb[2],false); if(nodes>budget||count>=cap) return; }
       }
-      if(ordered){ moves.sort((x,y)=>y[2]-x[2]); for(const nb of moves){ rec(nb[0],nb[1],rest,lines+nb[2]); if(nodes>budget||count>=cap) return; } }
+      if(ordered){ moves.sort((x,y)=>y[2]-x[2]); for(const nb of moves){ rec(nb[0],nb[1],rest,lines+nb[2],false); if(nodes>budget||count>=cap) return; } }
     }
   };
-  rec(lo>>>0,hi>>>0,set,0);
+  rec(lo>>>0,hi>>>0,set,0,late>=0);
   return {count,exhausted:nodes>budget,maxLines,allClear};
 }
 // Shapes the open board is "asking for": exact enclosed pockets, and snug fits
@@ -190,6 +190,54 @@ function chooseSet(lo,hi,d,opts={}){
   if(!best){ const f=SHAPES.filter((s,i)=>fits[i]); best={set:[0,1,2].map(()=>f.length?f[0]:SHAPES[0])}; }
   return best.set.map(x=>[rnd(),x]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
 }
+// ---------- the rolling tray (v2.3.0): one piece at a time ----------
+// Each placement is refilled with one new piece, and the piece after that is shown as "next". chooseNext picks that next piece so
+// the tray you hold plus the next piece can all be placed (the next one never first: it arrives after your next placement), so a
+// cave-in is still always the player's doing. Same weights, help and mercy as chooseSet. held: the shapes in the tray.
+// opts: {luck, tilt, rnd, big (prefer one of the big All Clear pieces)}
+const ROLL={ways:4,tries:22,cap:900,budget:24000};   // the 4-piece version of targetWays, and the search effort (sim.mjs can override)
+function chooseNext(lo,hi,held,d,opts={}){
+  const rnd=opts.rnd||Math.random, luck=opts.luck||0;
+  if(opts.tilt) d=d*(1-.4*opts.tilt);
+  const fill=(pc(lo)+pc(hi))/64, mercy=TUNE.mercy*Math.max(0,Math.min(1,(fill-TUNE.mercyStart)/.3));
+  const tilt=opts.tilt||0, merc=1-(1-mercy)*(1-tilt);
+  const A0=assistOf(d), A=Math.max(A0+(1-A0)*merc,luck?.8:0);
+  const {boost,exact}=pocketInfo(lo,hi);
+  const fits=SHAPES.map(s=>s.pl.some(p=>!(lo&p.lo)&&!(hi&p.hi)));
+  const fams=new Set(held.map(s=>s.fam));
+  const ws=SHAPES.map((s,i)=>fits[i]?sizeWeight(s,d)*FAMW[i]*Math.pow(boost[i],A)*(fams.has(s.fam)?.3:1):0);
+  const cw=SHAPES.map(()=>0);
+  SHAPES.forEach((s,i)=>{ if(!fits[i]) return; let bl=0;
+    for(const p of s.pl){ if((lo&p.lo)||(hi&p.hi)) continue; const l=applyMove(lo,hi,p.lo,p.hi)[2]; if(l>bl) bl=l; }
+    cw[i]=(bl?bl*bl*2:0)+(exact.has(i)?4:0); if(cw[i]) cw[i]*=(.5+sizeWeight(s,d))*FAMW[i]*3*(fams.has(s.fam)?.3:1); });
+  const hasC=cw.some(x=>x>0);
+  const n=held.length+1, target=targetWays(d)*Math.pow(ROLL.ways,n-3)*(luck?3:1)*(1+merc*3);
+  const cells=pc(lo)+pc(hi), acHunt=cells<=TUNE.acCells, acPull=acHunt?TUNE.acPull:TUNE.acPull*.15;
+  const tried={}; let best=null;
+  const judge=(sh,needHealthy)=>{
+    const key=sh.id+(needHealthy?'h':''); if(tried[key]) return; tried[key]=1;
+    const set=held.concat([sh]);
+    const res=solveCount(lo,hi,set,ROLL.cap,ROLL.budget,needHealthy,A>.1,held.length?set.length-1:-1);
+    if(!res.count) return;
+    const cnt=res.exhausted?Math.max(res.count,ROLL.cap*.6):res.count;
+    const tight=-Math.abs(Math.log(cnt)-Math.log(target));
+    const help=res.maxLines*(luck?2.2:1.4)+(res.allClear?(luck?16:10):0)+(exact.has(sh.id)?2.5:0)+(luck&&res.maxLines>0?14:0);
+    const sc=(1-A)*tight+A*help+(res.allClear?acPull:0)+rnd()*(.3+.9*(1-A))+(opts.big&&BIG_IDS.some(o=>o.includes(sh.id))?50:0);
+    if(!best||sc>best.sc) best={sh,sc};
+  };
+  if(opts.big) BIG_IDS.forEach(o=>{ const id=o[Math.floor(rnd()*o.length)]; if(fits[id]) judge(SHAPES[id],true); });
+  const K=luck?ROLL.tries+10:(acHunt?ROLL.tries+14:ROLL.tries);
+  for(let k=0;k<K;k++){ const base=(hasC&&rnd()<A*.75)?cw:ws; judge(SHAPES[pickIdx(base,rnd)],true); }
+  if(!best) SHAPES.forEach((s,i)=>{ if(fits[i]) judge(s,true); });
+  if(!best) SHAPES.forEach((s,i)=>{ if(fits[i]) judge(s,false); });
+  if(!best){ const f=SHAPES.filter((s,i)=>fits[i]&&s.n<=3); return f.length?f[Math.floor(rnd()*f.length)]:(SHAPES.find((s,i)=>fits[i])||SHAPES[0]); }
+  return best.sh;
+}
+// a whole tray of k pieces (start of a board, a Protection save): a dealt set of three, or fewer one at a time near the end
+function chooseTray(lo,hi,k,d,opts={}){
+  if(k>=3) return chooseSet(lo,hi,d,opts);
+  const out=[]; for(let i=0;i<k;i++) out.push(chooseNext(lo,hi,out,d,opts)); return out;
+}
 // ---------- dressing a piece with materials ----------
 const D=(typeof require!=='undefined'&&typeof module!=='undefined')?require('./data.js'):root.DeepcoreData;
 function pickWeighted(items,rnd=Math.random){ const tot=items.reduce((a,x)=>a+x.w,0); if(tot<=0) return null; let v=rnd()*tot; for(const x of items){ v-=x.w; if(v<=0) return x; } return items[items.length-1]; }
@@ -261,6 +309,6 @@ function rankMoves(lo,hi,shapes){
   return opts.sort((a,b)=>b.v-a.v);
 }
 const api={rollBudget,spreadOre,evalBoard,rankMoves,TUNE,pickWeighted,pickBase,veinCells,dressPiece,N:8,NB,SHAPE_STRS,SHAPES,SHAPE_BY_KEY,CHECK3,FAMSIZE,FAMW,pc,ROWM,COLM,bitOf,getBit,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,
-  sizeWeight,pickIdx,targetWays,assistOf,BIG_SET,BIG_IDS,chooseSet};
+  sizeWeight,pickIdx,targetWays,assistOf,BIG_SET,BIG_IDS,chooseSet,chooseNext,chooseTray,ROLL};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.DeepcoreCore=api;
 })(typeof self!=='undefined'?self:globalThis);

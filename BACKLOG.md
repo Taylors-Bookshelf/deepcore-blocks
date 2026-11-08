@@ -120,6 +120,19 @@ Goal: **v1**, the build shared with family and friends. Version numbers keep cou
 
 **F-12 Onboarding tutorial**: a fuller first-run tutorial that teaches resources, the stash, forging tools, repairs (F-9) and the workshop and brewing table (F-10). Ships with them.
 
+**F-13 Pack before you mine** (crafting between boards; proposed 2026-11-07 for the next update, mock-ups in the 2.3.0 notes)
+Why: since 2.2.0 you can craft mid-board whenever you like, so a second slot only saves a trip to the anvil. Slots are worth something only when there is a moment you can't make more. F-13 makes that moment the start of each board: what you carry in is all you get.
+- **Crafting moves to the map.** The anvil and brewing table become one Workshop on the map (the map's Forge button, which already forges tools, and a Workshop button on each board card). On the board the dock keeps only the slots; CRAFT and BREW go away. The Hint (coal) stays on the board.
+- **A satchel.** What you craft goes into a satchel on the map with no size limit (ore is the limit). Slots hold what you carry into a board. This replaces the make-room sheet: nothing needs destroying any more.
+- **Packing.** Tapping a board on the map opens its card with PACK FOR THIS BOARD: your tool slots and potion slots, and the satchel below. Tap a satchel item to pack it, tap a packed item to put it back. The card remembers your last pack and refills it from the satchel; if the satchel runs out, the slot shows as empty with a one-tap "Make another" when you can afford it.
+- **During a board** you use what you packed (drag equipment, tap potions to drink, as today). Anything unused stays packed for the next board. A Retry keeps whatever you haven't used yet; what you used is gone.
+- **What the slots are worth then.** A second tool slot means a Blast Charge and a Sledgehammer in the same hard board (or two Blasts). A second potion slot means Luck and Protection together, or a second Protection to drink when the first wears off. Packing becomes a real choice before a hard board.
+- **One-tap play stays.** The card's main button starts the board with the remembered pack; packing is optional. First-time tip on the card the first time you own a special.
+- **Workshop upgrades** (brewing table, second slots) are built in the Workshop on the map, at today's costs.
+- **Migration:** specials in the dock now are packed; nothing is refunded.
+- **Open questions:** should camps restock the pack for free once a day? Should a third slot of each kind exist as a very late goal or an optional purchase? A purchase should never be the only way to a slot; the current plan earns every slot by playing.
+- Pairs with F-11 (the Workshop could become a place on the zone grid) and F-12 (the tutorial teaches packing).
+
 **I-30 Resource curve** (replaces I-4 Scarcity pass): each zone's main ore covers most of the next tools, so the main path never forces you back up; earlier ores still turn up as rarer veins deeper down, so going back is an option, never a chore; every resource keeps a late-game use (repairs, slot unlocks, brewing) so nothing piles up uselessly. Tuned on F-11's grids.
 
 ## Open items

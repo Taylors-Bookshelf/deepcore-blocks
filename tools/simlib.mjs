@@ -10,6 +10,18 @@ const N = 8;
 if (args.zd) args.zd.split(';').forEach(x => { const [i, v] = x.split(':'); D.ZONES[+i].d = v.split(',').map(Number); });
 if (args.old) Object.assign(C.TUNE, { waysFloor: 1, waysExp: 1, assistExp: 1.8 });   // the dealer as shipped in v0.3.0
 for (const k of ['waysFloor', 'waysExp', 'assistExp', 'mercy', 'mercyStart']) if (args[k] !== undefined) C.TUNE[k] = +args[k];
+for (const k of ['ways', 'tries', 'cap', 'budget']) if (args['roll' + k] !== undefined) C.ROLL[k] = +args['roll' + k];
+// v2.3.0: the rolling tray (each placement refilled with one piece, the piece after it shown as "next"); --sets plays the old 3-piece deals
+export const ROLLING = !args.sets;
+// the board's piece supply, shape level: tray(k) deals a whole tray, next(held) the next piece; allClear() lines up three big pieces
+export function roller(def, rnd, o = {}) {
+  const total = def.deals * 3; let n = 0, big = 0;
+  const opt = () => ({ rnd, luck: o.luck || 0, tilt: o.tilt || 0, big: big > 0 });
+  return { total, left: () => total - n,
+    tray(lo, hi, k = 3) { const t = C.chooseTray(lo, hi, Math.min(k, total - n), def.d, opt()); n += t.length; return t; },
+    next(lo, hi, held) { if (n >= total) return null; const s = C.chooseNext(lo, hi, held, def.d, opt()); n++; if (big > 0) big--; return s; },
+    allClear() { big = 3; } };
+}
 
 const evalBoard = C.evalBoard;
 function makeRun(seed) {
@@ -64,6 +76,36 @@ export function runBoard(zi, bj, seed, fails = 0, _unused = null, onMine = null)
   let score = 0, streak = 0, moves = 0, bigNext = false, deals = 0, allClears = 0, multi = 0, clearMoves = 0; const dealt = {}, got = {}, left = C.rollBudget(def.budget, rnd);
   const tilt = Math.min(.75, Math.max(0, fails - 1) * .35);
   const end = died => { const stars = died ? 0 : D.starsFromScore(score, def.starAt); return { win: !died && stars > 0, completed: !died, stars, score, moves, deals, got, target: def.target, allClears, multi, clearMoves, died }; };
+  if (ROLLING) {   // one piece per placement; the bots don't use the preview
+    const R = roller(def, rnd, { luck: cfg.luck, tilt }); const dress = (s, others) => { const p = C.dressPiece(s, def, { rnd, dealt, budgeted: true, specialBlocked: others.some(q => q && q.mats.some(m => D.SPECIAL_MIX[m])) }); C.spreadOre([p], left, Math.max(1, R.left() - 3), rnd); return p; };
+    let pcs = []; R.tray(lo, hi).forEach(s => pcs.push(dress(s, pcs)));
+    let nextS = R.next(lo, hi, pcs.map(p => C.SHAPES[p.sid])), next = nextS && dress(nextS, pcs); deals = 1;
+    while (pcs.some(Boolean)) {
+      const mv = botMove(lo, hi, pcs, rnd);
+      if (!mv) return end(true);
+      const p = pcs[mv.i]; pcs[mv.i] = null; moves++; score += D.SCORE.block * p.cells.length;
+      p.cells.forEach(([r, c], k) => { mats[(mv.pl.r0 + r) * 8 + mv.pl.c0 + c] = p.mats[k]; });
+      const n = clearLines(); [lo, hi] = bitsOf(mats);
+      if (n === 'break') return { ...end(true), broke: true };
+      const ac = n > 0 && lo === 0 && hi === 0; score += D.placePoints(0, n, streak, ac).total; if (ac) { allClears++; R.allClear(); }
+      pcs[mv.i] = next; deals = Math.ceil((R.total - R.left()) / 3);
+      const held = pcs.filter(Boolean).map(q => C.SHAPES[q.sid]); nextS = held.length ? R.next(lo, hi, held) : null; next = nextS && dress(nextS, pcs);
+      if (pcs.every(q => !q)) break;
+      if (pcs.every(q => !q || !C.SHAPES[q.sid].pl.some(pl => !(lo & pl.lo) && !(hi & pl.hi)))) return end(true);
+    }
+    return end(false);
+  }
+  function clearLines() {
+    const kill = new Set(); let n = 0;
+    for (let r = 0; r < 8; r++) { let f = true; for (let c = 0; c < 8; c++) if (!mats[r * 8 + c]) f = false; if (f) { n++; for (let c = 0; c < 8; c++) kill.add(r * 8 + c); } }
+    for (let c = 0; c < 8; c++) { let f = true; for (let r = 0; r < 8; r++) if (!mats[r * 8 + c]) f = false; if (f) { n++; for (let r = 0; r < 8; r++) kill.add(r * 8 + c); } }
+    if (n && onMine && onMine([...kill].map(k => mats[k]).filter(Boolean)) === 'break') return 'break';
+    if (n) { streak++; clearMoves++; if (n > 1) multi++;
+      kill.forEach(k => { const m = mats[k]; if (!m) return; if (D.SPECIAL_MIX[m]) { const sp = D.specialHaul(m, zi, rnd); got[sp.k] = (got[sp.k] || 0) + sp.n; }
+        else { const res = m === 'log' ? 'wood' : (m === 'grass' ? 'dirt' : m); got[res] = (got[res] || 0) + 1; } mats[k] = null; }); }
+    else streak = 0;
+    return n;
+  }
   while (deals < def.deals) {
     deals++; let set;
     if (bigNext && lo === 0 && hi === 0) { set = C.BIG_IDS.map(ids => C.SHAPES[ids[Math.floor(rnd() * ids.length)]]); bigNext = false; }

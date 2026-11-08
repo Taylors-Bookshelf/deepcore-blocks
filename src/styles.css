@@ -496,3 +496,16 @@ label.tog input:checked::after{transform:translateX(18px);background:#fff}
 #dock .dg.p{box-shadow:inset 0 0 0 1px rgba(255,154,184,.28)}
 #dock .dg.p.off{box-shadow:inset 0 0 0 1px var(--panel-line)}
 #dock .wsBtn{font-size:9px}
+
+/* v2.3.0: rolling tray. The score stacks over "placements left" so the next piece fits beside the stars. */
+#scoreBox{flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;min-width:0}
+#pscore{font-size:30px;line-height:22px}
+#pgoal{font-size:10px;line-height:11px;letter-spacing:.8px;white-space:nowrap}
+#nextBox{flex:none;position:relative;height:36px}
+#nextBox>span{position:absolute;left:50%;top:-6px;transform:translateX(-50%);padding:0 3px;background:var(--ground);font-size:8px;line-height:10px;font-weight:700;letter-spacing:.8px;color:var(--muted);z-index:1}
+#nextBox>div{width:40px;height:36px;border-radius:6px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--panel-line);display:flex;align-items:center;justify-content:center}
+#nextBox canvas{image-rendering:pixelated}
+#nextBox.none{opacity:.35}
+.slot.drop canvas{animation:dropIn .26s ease-out}
+@keyframes dropIn{0%{opacity:0;transform:translateY(-14px) scale(.7)}100%{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.slot.drop canvas{animation:none}}
