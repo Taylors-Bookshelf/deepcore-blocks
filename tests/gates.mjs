@@ -20,9 +20,9 @@ check(n.length === 4 && !n.some(c => c.includes('strip') || c.includes('gate')),
 await tt('markDone', upto(8)); await tt('buildMap'); n = await nodes();
 check(n.filter(c => c.includes('gate')).length === 1, 'the first Limestone board waits for bone tools');
 await page.tap('.node.gate'); await page.waitForTimeout(250);
-check(/Forge/.test(await T(() => document.getElementById('ncGo').textContent)) && /Replay boards/.test(await T(() => document.getElementById('ncNote').textContent)), 'without the bones the gate points to the Forge and to replaying boards');
+check(/Open Craft/.test(await T(() => document.getElementById('ncGo').textContent)) && /Replay boards/.test(await T(() => document.getElementById('ncNote').textContent)), 'without the bones the gate points to Craft and to replaying boards');
 await page.tap('#ncClose'); await page.tap('#mapCraft'); await page.waitForTimeout(250);
-check(await T(() => /Bone tools/.test(document.getElementById('craftBody').textContent) && !/Blast/.test(document.getElementById('craftBody').textContent) && document.querySelector('#craftBody .recipe button.go').disabled), 'the Forge offers bone tools (and no specials), not yet affordable');
+check(await T(() => /Bone tools/.test(document.getElementById('craftBody').textContent) && !!document.querySelector('#craftBody .ci[data-id="tool"] .short')), 'Craft offers bone tools, not yet affordable');
 await page.tap('#craftClose');
 const bc = await tt('tcost', 1); await tt('setBank', { bone: bc.bone, wood: bc.wood, coal: 3 }); await tt('buildMap'); await page.tap('.node.gate'); await page.waitForTimeout(250);
 check(/Forge Bone tools/.test(await T(() => document.getElementById('ncGo').textContent)), `with ${bc.bone} bone and ${bc.wood} wood the gate offers to forge bone tools`);

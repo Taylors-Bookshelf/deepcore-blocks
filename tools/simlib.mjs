@@ -13,6 +13,9 @@ for (const k of ['waysFloor', 'waysExp', 'assistExp', 'mercy', 'mercyStart']) if
 for (const k of ['ways', 'tries', 'cap', 'budget']) if (args['roll' + k] !== undefined) C.ROLL[k] = +args['roll' + k];
 // v2.3.0: the rolling tray (each placement refilled with one piece, the piece after it shown as "next"); --sets plays the old 3-piece deals
 export const ROLLING = !args.sets;
+// endless boards (v2.4.0): a bot leaves once it has LEAVE.at stars, or any star once the board has run LEAVE.after placements past its grace
+export const LEAVE = { at: +(args.leaveat || 2), after: +(args.leaveafter || 12) };
+const CAP = +(args.cap || 300);
 // the board's piece supply, shape level: tray(k) deals a whole tray, next(held) the next piece; allClear() lines up three big pieces
 export function roller(def, rnd, o = {}) {
   const total = def.deals * 3; let n = 0, big = 0;
@@ -75,22 +78,26 @@ export function runBoard(zi, bj, seed, fails = 0, _unused = null, onMine = null)
   const mats = prefill(def, rnd); let [lo, hi] = bitsOf(mats);
   let score = 0, streak = 0, moves = 0, bigNext = false, deals = 0, allClears = 0, multi = 0, clearMoves = 0; const dealt = {}, got = {}, left = C.rollBudget(def.budget, rnd);
   const tilt = Math.min(.75, Math.max(0, fails - 1) * .35);
-  const end = died => { const stars = died ? 0 : D.starsFromScore(score, def.starAt); return { win: !died && stars > 0, completed: !died, stars, score, moves, deals, got, target: def.target, allClears, multi, clearMoves, died }; };
-  if (ROLLING) {   // one piece per placement; the bots don't use the preview
-    const R = roller(def, rnd, { luck: cfg.luck, tilt }); const dress = (s, others) => { const p = C.dressPiece(s, def, { rnd, dealt, budgeted: true, specialBlocked: others.some(q => q && q.mats.some(m => D.SPECIAL_MIX[m])) }); C.spreadOre([p], left, Math.max(1, R.left() - 3), rnd); return p; };
-    let pcs = []; R.tray(lo, hi).forEach(s => pcs.push(dress(s, pcs)));
-    let nextS = R.next(lo, hi, pcs.map(p => C.SHAPES[p.sid])), next = nextS && dress(nextS, pcs); deals = 1;
-    while (pcs.some(Boolean)) {
+  // v2.4.0: stars reached are kept even on a cave-in (the board counts as cleared), but a cave-in loses the haul
+  const end = died => { const stars = D.starsFromScore(score, def.starAt); return { win: stars > 0, completed: !died, stars, score, moves, deals, got: died && ROLLING ? {} : got, target: def.target, allClears, multi, clearMoves, died }; };
+  if (ROLLING) {   // v2.4.0, endless boards: one piece per placement, the dealer hardens past the grace; the bots don't use the preview
+    let n = 0, big = 0;
+    const dd = () => C.rampD(def.d, n, def.grace), opt = () => ({ rnd, luck: cfg.luck, tilt, big: big > 0, wild: C.wildOf(n, def.grace) * (1 - tilt) * (cfg.luck ? .5 : 1) });
+    const dress = (s, others) => C.orePiece(C.dressPiece(s, def, { rnd, dealt, budgeted: true, specialBlocked: others.some(q => q && q.mats.some(m => D.SPECIAL_MIX[m])) }), def, dealt, rnd);
+    let pcs = []; C.chooseTray(lo, hi, 3, dd(), { ...opt(), wild: 0 }).forEach(s => pcs.push(dress(s, pcs)));
+    let next = dress(C.chooseNext(lo, hi, pcs.map(p => C.SHAPES[p.sid]), dd(), opt()), pcs); deals = 1;
+    while (n < CAP) {
       const mv = botMove(lo, hi, pcs, rnd);
       if (!mv) return end(true);
-      const p = pcs[mv.i]; pcs[mv.i] = null; moves++; score += D.SCORE.block * p.cells.length;
+      const p = pcs[mv.i]; pcs[mv.i] = null; moves++; n++; score += D.SCORE.block * p.cells.length;
       p.cells.forEach(([r, c], k) => { mats[(mv.pl.r0 + r) * 8 + mv.pl.c0 + c] = p.mats[k]; });
-      const n = clearLines(); [lo, hi] = bitsOf(mats);
-      if (n === 'break') return { ...end(true), broke: true };
-      const ac = n > 0 && lo === 0 && hi === 0; score += D.placePoints(0, n, streak, ac).total; if (ac) { allClears++; R.allClear(); }
-      pcs[mv.i] = next; deals = Math.ceil((R.total - R.left()) / 3);
-      const held = pcs.filter(Boolean).map(q => C.SHAPES[q.sid]); nextS = held.length ? R.next(lo, hi, held) : null; next = nextS && dress(nextS, pcs);
-      if (pcs.every(q => !q)) break;
+      const cl = clearLines(); [lo, hi] = bitsOf(mats);
+      if (cl === 'break') return { ...end(true), broke: true };
+      const ac = cl > 0 && lo === 0 && hi === 0; score += D.placePoints(0, cl, streak, ac).total; if (ac) { allClears++; big = 3; }
+      const st = D.starsFromScore(score, def.starAt);
+      if (st >= 3 || (st >= LEAVE.at) || (st >= 1 && n >= def.grace + LEAVE.after)) return end(false);   // the third star ends it; the bot leaves at its star target
+      pcs[mv.i] = next; deals = Math.ceil(n / 3);
+      next = dress(C.chooseNext(lo, hi, pcs.filter(Boolean).map(q => C.SHAPES[q.sid]), dd(), opt()), pcs); if (big > 0) big--;
       if (pcs.every(q => !q || !C.SHAPES[q.sid].pl.some(pl => !(lo & pl.lo) && !(hi & pl.hi)))) return end(true);
     }
     return end(false);

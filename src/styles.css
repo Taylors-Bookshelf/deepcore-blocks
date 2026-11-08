@@ -509,3 +509,93 @@ label.tog input:checked::after{transform:translateX(18px);background:#fff}
 .slot.drop canvas{animation:dropIn .26s ease-out}
 @keyframes dropIn{0%{opacity:0;transform:translateY(-14px) scale(.7)}100%{opacity:1;transform:none}}
 @media (prefers-reduced-motion: reduce){.slot.drop canvas{animation:none}}
+
+/* ---------- v2.4.0: the belt (F-13), the cart bar (F-14), Craft on the map, run stats ---------- */
+/* the belt: a band holding the items, with a faint strap and stitching behind the slots (no buckle) */
+.belt{position:relative;display:flex;align-items:center;justify-content:center;border-radius:12px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--panel-line)}
+.belt::before{content:'';position:absolute;left:0;right:0;top:50%;height:46%;transform:translateY(-50%);background:#433f3b;opacity:.9;border-top:1px dashed rgba(214,190,160,.16);border-bottom:1px dashed rgba(214,190,160,.16);pointer-events:none}
+.bslots{position:relative;z-index:1;display:flex;align-items:center;gap:12px}
+.belt .tool{box-shadow:inset 0 0 0 1px var(--panel-line)}
+.belt .tool.empty{background:var(--slot)}
+.belt .tool.locked{background:var(--inset);color:var(--star-empty);box-shadow:inset 0 0 0 1px var(--panel-line)}
+.belt .tool.locked.glow{color:var(--lamp);background:#3a3427;box-shadow:inset 0 0 0 2px rgba(255,207,92,.75),0 0 14px rgba(255,207,92,.45);animation:beltGlow 1.6s ease-in-out infinite}
+.belt .tool.locked.glow::after{content:'+';position:absolute;right:4px;bottom:1px;font-size:16px;font-weight:700;color:var(--lamp);line-height:1}
+.belt .tool.locked.glow svg{opacity:1}
+@keyframes beltGlow{50%{box-shadow:inset 0 0 0 2px rgba(255,207,92,.95),0 0 22px rgba(255,207,92,.65)}}
+#dock{flex:none;padding:0;background:none;box-shadow:none;display:block}
+#beltBar{height:68px}
+/* the cart bar: a mine cart on rails rolling to the exit; grey until the first star, then it glows and can be tapped */
+#cartBar{flex:none;position:relative;display:block;width:100%;height:36px;min-height:0;padding:0;border-radius:10px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--panel-line);overflow:hidden;cursor:default}
+#cartBar .rail{position:absolute;left:10px;right:44px;bottom:7px;height:2px;background:#6a6d74;box-shadow:0 4px 0 #55585f}
+#cartBar .ties{position:absolute;left:10px;right:44px;bottom:3px;height:8px;background:repeating-linear-gradient(90deg,#4a3a2a 0 3px,transparent 3px 14px)}
+#cartBar canvas{position:absolute;image-rendering:pixelated}
+#cartBar .cart{bottom:8px;left:12px;width:32px;height:22px;transition:left .5s ease-out}
+#cartBar .door{right:8px;bottom:2px;width:32px;height:28px}
+#cartBar .glowd{position:absolute;right:2px;bottom:0;width:44px;height:36px;background:radial-gradient(circle at 50% 70%,rgba(255,207,92,.55),transparent 65%);opacity:0;transition:opacity .4s}
+#cartBar.off{filter:grayscale(1);opacity:.5}
+#cartBar.on{cursor:pointer;box-shadow:inset 0 0 0 2px rgba(255,207,92,.75),0 0 16px rgba(255,207,92,.4);animation:cartGlow 1.8s ease-in-out infinite}
+#cartBar.on .glowd{opacity:1}
+@keyframes cartGlow{50%{box-shadow:inset 0 0 0 2px rgba(255,207,92,.95),0 0 24px rgba(255,207,92,.6)}}
+/* score row: score on the left, a bigger NEXT in the middle, bigger stars on the right */
+#goalsBar{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:8px;min-height:60px}
+#nextBox{height:auto;display:flex;flex-direction:column;align-items:center;gap:3px}
+#nextBox>span{position:static;transform:none;background:none;padding:0;font-size:10px;line-height:12px;letter-spacing:1.5px}
+#nextBox>div{width:72px;height:48px}
+#starChip{justify-self:end;height:44px;padding:0 10px}
+#starChip i{font-size:34px}
+/* the Lucky Dodge on the cave-in screen */
+#dodge{display:flex;flex-direction:column;align-items:center;gap:2px;max-width:300px;padding:10px 14px;background:#3a3427;color:var(--text);box-shadow:inset 0 0 0 2px rgba(255,207,92,.7),0 0 14px rgba(255,207,92,.3)}
+#dodge b{font-family:var(--font-display);font-weight:400;font-size:26px;line-height:1;color:var(--lamp)}
+#dodge span{font-size:13px;font-weight:500;color:var(--muted);line-height:1.3}
+/* map: run stats in the top bar, the belt bar with Craft under it */
+.runstats{flex:1;min-width:0;display:flex;justify-content:center;gap:22px;line-height:1}
+.runstats>div{text-align:center}.runstats .label{font-size:10px;letter-spacing:1.5px;display:block;margin-bottom:3px}
+.runstats b{font-family:var(--font-display);font-weight:400;font-size:28px}.runstats b small{font-size:20px;color:var(--muted)}
+.mapband{padding:8px 12px;background:var(--ground);box-shadow:inset 0 -1px 0 var(--panel-line)}
+.belt.map{height:60px;padding:0 6px 0 12px;justify-content:flex-start}
+.belt.map .bslots{gap:8px}.belt.map .tool{width:44px;height:44px}.belt.map .tool canvas.px{width:32px;height:32px}.belt.map .tool svg{width:16px;height:16px}
+#mapCraft{position:relative;z-index:1;margin-left:auto;display:flex;align-items:center;gap:6px;min-height:46px;padding:6px 14px 6px 10px}
+#mapCraft canvas{width:26px;height:26px;image-rendering:pixelated}
+#mapCraft.afford{animation:craftPulse 1.4s ease-in-out infinite}
+.zlabel .zchip{display:inline-flex;align-items:center;gap:6px;margin-top:6px;height:30px;min-height:30px;padding:0 10px;border-radius:15px;background:rgba(30,31,35,.86);box-shadow:inset 0 0 0 1px var(--panel-line);font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--text);text-shadow:none;letter-spacing:0;pointer-events:auto;cursor:pointer}
+.zchip b{font-family:var(--font-display);font-weight:400;font-size:20px;color:var(--lamp)}.zchip .chev{color:var(--muted);font-size:16px}
+.zpop{position:fixed;left:16px;right:16px;max-width:520px;margin:0 auto;z-index:30;padding:14px 16px 12px;border-radius:12px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--panel-line),0 10px 30px rgba(0,0,0,.55)}
+.zpop::before{content:'';position:absolute;left:var(--ax,40px);top:-8px;width:14px;height:14px;background:var(--panel);transform:rotate(45deg);box-shadow:-1px -1px 0 var(--panel-line)}
+.zpop.noarrow::before{display:none}
+.zpop h3{font-size:26px;line-height:1;margin:2px 0}.zpop .sub{font-size:13px;color:var(--muted);margin-bottom:10px}
+.zpop .sub b{font-family:var(--font-display);font-weight:400;font-size:20px;color:var(--lamp)}
+.zrow{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:12px;height:34px;padding:0 4px;border-top:1px solid var(--divider);font-size:14px}
+.zrow .st{color:var(--lamp);letter-spacing:1px;font-size:13px}.zrow .st i{color:var(--star-empty);font-style:normal}
+.zrow .n{font-family:var(--font-display);font-size:22px;min-width:44px;text-align:right}
+.zrow.cur{color:var(--lamp)}.zrow.cur .n{font-family:var(--font-ui);font-size:12px;font-weight:700;letter-spacing:1px}
+.zrow.lk{color:var(--star-empty)}
+/* Craft: the belt stays put at the top, the list scrolls under it */
+#craftPanel .panel{position:relative;overflow:hidden;max-height:calc(100% - 24px)}
+#craftBelt{flex:none;padding-bottom:12px;box-shadow:0 1px 0 var(--panel-line)}
+.belt.craft{height:84px}.belt.craft .bslots{gap:14px}.belt.craft .tool{width:64px;height:64px;cursor:pointer}.belt.craft .tool canvas.px{width:48px;height:48px}
+.belt.craft .tool.sel{box-shadow:inset 0 0 0 2px var(--lamp),0 0 12px rgba(255,207,92,.5)}
+.belt.craft .tool.empty.target{box-shadow:inset 0 0 0 2px rgba(255,207,92,.45)}
+#craftBody{flex:1;min-height:0;overflow:auto;gap:8px;margin:0 -4px;padding:0 4px 4px}
+#craftBody h3{margin-top:10px}
+.ci{display:flex;align-items:center;gap:12px;width:100%;min-height:0;padding:10px 12px;border-radius:10px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--panel-line);text-align:left;font-weight:500;cursor:pointer}
+.ci:disabled{cursor:default;opacity:1}
+.ci.off{opacity:.55}
+.ci>canvas{width:44px;height:44px;flex:none;image-rendering:pixelated}
+.ci .nm{font-weight:700;font-size:16px}.ci .ds{font-size:13px;color:var(--muted);margin:1px 0 4px}
+.ci .cost,.spop .cost{display:flex;flex-wrap:wrap;gap:10px;font-family:var(--font-display);font-size:20px;line-height:1}
+.ci .cost span,.spop .cost span{display:inline-flex;align-items:center;gap:3px}.ci .cost canvas,.spop .cost canvas{width:16px;height:16px;image-rendering:pixelated}
+.ci .cost .short,.spop .cost .short{color:var(--danger-text)}
+.ci.flash{animation:craftPulse 1s ease-out 2}
+.spop{position:absolute;z-index:40;padding:12px 14px;border-radius:12px;background:var(--panel);box-shadow:inset 0 0 0 1px rgba(255,207,92,.5),0 10px 30px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:6px}
+.spop::before{content:'';position:absolute;top:-8px;left:var(--ax,110px);width:14px;height:14px;background:var(--panel);transform:rotate(45deg);box-shadow:-1px -1px 0 rgba(255,207,92,.5)}
+.spop .nm{font-weight:700;font-size:16px}.spop .ds{font-size:13px;color:var(--muted)}
+.spop button{margin-top:4px}
+@media (prefers-reduced-motion: reduce){.belt .tool.locked.glow,#cartBar.on,#mapCraft.afford,.ci.flash{animation:none}#cartBar .cart{transition:none}}
+#over #dodge{flex:none}
+#over.dodging{gap:8px}
+#over.dodging #overTip{display:none}
+#over.dodging .big{font-size:40px}
+#over.dodging h2{font-size:34px}
+@media (max-height:700px){#over.dodging #finalNote{display:none}}
+/* short phones: the board is too small to hold the cave-in panel, so it covers the screen instead */
+@media (max-height:760px){#over{position:fixed;inset:0;z-index:20;border-radius:0;background:rgba(12,13,16,.9);padding:max(env(safe-area-inset-top,0px),16px) 20px}}

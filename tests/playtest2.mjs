@@ -10,14 +10,15 @@ const one = { cells: [[0, 0]], h: 1, w: 1, mats: ['stone'], sid: 0 };
 // 1. the last piece of the board must leave the tray (it used to stay drawn but could not be picked up); the board then ends
 await tt('markDone', [0, 1, 2, 3]); await tt('start', 4); await page.waitForTimeout(2600);
 const tg = await T(() => window.__deepcore.test.def().target);
-await tt('setScore', tg); await tt('lastDeal');
+await tt('setScore', tg);
 await T((one) => { const t = window.__deepcore.test; for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) t.setCell(r, c, null); for (let c = 0; c < 6; c++) t.setCell(7, c, 'stone');
   t.setPieces([null, { cells: [[0, 0], [0, 1]], h: 1, w: 2, mats: ['stone', 'stone'], sid: 1 }, null]); t.place(1, 7, 6); }, one);
 await page.waitForTimeout(2600);
-check(await T(() => !document.getElementById('sheetScrim').hidden && /BOARD CLEARED/.test(document.getElementById('sheet').textContent)), 'placing the last deal ends the board with the results sheet');
+await T(() => window.__deepcore.test.leave()); await page.waitForTimeout(1200);
+check(await T(() => !document.getElementById('sheetScrim').hidden && /BOARD CLEARED/.test(document.getElementById('sheet').textContent)), 'leaving with a star ends the board with the results sheet');
 check(await T(() => document.getElementById('resRetry').textContent === 'RETRY' && document.getElementById('resGo').textContent === 'CONTINUE' && !document.getElementById('kpGo') && !document.getElementById('bankBtn')), 'the results sheet offers RETRY and CONTINUE; KEEP MINING and FINISH are gone');
 const tray = await T(() => [...document.querySelectorAll('.slot canvas')].map(c => !c.hidden));
-check(tray.every(v => !v), `the board's last piece is gone from the tray (${tray})`);
+check(tray[1] && !tray[0] && !tray[2], `endless boards: the placed piece's slot took the next piece (${tray})`);
 const body = await T(() => document.body.innerText);
 check(!/\bbank(ed)?\b/i.test(body), 'no "bank" wording on screen');
 await page.tap('#resGo'); await page.waitForTimeout(2600);

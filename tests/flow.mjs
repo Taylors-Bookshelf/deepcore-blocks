@@ -19,12 +19,20 @@ check(s.bank.coal === 3 && !s.bank.iron && !s.bank.wood, 'the stash did not chan
 const shown = await T(() => [...document.querySelectorAll('.si')].map(e => e.dataset.k + ':' + e.querySelector('.n').textContent + e.querySelector('.pl').textContent).join(' '));
 check(/coal:3\+2/.test(shown) && /wood:0\+2/.test(shown), `stash shows banked count and +haul (${shown})`);
 
-// ---- a cave-in without a Potion of Protection spills the hand ----
+// ---- a cave-in: the Lucky Dodge (once per board) trades half the haul for another go; the next cave-in spills it ----
+await T(() => { const t = window.__deepcore.test; t.setPieces([{ cells: [[0, 0]], h: 1, w: 1, mats: ['stone'], sid: 0 }, null, null]); t.place(0, 0, 0); }); await page.waitForTimeout(600);
 await T(() => window.__deepcore.test.gameOver()); await page.waitForTimeout(900);
 s = await st();
+check(await T(() => !document.getElementById('dodge').hidden) && Object.values(s.hand).reduce((a, b) => a + b, 0) === 6, `the cave-in offers a Lucky Dodge and holds the haul until you choose (${JSON.stringify(s.hand)})`);
+await page.click('#dodge'); await page.waitForTimeout(2000);
+s = await st();
+check(!s.over && Object.values(s.hand).reduce((a, b) => a + b, 0) === 4 && s.hand.coal === 1 && s.hand.wood === 1, `the Lucky Dodge keeps you mining for half the haul (${JSON.stringify(s.hand)})`);
+await T(() => window.__deepcore.test.gameOver()); await page.waitForTimeout(900);
+s = await st();
+check(await T(() => document.getElementById('dodge').hidden), 'no second Lucky Dodge on the same board');
 check(Object.values(s.hand).every(v => !v), 'cave-in empties the hand');
 check(s.bank.coal === 3 && !s.bank.iron, 'cave-in leaves the banked stash alone');
-check(await T(() => window.DCA.buffer.some(e => e.event === 'board_fail' && e.properties.hand_lost >= 6)), 'analytics recorded the lost haul');
+check(await T(() => window.DCA.buffer.some(e => e.event === 'board_fail' && e.properties.hand >= 4) && window.DCA.buffer.some(e => e.event === 'lucky_dodge')), 'analytics recorded the cave-ins and the dodge');
 check(await T(() => !document.getElementById('over').hidden), 'cave-in screen is shown');
 await page.waitForTimeout(1500);
 
@@ -34,15 +42,14 @@ await T(() => window.__deepcore.test.giveHand({ coal: 5, iron: 2 })); await T(()
 s = await st(); check(s.bank.coal === 8 && s.bank.iron === 2 && Object.values(s.hand).every(v => !v), `clearing the board banks the hand (${JSON.stringify(s.bank)})`);
 check(s.screen === 'map', 'clearing returns to the map');
 
-// ---- Potion of Luck ----
-await board(4);
-await T(() => { const t = window.__deepcore.test; t.give({ ruby: 24, bone: 8 }); t.workshop('table'); });
-await page.tap('#brewBtn'); await page.waitForTimeout(200);
-const names = await page.$$eval('.recipe .nm', e => e.map(x => x.textContent)); check(names.join() === 'Potion of Protection,Potion of Luck,Second potion slot', 'the brewing table lists the potions and its upgrade: ' + names);
-await page.click('.recipe[data-m="luck"] button'); await page.waitForTimeout(150);
-s = await st(); check(s.crafted.luck === 1 && s.bank.ruby === 12 && s.bank.bone === 4, 'Potion of Luck crafted for 12 ruby + 4 bone');
-check(await T(() => document.querySelectorAll('#dockSlots .tool:not(.empty)').length) === 1, 'the crafted Potion of Luck sits in a dock slot');
-await page.tap('#anvilClose');
+// ---- Potion of Luck: brewed in Craft on the map, carried on the belt ----
+await T(() => { const t = window.__deepcore.test; t.give({ ruby: 24, bone: 8 }); t.workshop('table'); t.openMap(); }); await page.waitForTimeout(1200);
+await page.click('#mapCraft'); await page.waitForTimeout(300);
+const names = await page.$$eval('#craftBody .ci .nm', e => e.map(x => x.textContent)); check(names.slice(-2).join() === 'Potion of Protection,Potion of Luck', 'Craft lists the potions once the brewing table is built: ' + names);
+await page.click('#craftBody .ci[data-id="luck"]'); await page.waitForTimeout(150); await page.click('#askYes'); await page.waitForTimeout(150);
+s = await st(); check(s.crafted.luck === 1 && s.bank.ruby === 12 && s.bank.bone === 4, 'Potion of Luck brewed for 12 ruby + 4 bone');
+check(await T(() => document.querySelectorAll('#mapBeltSlots .tool.potion').length) === 1, 'the Potion of Luck sits on the belt, shown on the map');
+await page.click('#craftClose'); await board(4);
 await page.tap('.tool[data-m="luck"]'); await page.waitForTimeout(1400);
 s = await st(); check(s.luck === 15, "drinking starts 15 lucky placements");
 check(await T(() => !document.getElementById('luckBadge').hidden && document.querySelectorAll('#luckBadge .pips i.on').length === 5), "luck badge shows 5 lit pips");

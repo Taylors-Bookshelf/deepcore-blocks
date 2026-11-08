@@ -50,9 +50,9 @@ for (let run = 0; run < RUNS; run++) {
       // the workshop first, then specials, only with what is left after the next tool
       for (const w of Object.values(D.WORKSHOP || {})) { if (ws[w.id] || (w.needs && !ws[w.needs]) || !afford(bank, w.cost)) continue; const after = { ...bank }; pay(after, w.cost); if (cost && !afford(after, cost)) continue;
         pay(bank, w.cost); ws[w.id] = 1; S.built[w.id] = (S.built[w.id] || 0) + 1; S.builtDay[w.id] = (S.builtDay[w.id] || 0) + day; }
-      const cap = slot => !D.WORKSHOP ? 3 : slot === 'equip' ? 1 + (ws.equip2 ? 1 : 0) : (ws.table ? 1 + (ws.potion2 ? 1 : 0) : 0);
-      const heldIn = slot => Object.keys(owned).filter(m => (D.RECIPES.find(r => r.m === m) || {}).slot === slot).length;
-      for (const rc of D.RECIPES) { if (owned[rc.m] || heldIn(rc.slot) >= cap(rc.slot) || !afford(bank, rc.cost)) continue; const after = { ...bank }; pay(after, rc.cost); if (cost && !afford(after, cost)) continue; pay(bank, rc.cost); owned[rc.m] = 1; S.crafted[rc.m] = (S.crafted[rc.m] || 0) + 1; }
+      // the belt (v2.4.0): 1 slot to start, 2 and 3 unlocked; potions need the brewing table
+      const cap = 1 + (ws.belt2 ? 1 : 0) + (ws.belt3 ? 1 : 0);
+      for (const rc of D.RECIPES) { if (owned[rc.m] || Object.keys(owned).length >= cap || (rc.kind === 'potion' && !ws.table) || !afford(bank, rc.cost)) continue; const after = { ...bank }; pay(after, rc.cost); if (cost && !afford(after, cost)) continue; pay(bank, rc.cost); owned[rc.m] = 1; S.crafted[rc.m] = (S.crafted[rc.m] || 0) + 1; }
       Object.keys(owned).forEach(k => { if (Math.random() < .3) delete owned[k]; });   // specials get used now and then
     }
     if (restart) { z = D.MAGMA_Z - 1; continue; }

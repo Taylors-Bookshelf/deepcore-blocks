@@ -1,4 +1,5 @@
-// Release 4, updated for v2.0.4: a board is a fixed number of deals, stars from its points (0 to 3), RETRY / CONTINUE; combo meter, near-miss cave-in screen, hint, daily modifiers.
+// Release 4, updated for v2.4.0: endless boards (leave through the cart bar once you have a star, the third star ends the board), stars from
+// points (0 to 3), RETRY / CONTINUE; combo meter, the cave-in screen, hint, daily modifiers.
 import { createRequire } from 'node:module';
 import { phone, makeChecker } from './helpers.mjs';
 const require = createRequire(import.meta.url);
@@ -17,13 +18,13 @@ check(D.ZONES.every((z, zi) => z.core || Array.from({ length: z.boards }, (_, j)
 check(D.boardParams(D.ZONES.length - 1, 0).starAt.length === 0, 'the Ancient Core has no stars');
 check(D.boardParams(0, 0).starAt[0] < D.boardParams(0, 1).starAt[0], 'board 1-1 (the tutorial) has a lower 1-star line');
 { const at = i => D.boardParams(i, 1).starAt; check([1, 2, 3, 4, 5, 6].every(i => [0, 1, 2].every(k => at(i)[k] >= at(i - 1)[k])), `every star line rises or holds layer by layer (v2.3.0: the 1-star pass mark ramps, 3 stars track a planner)`); }
-check(D.DEALS.slice(0, D.CRUST_Z + 1).every((n, i) => i === 0 || n >= D.DEALS[i - 1]), 'boards get more deals layer by layer');
-{ const r = D.rng(3), b = D.boardParams(2, 3).budget, runs = Array.from({ length: 400 }, () => C.rollBudget(b, r));
-  check(runs.every(x => x.coal === Math.floor(b.coal)) && Math.abs(runs.reduce((a, x) => a + (x.iron || 0), 0) / 400 - b.iron) < .1, 'the ore budget is exact for whole numbers and a chance for the fraction');
-  const def = D.boardParams(2, 3), left = C.rollBudget(def.budget, r), want = Object.values(left).reduce((a, x) => a + x, 0); let lo = 0, hi = 0, got = 0;
-  // v2.3.0: one piece at a time, as the rolling tray deals them (game.js dealPiece)
-  const total = def.deals * 3; for (let n = 1; n <= total; n++) { const p = C.dressPiece(C.chooseNext(lo, hi, [], def.d, { rnd: r }), def, { rnd: r, budgeted: true }); C.spreadOre([p], left, Math.max(1, total - n - 2), r); p.mats.forEach(m => { if (D.STAR_ORES.includes(m)) got++; }); }
-  check(got === want, `a board deals exactly its ore budget over its pieces (${got} of ${want})`); }
+check(D.DEALS.slice(0, D.CRUST_Z + 1).every((n, i) => i === 0 || n >= D.DEALS[i - 1]), 'the dealer\'s grace (the old board length) grows layer by layer');
+{ const r = D.rng(3), def = D.boardParams(2, 3), N = 4000; let iron = 0, gems = 0;
+  // v2.4.0: no fixed budget; each piece carries ore at the layer's rate (D.ORE_RATE x the old budget over the old board length)
+  for (let n = 0; n < N; n++) { const p = C.orePiece(C.dressPiece(C.SHAPES[20], def, { rnd: r, budgeted: true }), def, {}, r); p.mats.forEach(m => { if (m === 'iron') iron++; }); }
+  const want = def.orePer.iron * N; check(Math.abs(iron - want) / want < .12, `each piece carries ore at its layer's rate (${iron} iron in ${N} pieces, expected about ${Math.round(want)})`);
+  const g = D.boardParams(4, 3), dealt = {}; for (let n = 0; n < 3000; n++) { const p = C.orePiece(C.dressPiece(C.SHAPES[20], g, { rnd: r, budgeted: true }), g, dealt, r); p.mats.forEach(m => { if (m === 'diamond') gems++; }); }
+  check(gems <= g.oreCap.diamond, `gems are capped per board (${gems} diamonds, cap ${g.oreCap.diamond})`); }
 check(D.starBonus(1, 2400) === 0 && D.starBonus(2, 2400) === 240 && D.starBonus(3, 2400) === 480, 'each extra star is worth 10% of the 1-star line');
 const days = Array.from({ length: 90 }, (_, i) => `2026-${String(1 + Math.floor(i / 28)).padStart(2, '0')}-${String(1 + i % 28).padStart(2, '0')}`);
 const mods = days.map(d => D.modifierFor(d).id);
@@ -48,20 +49,22 @@ const target = () => T(() => window.__deepcore.test.def().target);
 const clearRow = () => T(() => { const t = window.__deepcore.test; for (let c = 0; c < 8; c++) t.setCell(7, c, null); for (let c = 0; c < 6; c++) t.setCell(7, c, 'stone');
   t.setPieces([{ cells: [[0, 0], [0, 1]], h: 1, w: 2, mats: ['stone', 'stone'], sid: 1 }, null, null]); window.__deepcore.test.place(0, 7, 6); });
 const board = async (i) => { await tt('start', i); await page.waitForTimeout(2600); };
-// end the board: the last deal, with the score set so the final clear (2 blocks + 1 line = 120 points) lands where we want
-const finish = async (pts) => { await tt('setScore', pts); await tt('lastDeal'); await clearRow(); await page.waitForTimeout(2600); };
+// end the board: set the score so one clear (2 blocks + 1 line = 120 points) lands where we want, then leave through the cart bar
+const finish = async (pts, leave = true) => { await tt('setScore', pts - 120); await clearRow(); await page.waitForTimeout(2600); if (leave) { await tt('cart'); await page.waitForTimeout(150); if (!(await T(() => document.getElementById('askScrim').hidden))) await page.click('#askYes'); await page.waitForTimeout(1100); } };
 
-// 1. every deal placed but too few points for a star: the board is not cleared, the haul is not banked, RETRY or MAP
+// 1. without a star the cart bar is grey and does nothing: there is no way to end a board with 0 stars except a cave-in
 await board(9); const tg = await target(), sa = await T(() => window.__deepcore.test.def().starAt);
-await tt('give', { coal: 10 }); await tt('giveHand', { coal: 4, wood: 2 }); await finish(0);
+await tt('give', { coal: 10 }); await tt('giveHand', { coal: 4, wood: 2 }); await finish(sa[0] - 200);
 let s = await st();
-check(s.reached && s.busy && s.bank.coal === 10 && !s.day.done.includes(9), `placing every deal with too few points ends the board without clearing it or banking (bank coal ${s.bank.coal})`);
-check(await T(() => /NOT ENOUGH POINTS/.test(document.getElementById('sheet').textContent) && !!document.getElementById('resRetry') && !!document.getElementById('resMap') && !document.getElementById('resGo')), 'a 0-star result offers RETRY or MAP, never CONTINUE');
-await page.tap('#resMap'); await page.waitForTimeout(800); s = await st();
-check(s.screen === 'map' && s.bank.coal === 10 && !s.day.done.includes(9) && !(s.day.stars || {})[9] && !Object.keys(s.hand).length, 'leaving a 0-star board drops the haul and leaves it uncleared');
-// 2. RETRY is a clean restart: nothing from the run is kept
-await board(9); await tt('giveHand', { coal: 4 }); await finish(sa[1]);
-check(await T(() => /BOARD CLEARED/.test(document.getElementById('sheet').textContent) && document.querySelectorAll('.shStar.got').length === 2 && !!document.getElementById('resRetry') && !!document.getElementById('resGo')), 'with 2 stars of points the results sheet shows them and offers RETRY or CONTINUE');
+check(!s.reached && !s.over && await T(() => document.getElementById('cartBar').classList.contains('off') && document.getElementById('askScrim').hidden), 'below the first star the cart bar is grey and tapping it does nothing');
+// 2. one star lights the cart bar; it asks "Done here?"; the results sheet offers RETRY or CONTINUE; RETRY is a clean restart
+await tt('setScore', sa[1] - 120); await clearRow(); await page.waitForTimeout(2600);
+check(await T(() => document.getElementById('cartBar').classList.contains('on')), 'with a star the cart bar lights up');
+await tt('cart'); await page.waitForTimeout(150);
+check(await T(() => document.getElementById('askTitle').textContent === 'Done here?'), 'tapping it asks "Done here?"');
+await page.click('#askNo'); await page.waitForTimeout(200); s = await st(); check(!s.reached && s.screen === 'game', 'No keeps you mining');
+await tt('cart'); await page.waitForTimeout(150); await page.click('#askYes'); await page.waitForTimeout(1100);
+check(await T(() => /BOARD CLEARED/.test(document.getElementById('sheet').textContent) && document.querySelectorAll('.shStar.got').length === 2 && !!document.getElementById('resRetry') && !!document.getElementById('resGo')), 'Yes ends the board: the results sheet shows 2 stars and offers RETRY or CONTINUE');
 await page.tap('#resRetry'); await page.waitForTimeout(2600); s = await st();
 check(s.screen === 'game' && !s.reached && s.score < 50 && !Object.keys(s.hand).length && s.bank.coal === 10 && !s.day.done.includes(9) && !(s.day.stars || {})[9], 'RETRY restarts the board and discards that run (ore, points, stars)');
 // 3. CONTINUE banks the haul and records the stars and the star bonus
@@ -69,26 +72,34 @@ await tt('giveHand', { coal: 4 }); await finish(sa[1]);
 await page.tap('#resGo'); await page.waitForTimeout(3200); s = await st();
 check(s.screen === 'map' && s.day.done.includes(9) && s.day.stars[9] === 2 && s.bank.coal === 14, `CONTINUE clears the board with 2 stars and banks the haul (bank coal ${s.bank.coal})`);
 check(s.day.scores[9] >= tg + D.starBonus(2, tg), 'the star bonus is part of the board score');
-// 4. three stars: still the same choice, and the bonus is paid
+// 4. the third star ends the board on its own
 await board(10); await page.tap('#pauseBtn'); await page.waitForTimeout(300);
-check(await T(() => /Stars in Limestone Caves: 2 of 24/.test(document.getElementById('sheet').textContent) && !!document.getElementById('pauseResume') && !!document.getElementById('pauseQuit')), 'the pause sheet shows the stars earned in the layer (2 of 24 in the Limestone Caves)');
+check(await T(() => /Stars in Limestone Caves: 2 of 24/.test(document.getElementById('sheet').textContent) && /Placements on this board: 0/.test(document.getElementById('sheet').textContent) && !!document.getElementById('pauseResume') && !!document.getElementById('pauseQuit')), 'the pause card shows the placements on this board and the stars in the layer (2 of 24 in the Limestone Caves)');
+check(await T(() => [...document.querySelectorAll('.pauseBtns button')].map(b => b.id).join() === 'pauseQuit,pauseRestart,pauseResume'), 'pause buttons run Map, Restart, Resume from left to right');
 await page.tap('#pauseResume'); await page.waitForTimeout(200);
 const tg5 = await target(), sa5 = await T(() => window.__deepcore.test.def().starAt);
-await finish(sa5[2]);
-check(await T(() => document.querySelectorAll('.shStar.got').length === 3 && !!document.getElementById('resGo')), 'three stars show on the results sheet');
+await finish(sa5[2], false);
+check(await T(() => document.querySelectorAll('.shStar.got').length === 3 && !!document.getElementById('resGo')), 'reaching the third star ends the board and shows the results');
 await page.tap('#resGo'); await page.waitForTimeout(3200); s = await st();
 check(s.day.stars[10] === 3 && s.day.scores[10] > tg5 + D.starBonus(3, tg5) - 1, `the board is banked with 3 stars (bonus ${D.starBonus(3, tg5)})`);
 // 5. a worse replay never lowers the stars you already have
 await board(10); check(!(await tt('practice')), 'a replay is an ordinary board (it gives ore)'); await finish(sa5[0]); await page.tap('#resGo'); await page.waitForTimeout(3200);
 check((await st()).day.stars[10] === 3, 'a 1-star replay keeps the 3 stars');
-// 6. the board ends after its last deal: a cave-in after it is impossible, and the results sheet comes back after a reload
+// 6. once the board has ended it cannot cave in, and the results sheet comes back after a reload
 await board(11); await finish((await T(() => window.__deepcore.test.def().starAt))[0]);
 await tt('gameOver'); await page.waitForTimeout(800); s = await st();
-check(!s.over && s.reached, 'after the last deal the board cannot cave in');
+check(!s.over && s.reached, 'after leaving, the board cannot cave in');
 await page.reload(); await page.waitForTimeout(900); await page.tap('#mapBtn'); await page.waitForTimeout(500);
 await T(() => document.querySelector('.node.progress').click()); await page.waitForTimeout(1200);
 check(await T(() => !document.getElementById('sheetScrim').hidden && !!document.getElementById('resGo')), 'a board left on its results sheet reopens on it');
 await page.tap('#resGo'); await page.waitForTimeout(3200);
+// 6b. a cave-in after the first star keeps the stars (the board counts as cleared) but buries the haul
+await board(12); await tt('giveHand', { coal: 3 }); await tt('setScore', (await T(() => window.__deepcore.test.def().starAt))[0] + 10); await tt('bar');
+await page.evaluate(() => window.__deepcore.test.state().dayState); await T(() => { window.__deepcore.test.state(); });
+await tt('gameOver'); await page.waitForTimeout(1300); s = await st();
+check(s.over && s.day.done.includes(12) && s.day.stars[12] >= 1 && /You keep your ★/.test(await T(() => document.getElementById('finalNote').textContent)), 'a cave-in after a star keeps the star and clears the board');
+await page.tap('#again'); await page.waitForTimeout(900); s = await st();
+check(s.screen === 'map' && !Object.keys(s.hand).filter(k => s.hand[k]).length && s.bank.coal === 14, `but the haul is lost (bank coal ${s.bank.coal})`);
 
 // 5b. a two-line clear pays its lines and the Double, and mines exactly the ore in its lines (no bonus ore since v2.0.4)
 { const sq = C.SHAPES.findIndex(sh => sh.w === 2 && sh.h === 2 && sh.cells.length === 4);
@@ -102,10 +113,10 @@ await board(9);
 for (let k = 0; k < 2; k++) { await clearRow(); await page.waitForTimeout(2300); }
 s = await st(); check(s.combo >= 2, `two clears in a row make a streak (${s.combo})`);
 check(await T(() => !document.getElementById('comboMeter')), 'there is no permanent combo badge on the board');
-// 7. near-miss cave-in screen
+// 7. the cave-in screen
 await board(10); await tt('gameOver'); await page.waitForTimeout(1500);
-const over = await T(() => [document.getElementById('overWhy').textContent, document.getElementById('overTip').textContent, document.getElementById('overBar').firstElementChild.style.width]);
-check(/1[2-5] of 15 placements left/.test(over[0]) && over[1].length > 20 && over[2] === '0%', `the cave-in screen says how many placements were left and gives a tip (${over[0]})`);
+const over = await T(() => [document.getElementById('overWhy').textContent, document.getElementById('overTip').textContent, document.getElementById('overBar').hidden]);
+check(/The cave gave way after \d+ placements?\./.test(over[0]) && over[1].length > 20 && over[2], `the cave-in screen says how long the board lasted and gives a tip (${over[0]})`);
 check(!/easier/.test(over[1]), 'no mercy note after the first cave-in');
 for (let k = 0; k < 2; k++) { await page.tap('#retry'); await page.waitForTimeout(2600); await tt('gameOver'); await page.waitForTimeout(1500); }
 check(await T(() => /go easier/.test(document.getElementById('overTip').textContent)), 'after repeated cave-ins the screen tells you the dealer will ease up');
@@ -123,7 +134,8 @@ check(await T(() => window.DCA.buffer.some(e => e.event === 'hint_used')), 'anal
 // 9. daily twist shown, and Forge Day makes tools cheaper
 await T(() => window.__deepcore.test.openMap());
 const modName = await T(() => window.__deepcore.test.mod().name);
-check(await T((n) => document.getElementById('mapDate').textContent.includes(n), modName), `the map shows today's twist (${modName})`);
+await T(() => window.__deepcore.test.showHome()); await page.waitForTimeout(300);
+check(await T((n) => document.getElementById('homeTwist').textContent.includes(n), modName), `the home screen shows today's twist (${modName})`);
 const forgeDay = days.find(d => D.modifierFor(d).id === 'forge_day'); await tt('previewDay', forgeDay);
 const lc = await tt('tcost', 1); check(lc.bone === Math.ceil(D.TOOLS[1].cost.bone * .75) && lc.wood === Math.ceil(D.TOOLS[1].cost.wood * .75), `on a Forge Day bone tools cost a quarter less (${JSON.stringify(lc)})`);
 check(errors.filter(e => !/404/.test(e)).length === 0, 'no page errors ' + errors.join(' | '));

@@ -194,7 +194,7 @@ function chooseSet(lo,hi,d,opts={}){
 // Each placement is refilled with one new piece, and the piece after that is shown as "next". chooseNext picks that next piece so
 // the tray you hold plus the next piece can all be placed (the next one never first: it arrives after your next placement), so a
 // cave-in is still always the player's doing. Same weights, help and mercy as chooseSet. held: the shapes in the tray.
-// opts: {luck, tilt, rnd, big (prefer one of the big All Clear pieces)}
+// opts: {luck, tilt, rnd, big (prefer one of the big All Clear pieces), wild (chance to skip the solvability check: endless boards)}
 const ROLL={ways:4,tries:22,cap:900,budget:24000};   // the 4-piece version of targetWays, and the search effort (sim.mjs can override)
 function chooseNext(lo,hi,held,d,opts={}){
   const rnd=opts.rnd||Math.random, luck=opts.luck||0;
@@ -211,6 +211,9 @@ function chooseNext(lo,hi,held,d,opts={}){
     for(const p of s.pl){ if((lo&p.lo)||(hi&p.hi)) continue; const l=applyMove(lo,hi,p.lo,p.hi)[2]; if(l>bl) bl=l; }
     cw[i]=(bl?bl*bl*2:0)+(exact.has(i)?4:0); if(cw[i]) cw[i]*=(.5+sizeWeight(s,d))*FAMW[i]*3*(fams.has(s.fam)?.3:1); });
   const hasC=cw.some(x=>x>0);
+  // endless boards, late on: an awkward piece, one of the shapes with the fewest spots left on the board (it fits, but nothing more is promised)
+  if(opts.wild&&rnd()<opts.wild&&!opts.big){ const room=SHAPES.map((s,i)=>fits[i]&&s.n>=3?{s,k:s.pl.filter(p=>!(lo&p.lo)&&!(hi&p.hi)).length}:null).filter(Boolean).sort((a,b)=>a.k-b.k);
+    if(room.length) return room[Math.floor(rnd()*Math.min(RAMP.awk,room.length))].s; }
   const n=held.length+1, target=targetWays(d)*Math.pow(ROLL.ways,n-3)*(luck?3:1)*(1+merc*3);
   const cells=pc(lo)+pc(hi), acHunt=cells<=TUNE.acCells, acPull=acHunt?TUNE.acPull:TUNE.acPull*.15;
   const tried={}; let best=null;
@@ -233,6 +236,15 @@ function chooseNext(lo,hi,held,d,opts={}){
   if(!best){ const f=SHAPES.filter((s,i)=>fits[i]&&s.n<=3); return f.length?f[Math.floor(rnd()*f.length)]:(SHAPES.find((s,i)=>fits[i])||SHAPES[0]); }
   return best.sh;
 }
+// ---------- endless boards (F-14, v2.4.0): the dealer hardens as a board goes on ----------
+// A board has no piece limit, so the dealer's difficulty climbs once the board has lasted its grace (about the old board length):
+// step more per placement, up to max. It keeps every tray-plus-next solvable; it just helps less and allows tighter sets.
+// Past the grace the solvability guarantee also fades: each new piece is, with chance wildOf(), an awkward one (one of the RAMP.awk shapes
+// with the fewest spots on the board right now; it fits somewhere, but nothing promises it works with the tray). Without that a board
+// never caves in: the bots played 120+ placements on every layer even with plain random pieces.
+const RAMP={step:.02,max:.97,wild:.08,wildMax:.9,awk:3};   // set with tools/experiments/endless.mjs: a typical player's board lasts about 35-40 placements
+const rampD=(d,placed,grace)=>Math.min(Math.max(d,RAMP.max),d+RAMP.step*Math.max(0,placed-(grace||0)));
+const wildOf=(placed,grace)=>Math.min(RAMP.wildMax,RAMP.wild*Math.max(0,placed-(grace||0)));
 // a whole tray of k pieces (start of a board, a Protection save): a dealt set of three, or fewer one at a time near the end
 function chooseTray(lo,hi,k,d,opts={}){
   if(k>=3) return chooseSet(lo,hi,d,opts);
@@ -287,6 +299,19 @@ function spreadOre(pieces,left,dealsToCome,rnd=Math.random){
     cells.forEach(i=>p.mats[i]=k.k); left[k.k]-=cells.length; want-=cells.length;
   }
 }
+// orePiece (F-14, v2.4.0): endless boards have no fixed budget; each piece dealt carries ore at the layer's rate per piece (def.orePer:
+// expected cells per piece, the old budget over the old board length), in veins of the ore's usual size. Gems are capped per board
+// (def.oreCap), counted in `dealt`. Mutates the piece's mats.
+function orePiece(p,def,dealt={},rnd=Math.random){
+  for(const [k,e] of Object.entries(def.orePer||{})){
+    const vein=(D.ORES[k]&&D.ORES[k].vein)||[1,1], avg=(vein[0]+vein[1])/2, gem=!D.ORES[k];
+    if(gem&&(dealt[k]||0)>=((def.oreCap||{})[k]||1)) continue;
+    if(rnd()>=e/avg) continue;
+    const n=vein[0]+Math.floor(rnd()*(vein[1]-vein[0]+1)), cells=veinCells(SHAPES[p.sid],p.mats,n,rnd);
+    cells.forEach(i=>p.mats[i]=k); if(gem&&cells.length) dealt[k]=(dealt[k]||0)+cells.length;
+  }
+  return p;
+}
 // ---------- move evaluation (used by the Hint button and by tools/sim.mjs) ----------
 function evalBoard(lo,hi){
   let tight=0,trans=0,filled=0,near=0; const rowN=Array(8).fill(0), colN=Array(8).fill(0);
@@ -308,7 +333,7 @@ function rankMoves(lo,hi,shapes){
   }
   return opts.sort((a,b)=>b.v-a.v);
 }
-const api={rollBudget,spreadOre,evalBoard,rankMoves,TUNE,pickWeighted,pickBase,veinCells,dressPiece,N:8,NB,SHAPE_STRS,SHAPES,SHAPE_BY_KEY,CHECK3,FAMSIZE,FAMW,pc,ROWM,COLM,bitOf,getBit,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,
-  sizeWeight,pickIdx,targetWays,assistOf,BIG_SET,BIG_IDS,chooseSet,chooseNext,chooseTray,ROLL};
+const api={rollBudget,spreadOre,orePiece,evalBoard,rankMoves,TUNE,pickWeighted,pickBase,veinCells,dressPiece,N:8,NB,SHAPE_STRS,SHAPES,SHAPE_BY_KEY,CHECK3,FAMSIZE,FAMW,pc,ROWM,COLM,bitOf,getBit,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,
+  sizeWeight,pickIdx,targetWays,assistOf,BIG_SET,BIG_IDS,chooseSet,chooseNext,chooseTray,ROLL,RAMP,rampD,wildOf};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.DeepcoreCore=api;
 })(typeof self!=='undefined'?self:globalThis);

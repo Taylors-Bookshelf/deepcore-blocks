@@ -15,12 +15,12 @@ check(hdr.name === 'Limestone Caves\nBoard #2' && hdr.aria === 'Limestone Caves 
 check(hdr.guide === 'Guide', 'the guide button reads "Guide"');
 await page.click('#infoBtn'); check(await page.textContent('#infoTitle') === 'Guide', 'the guide opens titled "Guide"'); await page.click('#infoClose');
 
-// placements left: 15 of 15 on a 5-deal board, 14 after one placement
+// placements made (v2.4.0, endless boards): 0 at the start, 1 after one placement
 const pg = () => page.textContent('#pgoal');
-check(await pg() === '15/15 placements left', `the score shows placements left (${await pg()})`);
+check(await pg() === '0 placements', `the score shows the placements made (${await pg()})`);
 const placed = await page.evaluate(() => { const t = window.__deepcore.test; const s = t.state(); for (let i = 0; i < 3; i++) if (s.pieces[i]) for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) if (t.place(i, r, c)) return true; return false; });
 await page.waitForTimeout(900);
-check(placed && await pg() === '14/15 placements left', `one placement leaves 14 (${await pg()})`);
+check(placed && await pg() === '1 placement', `one placement counts 1 (${await pg()})`);
 if (shots) await page.screenshot({ path: shots + '/board.png' });
 
 // hint: confirm first; Cancel keeps the coal; yes flies 5 coal into the button and then shows the hint
@@ -47,8 +47,7 @@ check(Math.abs(p.cx - p.vw / 2) < 2 && Math.abs(p.cy - p.vh / 2) < 40 && p.w < p
 check(/Limestone Caves board #2/.test(p.text) && new RegExp(`Next star at: ${(await page.evaluate(() => window.DeepcoreData.STAR_LINES[1][0])).toLocaleString('en-US')} points`).test(p.text) && !/best here|Star lines/i.test(p.text), 'pause shows the numbered name and the next star line only');
 check(p.btnW <= 70, 'the pause buttons are round icons');
 if (shots) await page.screenshot({ path: shots + '/pause.png' });
-await T('setScore', 5000); await page.click('#pauseResume'); await page.click('#pauseBtn'); await page.waitForTimeout(300);
-check(/All three stars! Finish strong\./.test(await page.textContent('#sheet')), 'with three stars pause says to finish strong');
+check(/Placements on this board: 1/.test(p.text), 'pause shows the placements on this board');
 await page.click('#pauseQuit'); await page.waitForTimeout(200);
 check(/Exit to map\?/.test(await page.textContent('#askTitle')) && (await T('state')).screen === 'game', 'exit asks before leaving');
 if (shots) await page.screenshot({ path: shots + '/exit-ask.png' });

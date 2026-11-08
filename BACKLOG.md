@@ -120,18 +120,49 @@ Goal: **v1**, the build shared with family and friends. Version numbers keep cou
 
 **F-12 Onboarding tutorial**: a fuller first-run tutorial that teaches resources, the stash, forging tools, repairs (F-9) and the workshop and brewing table (F-10). Ships with them.
 
-**F-13 Pack before you mine** (crafting between boards; proposed 2026-11-07 for the next update, mock-ups in the 2.3.0 notes)
-Why: since 2.2.0 you can craft mid-board whenever you like, so a second slot only saves a trip to the anvil. Slots are worth something only when there is a moment you can't make more. F-13 makes that moment the start of each board: what you carry in is all you get.
-- **Crafting moves to the map.** The anvil and brewing table become one Workshop on the map (the map's Forge button, which already forges tools, and a Workshop button on each board card). On the board the dock keeps only the slots; CRAFT and BREW go away. The Hint (coal) stays on the board.
-- **A satchel.** What you craft goes into a satchel on the map with no size limit (ore is the limit). Slots hold what you carry into a board. This replaces the make-room sheet: nothing needs destroying any more.
-- **Packing.** Tapping a board on the map opens its card with PACK FOR THIS BOARD: your tool slots and potion slots, and the satchel below. Tap a satchel item to pack it, tap a packed item to put it back. The card remembers your last pack and refills it from the satchel; if the satchel runs out, the slot shows as empty with a one-tap "Make another" when you can afford it.
-- **During a board** you use what you packed (drag equipment, tap potions to drink, as today). Anything unused stays packed for the next board. A Retry keeps whatever you haven't used yet; what you used is gone.
-- **What the slots are worth then.** A second tool slot means a Blast Charge and a Sledgehammer in the same hard board (or two Blasts). A second potion slot means Luck and Protection together, or a second Protection to drink when the first wears off. Packing becomes a real choice before a hard board.
-- **One-tap play stays.** The card's main button starts the board with the remembered pack; packing is optional. First-time tip on the card the first time you own a special.
-- **Workshop upgrades** (brewing table, second slots) are built in the Workshop on the map, at today's costs.
-- **Migration:** specials in the dock now are packed; nothing is refunded.
-- **Open questions:** should camps restock the pack for free once a day? Should a third slot of each kind exist as a very late goal or an optional purchase? A purchase should never be the only way to a slot; the current plan earns every slot by playing.
-- Pairs with F-11 (the Workshop could become a place on the zone grid) and F-12 (the tutorial teaches packing).
+**F-13 Craft and the belt** (crafting between boards; proposed 2026-11-07, revised twice after review). **Done in 2.4.0** (2026-11-08); choices in DECISIONS.md.
+Why: since 2.2.0 you can craft mid-board whenever you like, so extra slots only save a trip to the anvil. Slots are worth something only when there is a moment you can't make more. F-13 makes that moment the start of each board: what is on your belt is all you get.
+- **The belt.** Specials live on a belt of **3 slots shared by equipment and potions**. A new run starts with 1 slot; slots 2 and 3 are unlocked for a significant resource cost (first numbers: slot 2 about 20 gold, 4 diamonds, 120 coal; slot 3 about 10 prism ore, 8 diamonds, 12 meteorite; to tune with the sims). They replace the equipment/potion second slots. **No satchel**: you can only craft into a free slot. Camps do not refill the belt. The belt look is subtle (a faint strap with stitching behind the slots), with no buckle anywhere.
+- **Map top bar:** Home on the left, Sound on the right, and the run's stats between them: **STARS 52/168** (earned / possible in the run) and **PLACEMENTS 541**. The daily twist name and the tool/ore line leave the top bar (the twist still shows on the home screen and the board card).
+- **Map belt bar:** under the top bar, the whole bar is the belt (larger slots, read-only here), with the **Craft** button (anvil icon) at its right end. It stays put wherever the map is scrolled.
+- **Craft screen** (opened from that button): one screen for everything that is made: Tools, Mining equipment (Star Drill, Blast Charge, Sledgehammer), Potions (the brewing table is still built there first).
+  - The **belt sits at the top in large slots and stays put** while the list scrolls. It is where you rearrange the belt (drag an item to another slot) and where new items land.
+  - **Locked belt slots glow** (amber ring and a small +) to invite a tap; the tap opens a small pop-over with that slot's cost (and an Unlock button once you can afford it).
+  - **Each item is one compact row** with no button: image on the left; on the right its name, a short description ("Breaks a 3×3 patch.", "Undoes a cave-in, 15 placements.") and its cost, short amounts in red.
+  - **Tapping a row** asks: "Craft / Forge / Brew X?" with the cost (No / Yes), or says "Belt is full!" or "Not enough resources!".
+- **On a board** the split dock becomes one belt band with the three slots (drag equipment, tap potions to drink, as today). Locked slots don't glow here. No CRAFT or BREW on the board; the Hint (coal) stays.
+- **During a board** you use what is on the belt; anything unused stays for the next board. A Retry keeps whatever you haven't used; what you used is gone.
+- **Migration:** specials held now move onto the belt in order (equipment first); any that don't fit the unlocked slots are refunded at their recipe cost. A run that had built a second equipment or potion slot gets belt slot 2.
+- **Board screen changes that ship with it:** NEXT moves to the middle of the score row and gets bigger (label above the box, not cutting into its border: that overlap is the small artifact seen at the top of today's NEXT box); the star meter grows about 20%; "23 PLACEMENTS" replaces "placements left". **Pause** buttons run Map, Restart, Resume from left to right.
+- Pairs with F-14 (endless boards make the belt choice matter more) and F-12 (the tutorial teaches Craft and the belt).
+
+**F-14 Endless boards and placement stats** (proposed 2026-11-07). **Done in 2.4.0**; the dealer's late awkward pieces, star lines and ore rate are in DECISIONS.md.
+- **No fixed number of pieces.** The tray keeps refilling (rolling tray and NEXT stay) until the board ends one of three ways:
+  - **Leave the board** with 1 or 2 stars by tapping the **cart bar** (below). You keep everything you mined.
+  - **The third star** ends the board at once with the complete screen.
+  - **Cave-in:** no piece fits. You lose this board's haul (unless a Lucky Dodge, F-15, or a Potion of Protection saves it). Stars already reached on the board are kept.
+- **No pop-up at the first or second star.** Instead a **cart bar** sits under the belt, above the tray: a mine cart on rails rolling right toward a timber-framed mine exit. The cart moves along with the board's points toward the last star line. Before the first star the bar is greyed out; from the first star it lights up (amber glow, lit doorway) and can be tapped. The tap asks **"Done here?"** (No / Yes); Yes goes to the board-complete screen. A first-time tip points at it the first time it lights.
+- **Difficulty has to come from inside the board**: with unlimited pieces a careful player could go on forever, so the dealer gets harder as placements go up (fewer helpful sets, more awkward shapes), and the star lines are re-set with the bots for "how far can you push". Replaces `DEALS`, the placements-left count and the "So close" cave-in text.
+- **Ore**: no fixed budget per board any more; each piece carries ore at about today's rate (budget ÷ placements), so playing on pays more ore and risks more. Re-run the descent and balance sims (tool pacing assumes today's hauls).
+- **Placement stats** (counted from the build that ships F-14):
+  - **This board**: in the score row ("23 PLACEMENTS") and on the pause card.
+  - **This run**: total placements in the map's top bar (with the run's stars).
+  - **Each zone**: a chip under each layer's name by its camp ("87 placements ›"). Tapping it opens a pop-over listing that layer's 8 boards: stars and placements for cleared boards, NEXT for the frontier, a dash for the rest.
+  - A board's number counts all its attempts and replays, so a zone's total is the sum of its boards (a caved-in attempt on an uncleared board counts in the zone total but has no row yet).
+  - **By shape** (not shown yet; for achievements or fun stats later): for every piece shape (each rotation separately, so families can be summed later), how many were placed and how many of those cleared a row or column. Kept per run and for the lifetime profile.
+  - Run counts reset with a new run; lifetime counts are kept in the profile and the save code.
+
+**F-15 Lucky Dodge** (proposed 2026-11-07). **Done in 2.4.0**: a second cave-in on the board is final.
+- On the cave-in screen, once per board: trade **half of everything mined on this board so far** for a second chance. The board clears enough room to go on (a fresh, placeable tray, as the Potion of Protection does) and play continues.
+- If the board caves in again it is over: the remaining half is lost, as in any cave-in. (Assumed; the proposal was cut off at "If the board caves in". Confirm.)
+- Not offered when nothing has been mined yet. Points and stars reached are unaffected.
+- Questions: does a Potion of Protection that is active fire first (so the Dodge only shows if it has worn off)? Should the dodge count toward a stat?
+
+**F-16 Star Drill** (proposed 2026-11-07). **Done in 2.4.0**, with the Blast Charge now mining what it breaks.
+- A new crafted equipment special that looks like a classic miner's star drill (a long steel rod with a star-shaped bit and a battered striking end).
+- **Mines one whole row or column.** It is dragged onto an **edge of the board** rather than onto a cell: along the top or bottom edge it picks a column, along the left or right edge a row; the line under it highlights before you let go. Unlike the Blast Charge, what it breaks is mined (paid to the haul). (Assumed from "mine"; confirm.)
+- **Cheapest special**: about 30% cheaper than the Blast Charge, which (with the Sledgehammer) becomes about 10% dearer. First numbers: Star Drill 9 coal, 2 iron; Blast Charge 14 coal, 3 iron (was 12 coal, 3 iron); Sledgehammer 11 copper, 9 ruby, 9 iron, 4 gold (was 10, 8, 8, 4). Re-run the economy sims.
+- Ships with F-13 (one more Craft row, one more belt choice).
 
 **I-30 Resource curve** (replaces I-4 Scarcity pass): each zone's main ore covers most of the next tools, so the main path never forces you back up; earlier ores still turn up as rarer veins deeper down, so going back is an option, never a chore; every resource keeps a late-game use (repairs, slot unlocks, brewing) so nothing piles up uselessly. Tuned on F-11's grids.
 

@@ -42,16 +42,19 @@ for (let k = 0; k < 200; k++) {
 console.log(`board 1: ${moves} random moves, ended: ${end}`);
 if (end === 'stuck') fail('a dealt set had no legal placement');
 
-// crafting limits: one of each craftable
-await T(() => { const t = window.__deepcore.test; t.start(5); t.give({ coal: 99, iron: 99, gold: 99, ruby: 99, copper: 99, diamond: 9, emerald: 9, bone: 99 }); });
-await page.waitForTimeout(2400);
-await page.click('#anvilBtn'); await page.waitForTimeout(150);
-const names = await page.$$eval('.recipe .nm', e => e.map(x => x.textContent));
-if (names.join() !== 'Blast Charge,Sledgehammer,Brewing table,Second equipment slot') fail('unexpected anvil rows: ' + names);
-for (let k = 0; k < 1; k++) { await (await page.$$('.recipe button.go'))[0].click(); await page.waitForTimeout(80); }
-const full = await page.$$eval('.recipe:not(.ws) button.go', e => e.map(b => !b.disabled && /Make room/.test(b.textContent)));
-if (!full.every(Boolean)) fail('with the equipment slot full every affordable equipment button should say Make room');
-await page.click('#anvilClose');
+// Craft (v2.4.0): one screen on the map; each row asks first; a full one-slot belt says so
+await T(() => { const t = window.__deepcore.test; t.give({ coal: 99, iron: 99, gold: 99, ruby: 99, copper: 99, diamond: 9, emerald: 9, bone: 99 }); t.openMap(); });
+await page.waitForTimeout(1200);
+await page.click('#mapCraft'); await page.waitForTimeout(300);
+const names = await page.$$eval('#craftBody .ci .nm', e => e.map(x => x.textContent));
+if (names.slice(1).join() !== 'Star Drill,Blast Charge,Sledgehammer,Brewing table,Potion of Protection,Potion of Luck') fail('unexpected Craft rows: ' + names);
+await page.click('#craftBody .ci[data-id="drill"]'); await page.waitForTimeout(150);
+if (await page.textContent('#askTitle') !== 'Craft Star Drill?') fail('tapping a row should ask first');
+await page.click('#askYes'); await page.waitForTimeout(200);
+if ((await T(() => window.__deepcore.test.belt()))[0] !== 'drill') fail('the crafted Star Drill should be on the belt');
+await page.click('#craftBody .ci[data-id="blast"]'); await page.waitForTimeout(150);
+if (await page.textContent('#askTitle') !== 'Belt is full!') fail('with the one belt slot full, crafting should say the belt is full');
+await page.click('#askYes'); await page.click('#craftClose');
 
 // retired ores are gone, the All Clear bonus is SCORE.allClear, the day key is Pacific, analytics fire
 const extra = await T(() => { const t = window.__deepcore.test; const m = window.__deepcore.MATS; t.start(0);

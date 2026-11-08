@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.4.0 — endless boards, Craft and the belt
+- **Endless boards.** A board no longer has a set number of pieces. Once you have a star, the new mine cart bar under your belt lights up: tap it ("Done here?") to leave with your haul. The third star ends the board on its own. Or keep mining for more stars and more ore: the longer a board lasts, the more awkward the pieces get, until the cave gives way.
+- **Cave-ins** bury the ore mined on that board, but stars you already reached on it are kept.
+- **Lucky Dodge:** once per board, the cave-in screen lets you give up half that board's haul to undo your last placement and keep mining.
+- **Star lines redone** for longer boards (Forest 2,150 / 4,050 / 5,950 up to the Crust 4,850 / 5,950 / 7,000). A typical player reaches the first star nearly every time in the Forest and about 60% of the time from Magmastone on.
+- **Craft, on the map.** The Forge button is now Craft, at the end of the map's belt bar. One screen makes everything: tools, mining equipment and potions. Tap a row to make it; it asks first. Nothing is made during a board any more: CRAFT and BREW are gone from the board.
+- **The belt.** Equipment and potions share one belt of three slots: one to start, slots 2 and 3 unlocked in Craft (tap the glowing locked slot). In Craft, tap an item and then another slot to move it, or drop it. The belt shows on the map and on the board.
+- **Star Drill**, a new cheap special: drag it to an edge of the board to mine a whole row (left or right edge) or column (top or bottom edge). +150 points.
+- **The Blast Charge now mines what it breaks** into your haul (it used to destroy it). It and the Sledgehammer cost about 10% more.
+- **Placement stats.** The board counts your placements (in the score row and on the pause card); the map's top bar shows the run's stars and placements; each layer's name on the map has a placements chip that lists its boards. Shapes placed and line-clearing shapes are counted too, for later.
+- **NEXT** sits in the middle of the score row and is bigger; the stars are bigger. The small notch at the top of the old NEXT box is gone.
+- **Pause** buttons run Map, Restart, Resume from left to right.
+- **The daily twist** moved from the map's top bar to the home screen and each board's card.
+- **New tool art:** an old miner's hammer crossed with a chisel, coloured by the tool's material.
+- Fixed: a resumed board could show its points counting up from zero.
+- Saves: the dock's specials move onto the belt (equipment first; anything that doesn't fit is refunded as its ore), and a run with a second slot gets belt slot 2.
+
 ## 2.3.0 — rolling tray and fairer stars
 - **Rolling tray:** every piece you place is replaced at once by the next one, so you always hold three. The piece after that shows in a small NEXT box beside the score, so you can plan ahead.
 - Every piece is still checked: the three you hold plus the next one can always all be placed, so a cave-in is always down to your moves.

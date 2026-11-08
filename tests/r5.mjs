@@ -80,7 +80,7 @@ check(await T(() => !document.getElementById('contBtn').hidden && /Continue boar
 await page.tap('#contBtn'); await page.waitForTimeout(800); check((await st()).screen === 'game', 'Continue resumes it');
 // map countdown
 await T(() => window.__deepcore.test.openMap()); await page.waitForTimeout(300);
-check(await T(() => !/new map in/i.test(document.getElementById('mapDate').textContent) && document.getElementById('mapDate').textContent === window.__deepcore.test.mod().name), 'the map header shows the twist, not a date or countdown');
+check(await T(() => /Stars/.test(document.getElementById('runStats').textContent) && /Placements/.test(document.getElementById('runStats').textContent) && !document.getElementById('mapDate')), 'the map\'s top bar shows the run\'s stars and placements (v2.4.0), not a date or countdown');
 
 // settings
 await T(() => window.__deepcore.test.showHome()); await page.tap('#settingsBtn'); await page.waitForTimeout(200);
@@ -123,7 +123,7 @@ await close();
 { const t = await phone({ tips: true }); const T2 = (f, a) => t.page.evaluate(f, a);
   await t.page.goto(t.base + '?debug'); await t.page.waitForTimeout(700); await t.page.tap('#mapBtn'); await t.page.waitForTimeout(1100);
   check(await T2(() => !document.getElementById('prospector').hidden && /Dig down/.test(document.getElementById('pTitle').textContent)), 'a first visit to the map explains digging and tools');
-  check(await T2(() => /Bone tools · bone 0\/\d+ · wood 0\/\d+/.test(document.getElementById('mapProg').textContent)), `the map's top bar shows what the next tools need (${await T2(() => document.getElementById('mapProg').textContent)})`);
+  check(await T2(() => /Craft/.test(document.getElementById('pText').textContent)), 'the tip points to Craft for tools and the belt');
   await t.page.tap('#pOk'); await T2(() => { const x = window.__deepcore.test; x.markDone(Array.from({ length: 8 }, (_, k) => k)); x.openMap(); }); await t.page.waitForTimeout(1100);
   check(await T2(() => !document.getElementById('prospector').hidden && /Bone tools needed/.test(document.getElementById('pTitle').textContent)), 'the first locked layer explains how to forge the tools');
   await t.page.tap('#pOk'); await T2(() => window.__deepcore.test.openMap()); await t.page.waitForTimeout(1100);

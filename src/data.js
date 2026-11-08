@@ -15,7 +15,7 @@ const VAL = { grass:2, log:2, dirt:2, sand:2, stone:4, deep:5, granite:6, obsidi
   coal:15, bone:15, copper:20, iron:30, ruby:30, gold:50, meteorite:60, prismore:80, emerald:150, diamond:200 };
 // Specials: per-piece chance by difficulty tier, and how often each type is picked
 const SPECIAL_RATE = {Easy:.003, Medium:.006, Hard:.012, Expert:.018};   // Easy is the Forest: rarer there, same contents
-const SPECIAL_MIX = {fossil:.32, treasure:.28}; // random-only specials; blast, sledgehammer, rescue and luck are craft-only
+const SPECIAL_MIX = {fossil:.32, treasure:.28}; // random-only specials; the drill, blast, sledgehammer and potions are craft-only
 
 const DROPS = {
   dirt:['Topsoil','dirt'], sand:['Sand','sand'], wood:['Wood','log'], stone:['Limestone','stone'], granite:['Granite','granite'], deep:['Slate','deep'],
@@ -77,21 +77,25 @@ function specialHaul(m,zi,rnd){
 }
 // how many deals a potion lasts once drunk (v2.2.0: both potions; v2.1.2: Luck 7 -> 5)
 const POTION_MOVES=15;   // v2.3.0: potions last 15 placements (5 deals before the rolling tray)
-// slot: which dock slots hold it. Equipment is crafted at the anvil, potions at the brewing table (F-10, v2.2.0).
+// Crafted specials (v2.4.0, F-13/F-16): made in Craft on the map and carried on the belt. kind: equip = dragged onto the board,
+// potion = tapped to drink. desc is the short line shown in Craft. Costs: the Star Drill is the cheapest, about 30% under the Blast
+// Charge; the Blast Charge and Sledgehammer went up about 10% when it arrived.
 const RECIPES=[
-  {m:'blast',      slot:'equip',  cost:{coal:12, iron:3},                    desc:'Drag it onto the board: it blows up a 3×3 patch. What it breaks is lost, not mined.'},
-  {m:'sledgehammer', slot:'equip', cost:{copper:10, ruby:8, iron:8, gold:4}, desc:'Drag it onto the board: it shakes the blocks into a fresh arrangement with no trapped gaps.'},
-  {m:'rescue',     slot:'potion', cost:{ruby:20, emerald:1, bone:4},         desc:'Tap to drink. For '+POTION_MOVES+' placements, a cave-in undoes your last placement and deals fresh pieces.'},
-  {m:'luck',       slot:'potion', cost:{ruby:12, bone:4},                    desc:'Tap to drink. For '+POTION_MOVES+' placements, the dealer favours pieces that fill gaps and clear lines, and random specials turn up twice as often.'},
+  {m:'drill',        kind:'equip',  cost:{coal:9, iron:2},                      desc:'Mines one row or column.'},
+  {m:'blast',        kind:'equip',  cost:{coal:14, iron:3},                     desc:'Mines a 3×3 patch.'},
+  {m:'sledgehammer', kind:'equip',  cost:{copper:11, ruby:9, iron:9, gold:4},   desc:'Reshuffles the board.'},
+  {m:'rescue',       kind:'potion', cost:{ruby:20, emerald:1, bone:4},          desc:'Undoes a cave-in, '+POTION_MOVES+' placements.'},
+  {m:'luck',         kind:'potion', cost:{ruby:12, bone:4},                     desc:'Better pieces, '+POTION_MOVES+' placements.'},
 ];
-// The workshop (F-10, v2.2.0): one equipment slot to start; the brewing table unlocks potions and one potion slot; a second slot of
-// each kind is a late-game goal. Kept for the whole run (reset by a new run, like tools). Costs from tools/experiments/workshop.mjs:
-// a player who spends as they go affords the table at about 40% of a descent's play time (about 55% when saving for the next tools;
-// the first emerald comes in Granite Halls), and a thrifty player (no specials) the second slots at about 77% (equipment) and 83% (potions).
+// The belt (F-13, v2.4.0): 3 slots shared by equipment and potions. A run starts with 1; slots 2 and 3 are big late-run goals.
+// The brewing table unlocks potions. All kept for the run (dayState.wk), like tools. Belt slot costs are first numbers: slot 2 is the old
+// second equipment slot's cost (more coal); slot 3 avoids meteorite (the Galaxy Alloy tools use it up). tools/run.mjs: a typical player
+// who also crafts gets slot 2 at about 80% of a descent; slot 3 is for a thrifty player near the end.
+const BELT_MAX=3;
 const WORKSHOP={
-  table:   {id:'table',   at:'anvil', name:'Brewing table',          cost:{ruby:12, emerald:1, bone:4, iron:4, wood:8}, desc:'Unlocks potions and your first potion slot.'},
-  equip2:  {id:'equip2',  at:'anvil', name:'Second equipment slot',  cost:{gold:20, diamond:4, coal:80},             desc:'Carry two pieces of equipment at once.'},
-  potion2: {id:'potion2', at:'brew',  name:'Second potion slot',     cost:{prismore:8, emerald:6, ruby:25},         desc:'Carry two potions at once.', needs:'table'},
+  table: {id:'table', name:'Brewing table', cost:{ruby:12, emerald:1, bone:4, iron:4, wood:8}, desc:'Unlocks potions.'},
+  belt2: {id:'belt2', name:'Belt slot 2',   cost:{gold:20, diamond:4, coal:120},            desc:'Carry a second item into every board.'},
+  belt3: {id:'belt3', name:'Belt slot 3',   cost:{prismore:12, diamond:6, emerald:6},      desc:'Carry a third item into every board.', needs:'belt2'},
 };
 
 // One twist per Pacific day, chosen from the date. They shift resources, never the rules of clearing a board.
@@ -115,7 +119,7 @@ const SCORE={
   combo:[0,0,250,600,1200],       // extra for clearing 2 / 3 / 4+ lines with one placement (Double, Triple, Quad)
   streakStep:50, streakMax:500,   // a clearing placement right after another: +50 for each clear in the run after the first, up to +500
   allClear:250,                   // the board emptied, on top of the clear's own points
-  special:{blast:200, sledgehammer:350, luck:-150, rescue:-250},   // crafted specials; random specials pay resources only
+  special:{drill:150, blast:200, sledgehammer:350, luck:-150, rescue:-250},   // crafted specials; random specials pay resources only
 };
 const comboBonus=n=>n<2?0:SCORE.combo[Math.min(n,SCORE.combo.length-1)];
 const streakBonus=st=>st<2?0:Math.min(SCORE.streakMax,SCORE.streakStep*(st-1));
@@ -124,13 +128,16 @@ function placePoints(cells,lines,streak,allClear){
   const p={block:SCORE.block*cells, line:SCORE.line*lines, combo:comboBonus(lines), streak:lines?streakBonus(streak):0, allClear:lines&&allClear?SCORE.allClear:0};
   p.total=p.block+p.line+p.combo+p.streak+p.allClear; return p;
 }
-// A board is a fixed number of deals (3 pieces each). Place them all and the board is done; a cave-in before that fails it.
+// Before v2.4.0 a board was a fixed number of deals (3 pieces each). Boards are endless now (F-14); DEALS×3 is kept as each layer's
+// reference length: the dealer's grace before it hardens, and what the ore budget is spread over (orePer).
 const DEALS=[4,5,5,6,6,7,7,0];
-// Star lines in board points, per layer (v2.3.0, the rolling tray; tools/experiments/score2.mjs --mix .4,.18 --ramp .03). 1 star: a typical player
-// passes nearly every Forest try, falling to about 60% from Magmastone on; 3 stars: a player who plans with the next piece gets it about 85% of the time, in every layer; 2 halfway.
+// Star lines in board points, per layer (v2.4.0, endless boards). 1 star from the typical (mid) bot's scores before it caves in, on the balance
+// test's boards (pass rates 99% in the Forest down to about 60% from Magmastone); 3 stars from tools/experiments/endless.mjs --p3bot good
+// --mix .03,.4,.5 (the good bot's median), smoothed so they rise layer by layer; 2 stars halfway. 1 star: a typical player reaches it before caving in on nearly every Forest try, falling to
+// about 60% from Magmastone on; 3 stars: a player who knows the scoring gets it about half the time, a planner nearly always; 2 halfway.
 // Board 1-1 (the tutorial board) has a lower 1-star line so it can't realistically fail.
-const STAR_LINES=[[750,1150,1550],[1150,1750,2300],[1300,1850,2350],[1900,2450,3000],[1900,2450,3000],[2350,2850,3350],[2350,2900,3450],[]];
-const FIRST_BOARD_STARS=[600,1150,1550];
+const STAR_LINES=[[2150,4050,5950],[3150,4900,6600],[3350,5000,6650],[3950,5400,6800],[4000,5400,6800],[4850,5900,6900],[4850,5950,7000],[]];
+const FIRST_BOARD_STARS=[1200,4050,5950];
 const starsFromScore=(score,at)=>at.reduce((n,v)=>n+(score>=v?1:0),0);
 // each star after the first adds 10% of the 1-star line to the day's points when the board is banked
 const starBonus=(stars,line1)=>Math.max(0,stars-1)*Math.round(line1*.1/10)*10;
@@ -148,6 +155,9 @@ const ORE_BUDGET=[
   {iron:1, gold:.5, prismore:1},
   {},
 ];
+// Endless boards last longer than the old fixed ones (a typical player places about 1.8 times as many pieces), so each piece carries less ore:
+// ORE_RATE keeps a layer's 8 boards at part of the next tools, with a few replays for the rest (npm run test:balance).
+const ORE_RATE=.6;
 const STAR_ORES=['coal','bone','copper','iron','ruby','gold','meteorite','prismore','emerald','diamond'];   // the ores and gems (not wood or rock)
 const STASH_KEYS=['wood','bone','coal','copper','iron','gold','meteorite','prismore','ruby','emerald','diamond'];
 const GEM_KEYS=['ruby','emerald','diamond'];
@@ -163,12 +173,14 @@ function boardParams(zi,j,mod){
   // this board's ore budget: only what the board can carry, times today's twist
   const budget={}; Object.entries(ORE_BUDGET[zi]||{}).forEach(([k,v])=>{ const gem=!!(z.gems&&z.gems[k]); if(!ores.includes(k)&&!gem) return;
     budget[k]=v*(gem?((mod&&mod.gemMul)||1):((mod&&mod.ore&&mod.ore[k])||1)); });
+  // endless boards (F-14, v2.4.0): the budget becomes a rate per piece dealt, over the old board length (DEALS×3 pieces)
+  const orePer={}, oreCap={}; Object.entries(budget).forEach(([k,v])=>{ if(!DEALS[zi]) return; orePer[k]=ORE_RATE*v/(DEALS[zi]*3); if(!ORES[k]) oreCap[k]=Math.max(1,Math.ceil(v*2)); });   // gems: at most twice the old budget a board
   const base=z.mixes[Math.min(z.mixes.length-1,Math.round(f*(z.mixes.length-1)))];
   const starAt=z.core?[]:(zi===0&&j===0?FIRST_BOARD_STARS:STAR_LINES[zi]).slice();
-  return { zone:zi, j, starAt, deals:DEALS[zi], budget, zoneName:z.name, rock:z.rock, base, ores, oreBoost, gems, specialMul:(mod&&mod.specialMul)||1,
-    target:starAt[0]||0, core:!!z.core, d:Math.min(.97,z.d[0]+(z.d[1]-z.d[0])*f), pre:Math.round(z.pre[0]+(z.pre[1]-z.pre[0])*f) };
+  return { zone:zi, j, starAt, deals:DEALS[zi], budget, orePer, oreCap, zoneName:z.name, rock:z.rock, base, ores, oreBoost, gems, specialMul:(mod&&mod.specialMul)||1,
+    target:starAt[0]||0, grace:DEALS[zi]*3, core:!!z.core, d:Math.min(.97,z.d[0]+(z.d[1]-z.d[0])*f), pre:Math.round(z.pre[0]+(z.pre[1]-z.pre[0])*f) };
 }
 const lineName=n=> n>=5?'Mega!' : n===4?'Quad!' : n===3?'Triple!' : n===2?'Double!' : '';
-const api={TOOL_WEAR,POTION_MOVES,WORKSHOP,SCORE,comboBonus,streakBonus,placePoints,DEALS,STAR_LINES,FIRST_BOARD_STARS,starsFromScore,ORE_BUDGET,FOSSIL_BONE,TREASURE,specialHaul,MODIFIERS,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf,STAR_ORES,starBonus,lineName,GEM_KEYS,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS};
+const api={TOOL_WEAR,POTION_MOVES,WORKSHOP,BELT_MAX,SCORE,comboBonus,streakBonus,placePoints,DEALS,STAR_LINES,FIRST_BOARD_STARS,starsFromScore,ORE_BUDGET,FOSSIL_BONE,TREASURE,specialHaul,MODIFIERS,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf,STAR_ORES,starBonus,lineName,GEM_KEYS,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.DeepcoreData=api;
 })(typeof self!=='undefined'?self:globalThis);
