@@ -43,16 +43,21 @@ const placeTo = (i, r, c) => T(([i, r, c]) => window.__deepcore.test.place(i, r,
 await placeTo(0, 7, 0); await page.waitForTimeout(500);
 check(await T(() => /Nice/.test(document.getElementById('tutorText').textContent)) && (await st()).hint.c0 === 3, 'after the first piece it points at the next one');
 await placeTo(1, 7, 3); await page.waitForTimeout(500); await placeTo(2, 7, 6); await page.waitForTimeout(2200);
-check(await T(() => /Row cleared/.test(document.getElementById('tutorText').textContent) && !document.getElementById('tutorNext').hidden), 'clearing the row ends the guide with an explanation');
-await page.tap('#tutorNext'); await page.waitForTimeout(200);
-check(await T(() => document.getElementById('tutor').hidden) && (await tt('life')).tutorialDone === true, 'Got it finishes the tutorial for good');
+await page.waitForTimeout(800);
+check(await T(() => !document.getElementById('coach').hidden && /SCORING/.test(document.getElementById('coachStep').textContent)), 'clearing the row starts the tour of the board (v2.5.0)');
+const seen = []; for (let k = 0; k < 8; k++) { seen.push(await T(() => document.getElementById('coachText').textContent)); await page.tap('#coachNext'); await page.waitForTimeout(350); }
+check(['NEXT', 'combo', 'haul', 'mine cart', 'belt', 'Hint'].every(w => seen.some(t => t.includes(w))), 'the board tour covers NEXT, combos and streaks, the haul, hauling out with the mine cart, the belt and Hint');
+check(await T(() => document.getElementById('coach').hidden && document.getElementById('tutor').hidden) && (await tt('life')).tutorialDone === true, 'finishing the tour finishes the tutorial for good');
 await tt('start', 0); await page.waitForTimeout(2600);
 check(await T(() => document.getElementById('tutor').hidden) && (await st()).pieces.map(p => p.cells.length).join() !== '3,3,2' || true, 'the tutorial does not repeat');
 check(await T(() => document.getElementById('tutor').hidden), 'no tutorial caption on later boards');
 // replay and skip
-await T(() => window.__deepcore.test.showHome()); await page.tap('#settingsBtn'); await page.tap('#tutorBtn'); await page.tap('#settingsBack'); await tt('start', 0); await page.waitForTimeout(3200);
-check(await T(() => !document.getElementById('tutor').hidden), 'the tutorial can be replayed from Settings');
-await page.tap('#tutorSkip'); await page.waitForTimeout(200); check(await T(() => document.getElementById('tutor').hidden) && (await tt('life')).tutorialDone, 'it can be skipped');
+await T(() => window.__deepcore.test.showHome()); await page.tap('#settingsBtn'); await page.tap('#tutorBtn'); await page.waitForTimeout(1200);
+check(await T(() => window.__deepcore.test.state().screen === 'map' && !document.getElementById('coach').hidden), 'the tutorial can be replayed from Settings: the tour starts on the map');
+for (let k = 0; k < 8; k++) { await page.tap('#coachNext'); await page.waitForTimeout(450); }
+await page.waitForTimeout(3000);
+check(await T(() => window.__deepcore.test.state().screen === 'game' && !document.getElementById('tutor').hidden), 'after the map tour it plays board 1-1 hands-on');
+await page.tap('#tutorSkip'); await page.waitForTimeout(200); check(await T(() => document.getElementById('askTitle').textContent === 'Skip the tutorial?'), 'skipping asks first'); await page.tap('#askYes'); await page.waitForTimeout(200); check(await T(() => document.getElementById('tutor').hidden) && (await tt('life')).tutorialDone, 'it can be skipped');
 
 // streak, records, log, profile
 await tt('start', 1); await page.waitForTimeout(2600);
@@ -87,6 +92,8 @@ await T(() => window.__deepcore.test.showHome()); await page.tap('#settingsBtn')
 await page.check('#reduceOn'); await page.check('#largeOn');
 check(await T(() => document.documentElement.classList.contains('reduce') && document.documentElement.classList.contains('large')), 'reduce-motion and larger-text switches apply at once');
 await page.tap('#settingsBack'); await page.tap('#homeSound'); await page.waitForTimeout(200);
+check(await T(() => !document.getElementById('musicVol').disabled && document.getElementById('musicOn').checked), 'music is on by default for a new player (v2.5.0)');
+await page.tap('#musicOn'); await page.waitForTimeout(100);
 check(await T(() => document.getElementById('musicVol').disabled), 'the music slider is off while music is off');
 await page.check('#musicOn'); await page.waitForTimeout(800);
 await page.fill('#sfxVol', '30'); await page.dispatchEvent('#sfxVol', 'input'); await page.fill('#musicVol', '40'); await page.dispatchEvent('#musicVol', 'input'); await page.waitForTimeout(100);
@@ -122,9 +129,10 @@ await close();
 // ---- first-time tips (v2.1.0): the map explains digging and tools once, the first locked layer explains forging ----
 { const t = await phone({ tips: true }); const T2 = (f, a) => t.page.evaluate(f, a);
   await t.page.goto(t.base + '?debug'); await t.page.waitForTimeout(700); await t.page.tap('#mapBtn'); await t.page.waitForTimeout(1100);
-  check(await T2(() => !document.getElementById('prospector').hidden && /Dig down/.test(document.getElementById('pTitle').textContent)), 'a first visit to the map explains digging and tools');
-  check(await T2(() => /Craft/.test(document.getElementById('pText').textContent)), 'the tip points to Craft for tools and the belt');
-  await t.page.tap('#pOk'); await T2(() => { const x = window.__deepcore.test; x.markDone(Array.from({ length: 8 }, (_, k) => k)); x.openMap(); }); await t.page.waitForTimeout(1100);
+  check(await T2(() => !document.getElementById('coach').hidden && /Welcome to Deepcore/.test(document.getElementById('coachText').textContent)), 'a first visit to the map starts the guided tour (v2.5.0)');
+  await t.page.tap('#coachSkip'); await t.page.waitForTimeout(150); await t.page.tap('#askYes'); await t.page.waitForTimeout(200);
+  check(await T2(() => document.getElementById('coach').hidden && window.__deepcore.test.life().tutorialDone), 'the tour can be skipped (it asks first), which ends the tutorial');
+  await T2(() => { const x = window.__deepcore.test; x.markDone(Array.from({ length: 8 }, (_, k) => k)); x.openMap(); }); await t.page.waitForTimeout(1100);
   check(await T2(() => !document.getElementById('prospector').hidden && /Bone tools needed/.test(document.getElementById('pTitle').textContent)), 'the first locked layer explains how to forge the tools');
   await t.page.tap('#pOk'); await T2(() => window.__deepcore.test.openMap()); await t.page.waitForTimeout(1100);
   check(await T2(() => document.getElementById('prospector').hidden), 'each tip shows only once');

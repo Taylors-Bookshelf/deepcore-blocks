@@ -55,4 +55,15 @@ const near = (a, b, tol = 1) => Math.abs(a - b) <= tol;
   check(piece.flat().every(Boolean), 'a 1x5 piece is not clipped on the short phone');
   check(await t.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight), 'the page does not scroll');
   await t.close(); }
+// ---- Craft and the map on a short phone (v2.5.0: a screenshot showed Craft rows squashed into each other) ----
+{ const t = await phone({ viewport: { width: 375, height: 600 } }); await t.page.goto(t.base + '?debug'); await t.page.waitForTimeout(700);
+  await t.page.evaluate(() => { const T = window.__deepcore.test; T.setRun({ stars: { 0: 3, 1: 2, 2: 1 } }); T.markDone([0, 1, 2]); T.setTool(2); T.openMap(); }); await t.page.waitForTimeout(1200);
+  check(await t.page.evaluate(() => [...document.querySelectorAll('#mapNodes .node.done .nstars')].map(e => e.textContent.replace(/[^★]/g, '').length).join() === '3,3,3' && [...document.querySelectorAll('#mapNodes .node.done .nstars')].map(e => e.firstChild.textContent).join() === '★★★,★★,★'), 'cleared boards on the map show the stars they earned');
+  await t.page.click('#mapCraft'); await t.page.waitForTimeout(400);
+  const rows = await t.page.evaluate(() => [...document.querySelectorAll('#craftBody .ci')].map(e => { const r = e.getBoundingClientRect(); return [r.top, r.bottom, e.scrollHeight <= e.clientHeight + 1]; }));
+  check(rows.length >= 6 && rows.every((r, i) => r[2] && (i === 0 || r[0] >= rows[i - 1][1] - 0.5)), `Craft rows keep their height and never overlap on a short screen (${rows.length} rows)`);
+  check(await t.page.evaluate(() => { const b = document.getElementById('craftBody'); return b.scrollHeight > b.clientHeight; }), 'the Craft list scrolls instead');
+  check(await t.page.evaluate(() => document.querySelectorAll('.toolrow .tt').length === 6 && document.querySelectorAll('.toolrow .tt.have').length === 3 && !!document.querySelector('.toolrow .tt.cur')), 'Craft shows all six tools, the ones you have forged lit and the rest greyed');
+  check(t.errors.length === 0, 'no page errors on the short phone ' + t.errors.join(' | '));
+  await t.close(); }
 console.log(fails.length ? `SPEC TESTS FAILED (${fails.length})` : 'SPEC TESTS PASSED'); if (fails.length) process.exitCode = 1;

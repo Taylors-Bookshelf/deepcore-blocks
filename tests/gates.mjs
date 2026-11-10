@@ -25,9 +25,15 @@ await page.tap('#ncClose'); await page.tap('#mapCraft'); await page.waitForTimeo
 check(await T(() => /Bone tools/.test(document.getElementById('craftBody').textContent) && !!document.querySelector('#craftBody .ci[data-id="tool"] .short')), 'Craft offers bone tools, not yet affordable');
 await page.tap('#craftClose');
 const bc = await tt('tcost', 1); await tt('setBank', { bone: bc.bone, wood: bc.wood, coal: 3 }); await tt('buildMap'); await page.tap('.node.gate'); await page.waitForTimeout(250);
-check(/Forge Bone tools/.test(await T(() => document.getElementById('ncGo').textContent)), `with ${bc.bone} bone and ${bc.wood} wood the gate offers to forge bone tools`);
-await page.tap('#ncGo'); await page.waitForTimeout(600); let s = await st(); n = await nodes();
-{ const c = await tt('tcost', 1); check(s.day.tool === 1 && !s.bank.bone && !s.bank.wood && s.bank.coal === 3 && !n.some(c => c.includes('gate')), `one tap forges bone tools (today's price) and opens Limestone Caves (${JSON.stringify(s.bank)})`); }
+check(/Open Craft/.test(await T(() => document.getElementById('ncGo').textContent)) && /forge them in Craft/.test(await T(() => document.getElementById('ncNote').textContent)) && (await st()).day.tool === 0, `even with ${bc.bone} bone and ${bc.wood} wood the gate only points to Craft: tools are never forged from the board card (v2.5.0)`);
+await page.tap('#ncGo'); await page.waitForTimeout(400);
+check(await T(() => !document.getElementById('craftPanel').hidden && document.getElementById('nodeCard').hidden), 'Open Craft opens Craft and closes the card');
+await page.click('#craftBody .ci[data-id="tool"]'); await page.waitForTimeout(150); await page.click('#askYes'); await page.waitForTimeout(300); await page.tap('#craftClose'); await page.waitForTimeout(400);
+let s = await st(); n = await nodes();
+{ const c = await tt('tcost', 1); check(s.day.tool === 1 && !s.bank.bone && !s.bank.wood && s.bank.coal === 3 && !n.some(c => c.includes('gate')), `forging bone tools in Craft (today's price) opens Limestone Caves right away on the map (${JSON.stringify(s.bank)})`); }
+await page.tap('.node.open'); await page.waitForTimeout(600);
+check((await st()).screen === 'game', 'one tap on the newly opened board starts it');
+await T(() => window.__deepcore.test.openMap()); await page.waitForTimeout(800);
 
 // ---- missed days: the cave settles, but never past the layer's camp (its first board, once cleared) ----
 await tt('setTool', 5, 90); await tt('markDone', upto(40 + 5)); await tt('setRun', { lastClear: '2000-01-01', day: '2000-01-02' }); await tt('tickDay'); await page.waitForTimeout(700); s = await st();

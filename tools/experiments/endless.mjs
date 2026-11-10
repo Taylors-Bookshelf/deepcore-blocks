@@ -6,7 +6,7 @@
 import { D, C, args, prefill, bitsOf } from '../simlib.mjs';
 const RUNS = +(args.runs || 30), ZS = String(args.zones || '0,1,2,3,4,5,6').split(',').map(Number), CAP = +(args.cap || 250);
 const BOTS = String(args.bots || 'mid,skilled').split(',');
-if (args.step !== undefined) C.RAMP.step = +args.step; if (args.grace !== undefined) C.RAMP.grace = +args.grace; if (args.max !== undefined) C.RAMP.max = +args.max; if (args.wild !== undefined) C.RAMP.wild = +args.wild; if (args.wildmax !== undefined) C.RAMP.wildMax = +args.wildmax; if (args.awk !== undefined) C.RAMP.awk = +args.awk;
+if (args.step !== undefined) C.RAMP.step = +args.step; if (args.grace !== undefined) C.RAMP.grace = +args.grace; if (args.max !== undefined) C.RAMP.max = +args.max; if (args.wild !== undefined) C.RAMP.wild = +args.wild; if (args.wildmax !== undefined) C.RAMP.wildMax = +args.wildmax; if (args.awk !== undefined) C.RAMP.awk = +args.awk; for (const k of ['wild0', 'graceMul', 'mercy']) if (args[k] !== undefined) C.RAMP[k] = +args[k];
 const q = (a, p) => { const b = [...a].sort((x, y) => x - y); return b.length ? b[Math.min(b.length - 1, Math.floor(p * b.length))] : 0; };
 const pct = x => Math.round(100 * x) + '%';
 const moves = (lo, hi, pcs) => { const out = []; pcs.forEach((sh, i) => { if (!sh) return; for (const pl of sh.pl) if (!(lo & pl.lo) && !(hi & pl.hi)) out.push({ i, sh, pl }); }); return out; };
@@ -25,6 +25,10 @@ function goodMove(lo, hi, pcs, streak, rnd) {   // one move ahead, knows the sco
     if (!canFinish(r.lo, r.hi, pcs.filter((p, j) => p && j !== o.i))) o.v -= 400; }
   os.sort((a, b) => b.v - a.v); return rnd() < .08 && os.length > 1 ? os[1] : os[0];
 }
+// bad: places on purpose where it hurts most (the worst-looking legal move); random: any legal move
+function badMove(lo, hi, pcs, streak, rnd) { const os = moves(lo, hi, pcs); if (!os.length) return null;
+  for (const o of os) { const r = play(lo, hi, o.sh, o.pl, streak); o.v = C.evalBoard(r.lo, r.hi) - r.n * 20; } os.sort((a, b) => a.v - b.v); return os[0]; }
+function randomMove(lo, hi, pcs, streak, rnd) { const os = moves(lo, hi, pcs); return os.length ? os[Math.floor(rnd() * os.length)] : null; }
 function setupVal(lo, hi) { let v = 0;
   for (let r = 0; r < 8; r++) { let f = 0; for (let c = 0; c < 8; c++) f += C.getBit(lo, hi, r, c); if (f >= 6 && f < 8) v += f - 5; }
   for (let c = 0; c < 8; c++) { let f = 0; for (let r = 0; r < 8; r++) f += C.getBit(lo, hi, r, c); if (f >= 6 && f < 8) v += f - 5; }
@@ -46,10 +50,10 @@ function skilledPlan(lo, hi, pcs, streak, next) {   // plans the tray and the ne
 export function runEndless(zi, j, seed, bot) {
   const def = D.boardParams(zi, j), rnd = D.rng(seed * 7919 + 13); let [lo, hi] = bitsOf(prefill(def, rnd));
   let score = 0, streak = 0, n = 0, big = 0; const trace = [];
-  const opt = () => ({ rnd, big: big > 0, wild: C.wildOf(n, def.grace) }), dd = () => C.rampD(def.d, n, def.grace);
+  const opt = () => ({ rnd, big: big > 0, wild: C.wildOf(n, def.grace), mercy: C.RAMP.mercy }), dd = () => C.rampD(def.d, n, def.grace);
   let pcs = C.chooseTray(lo, hi, 3, dd(), opt()), next = C.chooseNext(lo, hi, pcs, dd(), opt());
   while (n < CAP) {
-    const mv = bot === 'skilled' ? skilledPlan(lo, hi, pcs, streak, next) : bot === 'good' ? goodMove(lo, hi, pcs, streak, rnd) : midMove(lo, hi, pcs, streak, rnd);
+    const mv = bot === 'skilled' ? skilledPlan(lo, hi, pcs, streak, next) : bot === 'good' ? goodMove(lo, hi, pcs, streak, rnd) : bot === 'bad' ? badMove(lo, hi, pcs, streak, rnd) : bot === 'random' ? randomMove(lo, hi, pcs, streak, rnd) : midMove(lo, hi, pcs, streak, rnd);
     if (!mv || !mv.pl || mv.i >= 3 || (lo & mv.pl.lo) || (hi & mv.pl.hi)) return { trace, caved: true };
     const r = play(lo, hi, mv.sh, mv.pl, streak); lo = r.lo; hi = r.hi; streak = r.streak; score += r.pts; n++; trace.push(score); if (r.ac) big = 3;
     pcs = pcs.map((p, k) => k === mv.i ? next : p); next = C.chooseNext(lo, hi, pcs.filter(Boolean), dd(), opt()); if (big > 0) big--;

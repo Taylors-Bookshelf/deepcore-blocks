@@ -24,7 +24,7 @@ export async function phone(opts = {}) {
   // tests must never send analytics to the real PostHog project
   await ctx.route(/posthog/, r => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
   // first-time tips (v2.1.0) would cover the screen in every test; they are marked as seen unless a test asks for them ({ tips: true })
-  if (!tips) await ctx.addInitScript(() => { try { if (!localStorage.getItem('deepcore-life')) localStorage.setItem('deepcore-life', JSON.stringify({ v: 1, tips: { map: 1, gate: 1, haul: 1, anvil: 1 } })); } catch (e) {} });
+  if (!tips) await ctx.addInitScript(() => { try { if (!localStorage.getItem('deepcore-life')) localStorage.setItem('deepcore-life', JSON.stringify({ v: 1, tips: { map: 1, gate: 1, haul: 1, anvil: 1, tour: 1, cart: 1, craft: 1, drillEdge: 1 } })); } catch (e) {} });
   const page = await ctx.newPage(); const errors = [];
   page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   const cdp = await ctx.newCDPSession(page);

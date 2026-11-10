@@ -164,6 +164,12 @@ Why: since 2.2.0 you can craft mid-board whenever you like, so extra slots only 
 - **Cheapest special**: about 30% cheaper than the Blast Charge, which (with the Sledgehammer) becomes about 10% dearer. First numbers: Star Drill 9 coal, 2 iron; Blast Charge 14 coal, 3 iron (was 12 coal, 3 iron); Sledgehammer 11 copper, 9 ruby, 9 iron, 4 gold (was 10, 8, 8, 4). Re-run the economy sims.
 - Ships with F-13 (one more Craft row, one more belt choice).
 
+**F-17 Star cart** (proposed 2026-11-10 after the 2.4.0 playtest): the mine cart on the cart bar fills with stars instead of ore as you earn them, so it's clear how many stars are "in the cart", and the track shows how close the next star is (markers for each star line along the rails).
+
+**F-18 Workbench** (proposed 2026-11-10): a workbench must be built before any mining equipment can be made, as the brewing table is for potions. Made of wood and coal; priced so a player can afford it and the bone tools by the end of the Forest. Upgraded tools also need it.
+
+**F-19 Craft sections** (proposed 2026-11-10; with F-18): Craft is split into a Workbench section (tools and mining equipment) and a Brewing Table section (potions). The sections themselves are the unlockables: a locked section shows what building it costs, and opens once built, instead of the workbench and brewing table being rows in the list.
+
 **I-30 Resource curve** (replaces I-4 Scarcity pass): each zone's main ore covers most of the next tools, so the main path never forces you back up; earlier ores still turn up as rarer veins deeper down, so going back is an option, never a chore; every resource keeps a late-game use (repairs, slot unlocks, brewing) so nothing piles up uselessly. Tuned on F-11's grids.
 
 ## Open items

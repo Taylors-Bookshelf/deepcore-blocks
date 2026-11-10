@@ -17,7 +17,7 @@ const { check, fails } = makeChecker();
 check(D.ZONES.every((z, zi) => z.core || Array.from({ length: z.boards }, (_, j) => D.boardParams(zi, j)).every(p => p.starAt.length === 3 && p.starAt[0] < p.starAt[1] && p.starAt[1] < p.starAt[2] && p.target === p.starAt[0] && p.deals >= 4)), 'every board has three rising star lines, a 1-star pass mark and at least 4 deals');
 check(D.boardParams(D.ZONES.length - 1, 0).starAt.length === 0, 'the Ancient Core has no stars');
 check(D.boardParams(0, 0).starAt[0] < D.boardParams(0, 1).starAt[0], 'board 1-1 (the tutorial) has a lower 1-star line');
-{ const at = i => D.boardParams(i, 1).starAt; check([1, 2, 3, 4, 5, 6].every(i => [0, 1, 2].every(k => at(i)[k] >= at(i - 1)[k])), `every star line rises or holds layer by layer (v2.3.0: the 1-star pass mark ramps, 3 stars track a planner)`); }
+{ const at = i => D.boardParams(i, 1).starAt; check([1, 2, 3, 4, 5, 6].every(i => at(i)[0] >= at(0)[0]) && D.STAR_LINES.slice(0, 7).every(l => l[2] - l[0] >= 1000), `every layer's 1-star line is above the Forest's, and three stars sit well above one (v2.5.0)`); }
 check(D.DEALS.slice(0, D.CRUST_Z + 1).every((n, i) => i === 0 || n >= D.DEALS[i - 1]), 'the dealer\'s grace (the old board length) grows layer by layer');
 { const r = D.rng(3), def = D.boardParams(2, 3), N = 4000; let iron = 0, gems = 0;
   // v2.4.0: no fixed budget; each piece carries ore at the layer's rate (D.ORE_RATE x the old budget over the old board length)
@@ -93,13 +93,13 @@ await page.reload(); await page.waitForTimeout(900); await page.tap('#mapBtn'); 
 await T(() => document.querySelector('.node.progress').click()); await page.waitForTimeout(1200);
 check(await T(() => !document.getElementById('sheetScrim').hidden && !!document.getElementById('resGo')), 'a board left on its results sheet reopens on it');
 await page.tap('#resGo'); await page.waitForTimeout(3200);
-// 6b. a cave-in after the first star keeps the stars (the board counts as cleared) but buries the haul
+// 6b. a cave-in is a failure even after a star (v2.5.0): no stars, no haul, the board stays uncleared
 await board(12); await tt('giveHand', { coal: 3 }); await tt('setScore', (await T(() => window.__deepcore.test.def().starAt))[0] + 10); await tt('bar');
-await page.evaluate(() => window.__deepcore.test.state().dayState); await T(() => { window.__deepcore.test.state(); });
 await tt('gameOver'); await page.waitForTimeout(1300); s = await st();
-check(s.over && s.day.done.includes(12) && s.day.stars[12] >= 1 && /You keep your ★/.test(await T(() => document.getElementById('finalNote').textContent)), 'a cave-in after a star keeps the star and clears the board');
+check(s.over && !s.day.done.includes(12) && !(s.day.stars || {})[12] && /isn't cleared/.test(await T(() => document.getElementById('finalNote').textContent)), 'a cave-in after a star does not clear the board or keep the star');
+check(await T(() => document.getElementById('retry').textContent === 'Retry' && document.getElementById('again').textContent === 'Return to map'), 'the cave-in buttons read Retry and Return to map');
 await page.tap('#again'); await page.waitForTimeout(900); s = await st();
-check(s.screen === 'map' && !Object.keys(s.hand).filter(k => s.hand[k]).length && s.bank.coal === 14, `but the haul is lost (bank coal ${s.bank.coal})`);
+check(s.screen === 'map' && !Object.keys(s.hand).filter(k => s.hand[k]).length && s.bank.coal === 14, `and the haul is lost (bank coal ${s.bank.coal})`);
 
 // 5b. a two-line clear pays its lines and the Double, and mines exactly the ore in its lines (no bonus ore since v2.0.4)
 { const sq = C.SHAPES.findIndex(sh => sh.w === 2 && sh.h === 2 && sh.cells.length === 4);

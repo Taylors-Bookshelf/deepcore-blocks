@@ -45,6 +45,10 @@ if (end === 'stuck') fail('a dealt set had no legal placement');
 // Craft (v2.4.0): one screen on the map; each row asks first; a full one-slot belt says so
 await T(() => { const t = window.__deepcore.test; t.give({ coal: 99, iron: 99, gold: 99, ruby: 99, copper: 99, diamond: 9, emerald: 9, bone: 99 }); t.openMap(); });
 await page.waitForTimeout(1200);
+// a fresh profile gets the guided tour on its first map visit (v2.5.0); skipping asks first
+if (!(await page.evaluate(() => !document.getElementById('coach').hidden))) fail('a new player should get the guided tour on the map');
+await page.click('#coachSkip'); await page.waitForTimeout(150); await page.click('#askYes'); await page.waitForTimeout(200);
+if (await page.evaluate(() => !document.getElementById('coach').hidden)) fail('Skip should end the tour');
 await page.click('#mapCraft'); await page.waitForTimeout(300);
 const names = await page.$$eval('#craftBody .ci .nm', e => e.map(x => x.textContent));
 if (names.slice(1).join() !== 'Star Drill,Blast Charge,Sledgehammer,Brewing table,Potion of Protection,Potion of Luck') fail('unexpected Craft rows: ' + names);

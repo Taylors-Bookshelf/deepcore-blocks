@@ -14,7 +14,7 @@ for (const k of ['ways', 'tries', 'cap', 'budget']) if (args['roll' + k] !== und
 // v2.3.0: the rolling tray (each placement refilled with one piece, the piece after it shown as "next"); --sets plays the old 3-piece deals
 export const ROLLING = !args.sets;
 // endless boards (v2.4.0): a bot leaves once it has LEAVE.at stars, or any star once the board has run LEAVE.after placements past its grace
-export const LEAVE = { at: +(args.leaveat || 2), after: +(args.leaveafter || 12) };
+export const LEAVE = { at: +(args.leaveat || 1), after: +(args.leaveafter || 12) };   // v2.5.0: a cave-in fails the board, so the typical player hauls out at the first star
 const CAP = +(args.cap || 300);
 // the board's piece supply, shape level: tray(k) deals a whole tray, next(held) the next piece; allClear() lines up three big pieces
 export function roller(def, rnd, o = {}) {
@@ -78,11 +78,11 @@ export function runBoard(zi, bj, seed, fails = 0, _unused = null, onMine = null)
   const mats = prefill(def, rnd); let [lo, hi] = bitsOf(mats);
   let score = 0, streak = 0, moves = 0, bigNext = false, deals = 0, allClears = 0, multi = 0, clearMoves = 0; const dealt = {}, got = {}, left = C.rollBudget(def.budget, rnd);
   const tilt = Math.min(.75, Math.max(0, fails - 1) * .35);
-  // v2.4.0: stars reached are kept even on a cave-in (the board counts as cleared), but a cave-in loses the haul
-  const end = died => { const stars = D.starsFromScore(score, def.starAt); return { win: stars > 0, completed: !died, stars, score, moves, deals, got: died && ROLLING ? {} : got, target: def.target, allClears, multi, clearMoves, died }; };
+  // v2.5.0: a cave-in is a failure (no stars, no haul): only leaving with a star, or the third star, clears a board
+  const end = died => { const stars = died ? 0 : D.starsFromScore(score, def.starAt); return { win: stars > 0, completed: !died, stars, score, moves, deals, got: died && ROLLING ? {} : got, target: def.target, allClears, multi, clearMoves, died }; };
   if (ROLLING) {   // v2.4.0, endless boards: one piece per placement, the dealer hardens past the grace; the bots don't use the preview
     let n = 0, big = 0;
-    const dd = () => C.rampD(def.d, n, def.grace), opt = () => ({ rnd, luck: cfg.luck, tilt, big: big > 0, wild: C.wildOf(n, def.grace) * (1 - tilt) * (cfg.luck ? .5 : 1) });
+    const dd = () => C.rampD(def.d, n, def.grace), opt = () => ({ rnd, luck: cfg.luck, tilt, big: big > 0, mercy: C.RAMP.mercy, wild: C.wildOf(n, def.grace) * (1 - tilt) * (cfg.luck ? .5 : 1) });
     const dress = (s, others) => C.orePiece(C.dressPiece(s, def, { rnd, dealt, budgeted: true, specialBlocked: others.some(q => q && q.mats.some(m => D.SPECIAL_MIX[m])) }), def, dealt, rnd);
     let pcs = []; C.chooseTray(lo, hi, 3, dd(), { ...opt(), wild: 0 }).forEach(s => pcs.push(dress(s, pcs)));
     let next = dress(C.chooseNext(lo, hi, pcs.map(p => C.SHAPES[p.sid]), dd(), opt()), pcs); deals = 1;

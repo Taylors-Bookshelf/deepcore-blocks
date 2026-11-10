@@ -74,8 +74,9 @@ check(D.SPECIAL_RATE.Easy > 0 && D.SPECIAL_RATE.Easy < D.SPECIAL_RATE.Medium, 'r
   check(C.solveCount(0, 0, [C.SHAPES[C.SHAPE_STRS.indexOf('###/###/###')], C.SHAPES[0]], 5, 1e5, false, false, 0).count > 0 && C.solveCount(0xFFFFFFFF >>> 0, 0x00FFFFFF, [C.SHAPES[0], C.SHAPES[0]], 1, 1e5, false, false, 1).count >= 0, 'solveCount takes a piece that may not go first'); }
 // endless boards (v2.4.0): the promise holds through the grace; after it the dealer sometimes deals an awkward piece that still fits
 { const r = D.rng(21), def = D.boardParams(3, 2);
-  check(C.wildOf(def.grace, def.grace) === 0 && C.rampD(def.d, def.grace, def.grace) === def.d, `no hardening during the grace (${def.grace} placements in Granite Halls)`);
-  check(C.wildOf(def.grace + 5, def.grace) > 0 && C.wildOf(def.grace + 500, def.grace) === C.RAMP.wildMax && C.rampD(def.d, def.grace + 500, def.grace) <= C.RAMP.max, 'after it the awkward-piece chance and the difficulty climb, up to their caps');
+  const g = Math.round(def.grace * C.RAMP.graceMul);
+  check(C.wildOf(0, def.grace) === C.RAMP.wild0 && C.wildOf(g, def.grace) === C.RAMP.wild0 && C.rampD(def.d, g, def.grace) === def.d, `during the grace (${g} placements in Granite Halls) only the base share of pieces is unpromised (${C.RAMP.wild0})`);
+  check(C.wildOf(g + 5, def.grace) > C.RAMP.wild0 && C.wildOf(def.grace + 500, def.grace) === C.RAMP.wildMax && C.rampD(def.d, def.grace + 500, def.grace) <= C.RAMP.max, 'after it the awkward-piece chance and the difficulty climb, up to their caps');
   let fit = 0, n = 0, awkward = 0;
   for (let k = 0; k < 80; k++) { let [lo, hi] = bitsOf(prefill(def, r)); for (let m = 0; m < 10; m++) lo = (lo | (C.SHAPES[3].pl[Math.floor(r() * C.SHAPES[3].pl.length)].lo)) >>> 0;
     const held = C.chooseTray(lo, hi, 3, def.d, { rnd: r }), s = C.chooseNext(lo, hi, held, .9, { rnd: r, wild: 1 }); n++;

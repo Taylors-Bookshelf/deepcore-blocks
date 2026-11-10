@@ -25,14 +25,18 @@ check(rows.join() === 'tool,drill,blast,sledgehammer,table,rescue,luck', `Craft 
 // ---- craft into the free slot; a full belt says so ----
 await row('blast'); check(await yes() === 'Craft Blast Charge?', 'tapping a row asks first');
 let s = await st(); check(s.belt.join() === 'blast,,' && s.bank.coal === 186, 'the Blast Charge goes on the belt and its ore is spent');
-await row('sledgehammer'); check(await yes() === 'Belt is full!', 'with no free slot, crafting says the belt is full');
+await row('sledgehammer'); check(await page.textContent('#askText') === 'You need an empty belt slot for that!' && await page.evaluate(() => document.getElementById('askNo').hidden) && await yes() === 'Belt is full!', 'with no free slot, crafting says the belt is full, with one OK button');
 await row('rescue'); check(await yes() === 'Build the brewing table first', 'potions need the brewing table');
 
 // ---- unlock belt slot 2 from the glowing slot; build the table; brew ----
 await page.click('#craftBeltSlots .tool.glow'); await page.waitForTimeout(200);
-check(await page.evaluate(() => /Belt slot 2/.test(document.getElementById('beltPop').textContent) && !document.getElementById('beltUnlock').disabled), 'the glowing slot shows its cost, with Unlock when you can afford it');
+check(await page.evaluate(() => /Belt slot 2/.test(document.getElementById('beltPop').textContent) && /0\/24 stars this run/.test(document.getElementById('beltPop').textContent) && document.getElementById('beltUnlock').disabled && /Earn 24 more stars/.test(document.getElementById('beltUnlock').textContent)), 'belt slots open with stars (v2.5.0): the glowing slot shows how many are still needed');
+await page.click('#craftTitle'); await page.waitForTimeout(150);
+await page.evaluate(() => { const t = window.__deepcore.test; t.setRun({ stars: Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i, 3])) }); });
+await page.click('#craftBeltSlots .tool.glow'); await page.waitForTimeout(200);
+check(await page.evaluate(() => /27\/24|24\/24/.test(document.getElementById('beltPop').textContent) && !document.getElementById('beltUnlock').disabled), 'with 27 stars this run, Unlock is ready');
 await page.click('#beltUnlock'); check(/Unlock belt slot 2/.test(await yes()), 'Unlock asks first');
-s = await st(); check(s.wk.belt2 === 1 && (await slots('#craftBeltSlots')).join() === 'blast,empty,glow', 'belt slot 2 opens and slot 3 glows next');
+s = await st(); check(s.wk.belt2 === 1 && (await slots('#craftBeltSlots')).join() === 'blast,empty,glow' && s.bank.coal === 186, 'belt slot 2 opens (no ore spent) and slot 3 glows next');
 const bank0 = (await st()).bank;
 await row('table'); await yes(); await page.waitForTimeout(200);
 s = await st(); check(s.wk.table === 1 && Object.entries(D.ws.table.cost).every(([k, v]) => s.bank[k] === bank0[k] - v), 'building the brewing table spends its cost');

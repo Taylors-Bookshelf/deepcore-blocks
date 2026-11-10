@@ -199,7 +199,7 @@ const ROLL={ways:4,tries:22,cap:900,budget:24000};   // the 4-piece version of t
 function chooseNext(lo,hi,held,d,opts={}){
   const rnd=opts.rnd||Math.random, luck=opts.luck||0;
   if(opts.tilt) d=d*(1-.4*opts.tilt);
-  const fill=(pc(lo)+pc(hi))/64, mercy=TUNE.mercy*Math.max(0,Math.min(1,(fill-TUNE.mercyStart)/.3));
+  const fill=(pc(lo)+pc(hi))/64, mercy=TUNE.mercy*(opts.mercy??1)*Math.max(0,Math.min(1,(fill-TUNE.mercyStart)/.3));
   const tilt=opts.tilt||0, merc=1-(1-mercy)*(1-tilt);
   const A0=assistOf(d), A=Math.max(A0+(1-A0)*merc,luck?.8:0);
   const {boost,exact}=pocketInfo(lo,hi);
@@ -242,9 +242,12 @@ function chooseNext(lo,hi,held,d,opts={}){
 // Past the grace the solvability guarantee also fades: each new piece is, with chance wildOf(), an awkward one (one of the RAMP.awk shapes
 // with the fewest spots on the board right now; it fits somewhere, but nothing promises it works with the tray). Without that a board
 // never caves in: the bots played 120+ placements on every layer even with plain random pieces.
-const RAMP={step:.02,max:.97,wild:.08,wildMax:.9,awk:3};   // set with tools/experiments/endless.mjs: a typical player's board lasts about 35-40 placements
-const rampD=(d,placed,grace)=>Math.min(Math.max(d,RAMP.max),d+RAMP.step*Math.max(0,placed-(grace||0)));
-const wildOf=(placed,grace)=>Math.min(RAMP.wildMax,RAMP.wild*Math.max(0,placed-(grace||0)));
+// v2.5.0 (playtest: deliberate bad placements took 40 placements to cave in): a quarter of pieces carry no promise from the start (wild0),
+// the full promise lasts only 40% of the old board length (graceMul), and there is no crowded-board mercy on endless boards (mercy).
+// tools/experiments/endless.mjs: a worst-move player caves in after about 10 placements, a random one about 14, a typical one about 23.
+const RAMP={step:.02,max:.97,wild:.08,wildMax:.9,awk:3,wild0:.25,graceMul:.4,mercy:0};
+const rampD=(d,placed,grace)=>Math.min(Math.max(d,RAMP.max),d+RAMP.step*Math.max(0,placed-Math.round((grace||0)*RAMP.graceMul)));
+const wildOf=(placed,grace)=>Math.min(RAMP.wildMax,RAMP.wild0+RAMP.wild*Math.max(0,placed-Math.round((grace||0)*RAMP.graceMul)));
 // a whole tray of k pieces (start of a board, a Protection save): a dealt set of three, or fewer one at a time near the end
 function chooseTray(lo,hi,k,d,opts={}){
   if(k>=3) return chooseSet(lo,hi,d,opts);

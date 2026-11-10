@@ -7,7 +7,7 @@ check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWid
 check(await page.evaluate(() => { const b = document.getElementById('mapBtn').getBoundingClientRect(); return b.left >= 0 && b.right <= innerWidth && b.bottom <= innerHeight; }), 'home buttons are on screen');
 await page.tap('#mapBtn'); await page.waitForTimeout(300); await page.tap('.node.open'); await page.waitForTimeout(2600);
 // skip the tutorial: its steps only take a drop on the glowing spot (tests/r7.mjs covers that)
-await page.evaluate(() => document.getElementById('tutorSkip').click()); await page.waitForTimeout(100);
+await page.evaluate(() => document.getElementById('tutorSkip').click()); await page.waitForTimeout(150); await page.evaluate(() => document.getElementById('askYes').click()); await page.waitForTimeout(100);
 
 // header controls and the score bar
 check(await page.evaluate(() => ['pauseBtn', 'hintBtn', 'infoBtn', 'sound', 'beltSlots', 'cartBar'].every(id => !!document.getElementById(id)) && !document.getElementById('anvilBtn') && !document.getElementById('homeBtn') && !document.getElementById('tier')), 'header has pause, hint, how to play and sound (no map button, no difficulty label); the board has the belt and the cart bar, no CRAFT');
@@ -41,10 +41,10 @@ check(ev.includes('piece_place'), 'analytics saw piece_place'); check(ev.include
 
 // sound: the audio engine starts after a tap; the speaker opens the sound panel; switching effects off crosses out every speaker and is remembered
 check(await page.evaluate(() => window.__deepcore.test.audioState()) === 'running', 'audio context is running after touches');
-check(await page.getAttribute('#sound', 'aria-pressed') === 'true', 'sound starts on (effects on)');
+check(await page.getAttribute('#sound', 'aria-pressed') === 'true' && await page.evaluate(() => window.__deepcore.test.settings().music === true), 'sound starts on: music and effects (v2.5.0)');
 await page.tap('#sound'); await page.waitForTimeout(250);
 check(await page.evaluate(() => !document.getElementById('soundPop').hidden && !!document.getElementById('musicVol') && !!document.getElementById('sfxVol')), 'the speaker opens a panel with music and effects volumes');
-await page.tap('#sfxOn'); await page.waitForTimeout(100);
+await page.tap('#sfxOn'); await page.tap('#musicOn'); await page.waitForTimeout(100);
 check(await page.getAttribute('#sound', 'aria-pressed') === 'false' && await page.getAttribute('#homeSound', 'aria-pressed') === 'false', 'with music and effects off, every speaker shows muted');
 await page.reload(); await page.waitForTimeout(500);
 check(await page.getAttribute('#homeSound', 'aria-pressed') === 'false', 'sound-off survives a reload');

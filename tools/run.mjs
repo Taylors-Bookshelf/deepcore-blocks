@@ -15,7 +15,7 @@ const S = { tries: Array(NZ).fill(0), boards: Array(NZ).fill(0), moves: Array(NZ
   dayAt: Array(NZ).fill(0), crustTries: 0, breaks: 0, crafted: {}, left: {}, built: {}, builtDay: {} };
 let seed = 1;
 for (let run = 0; run < RUNS; run++) {
-  const bank = {}; let tool = 0, dur = D.DUR_MAX, attemptsToday = 0, day = 1; const owned = {}; const seen = {}; const ws = {};   // ws: the workshop (F-10): brewing table and second slots
+  const bank = {}; let runStars = 0, tool = 0, dur = D.DUR_MAX, attemptsToday = 0, day = 1; const owned = {}; const seen = {}; const ws = {};   // ws: the workshop (F-10): brewing table and second slots
   const tick = () => { if (++attemptsToday >= PERDAY) { attemptsToday = 0; day++; } };
   const nextCost = z => z + 1 < D.TOOLS.length ? D.TOOLS[z + 1].cost : null;
   // one board, retried until cleared; with D.TOOL_WEAR on (off since v2.1.0) the Crust can break the tools, back to the start of Magmastone
@@ -32,7 +32,7 @@ for (let run = 0; run < RUNS; run++) {
       // every deal placed: below the 1-star line the board is not cleared and the haul is dropped (a retry)
       const stars = r.stars;
       if (r.completed && !stars) S.zero[z]++;
-      if (r.win && stars) { S.boards[z]++; S.stars[z] += stars; add(bank, r.got); return 'ok'; }
+      if (r.win && stars) { S.boards[z]++; S.stars[z] += stars; runStars += stars; add(bank, r.got); return 'ok'; }
       // a cave-in loses that board's haul (no Rescue Potion in the sim)
     }
     return 'ok';
@@ -48,7 +48,7 @@ for (let run = 0; run < RUNS; run++) {
       if (res === 'broke') { S.breaks++; dur = D.DUR_AFTER_BREAK; restart = true; break; }   // back to the start of Magmastone
       const cost = nextCost(z);
       // the workshop first, then specials, only with what is left after the next tool
-      for (const w of Object.values(D.WORKSHOP || {})) { if (ws[w.id] || (w.needs && !ws[w.needs]) || !afford(bank, w.cost)) continue; const after = { ...bank }; pay(after, w.cost); if (cost && !afford(after, cost)) continue;
+      for (const w of Object.values(D.WORKSHOP || {})) { if (ws[w.id] || (w.needs && !ws[w.needs]) || !afford(bank, w.cost) || (w.stars && runStars < w.stars)) continue; const after = { ...bank }; pay(after, w.cost); if (cost && !afford(after, cost)) continue;
         pay(bank, w.cost); ws[w.id] = 1; S.built[w.id] = (S.built[w.id] || 0) + 1; S.builtDay[w.id] = (S.builtDay[w.id] || 0) + day; }
       // the belt (v2.4.0): 1 slot to start, 2 and 3 unlocked; potions need the brewing table
       const cap = 1 + (ws.belt2 ? 1 : 0) + (ws.belt3 ? 1 : 0);

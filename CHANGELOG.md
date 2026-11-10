@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.5.0 — fair cave-ins, a guided tutorial, stars on the map
+- **Careless play caves in now.** The dealer used to rescue bad placements for the first 12–21 pieces of a board. Now a quarter of pieces come with no promise from the start, the full promise is much shorter, and the dealer no longer helps more as the board fills. In the simulator a deliberately bad player caves in after about 10 placements, a typical one lasts about 23.
+- **A cave-in is a failure**: no stars and no ore from that board. Retry it to earn them. Haul out with the mine cart when it gets risky.
+- **Lucky Dodge** is now a big amber button, so it's clear you can tap it. The other buttons read **Retry** and **Return to map**.
+- **Star lines redone** for the new dealer: Forest 1,100 / 3,100 / 5,100 down to the Crust 2,250 / 3,100 / 3,900. Deeper rock scores less before it caves in, so the lines follow what players score; a typical player still passes the first star almost every time in the Forest and about 57% of the time in the Crust.
+- **Tools are forged in Craft only.** A locked board's card now sends you to Craft instead of forging on the spot, and Craft closes the card so the map is up to date when you come back.
+- **Craft shows your tools** as a row: the ones you've forged lit, the rest greyed out.
+- **Belt slots 2 and 3 open with stars** earned this run (24 and 60), not resources. Stars aren't spent.
+- **Clearer Craft messages:** "You need an empty belt slot for that!", one centred OK button when there's nothing to choose, and "Not enough resources!" comes before "Belt is full!".
+- **Craft rows can't squash into each other** on short screens any more: the list scrolls.
+- **Stars on the map:** every cleared board shows the stars it earned.
+- **Music and sound effects are on** for new players.
+- **Guided tutorial** on the first play: the map, your belt and Craft, then board 1 hands-on, then the board's parts (stars, NEXT, combos and streaks, your haul, hauling out with the mine cart, the belt, Hint and Guide). Skip it with a tap (it asks first); replay it from the Guide or Settings.
+
 ## 2.4.0 — endless boards, Craft and the belt
 - **Endless boards.** A board no longer has a set number of pieces. Once you have a star, the new mine cart bar under your belt lights up: tap it ("Done here?") to leave with your haul. The third star ends the board on its own. Or keep mining for more stars and more ore: the longer a board lasts, the more awkward the pieces get, until the cave gives way.
 - **Cave-ins** bury the ore mined on that board, but stars you already reached on it are kept.

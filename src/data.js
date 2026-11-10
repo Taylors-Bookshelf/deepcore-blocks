@@ -87,15 +87,14 @@ const RECIPES=[
   {m:'rescue',       kind:'potion', cost:{ruby:20, emerald:1, bone:4},          desc:'Undoes a cave-in, '+POTION_MOVES+' placements.'},
   {m:'luck',         kind:'potion', cost:{ruby:12, bone:4},                     desc:'Better pieces, '+POTION_MOVES+' placements.'},
 ];
-// The belt (F-13, v2.4.0): 3 slots shared by equipment and potions. A run starts with 1; slots 2 and 3 are big late-run goals.
-// The brewing table unlocks potions. All kept for the run (dayState.wk), like tools. Belt slot costs are first numbers: slot 2 is the old
-// second equipment slot's cost (more coal); slot 3 avoids meteorite (the Galaxy Alloy tools use it up). tools/run.mjs: a typical player
-// who also crafts gets slot 2 at about 80% of a descent; slot 3 is for a thrifty player near the end.
+// The belt (F-13, v2.4.0): 3 slots shared by equipment and potions. A run starts with 1; slots 2 and 3 open with the stars earned this run
+// (v2.5.0, the user's call: stars, not resources; not spent). The brewing table unlocks potions. All kept for the run (dayState.wk), like tools.
+// Star thresholds are first numbers: a typical player earns about 1.2 stars a board, so slot 2 comes around Slate/Granite and slot 3 deep down.
 const BELT_MAX=3;
 const WORKSHOP={
   table: {id:'table', name:'Brewing table', cost:{ruby:12, emerald:1, bone:4, iron:4, wood:8}, desc:'Unlocks potions.'},
-  belt2: {id:'belt2', name:'Belt slot 2',   cost:{gold:20, diamond:4, coal:120},            desc:'Carry a second item into every board.'},
-  belt3: {id:'belt3', name:'Belt slot 3',   cost:{prismore:12, diamond:6, emerald:6},      desc:'Carry a third item into every board.', needs:'belt2'},
+  belt2: {id:'belt2', name:'Belt slot 2',   cost:{}, stars:24, desc:'Carry a second item into every board.'},
+  belt3: {id:'belt3', name:'Belt slot 3',   cost:{}, stars:60, desc:'Carry a third item into every board.', needs:'belt2'},
 };
 
 // One twist per Pacific day, chosen from the date. They shift resources, never the rules of clearing a board.
@@ -131,13 +130,13 @@ function placePoints(cells,lines,streak,allClear){
 // Before v2.4.0 a board was a fixed number of deals (3 pieces each). Boards are endless now (F-14); DEALS×3 is kept as each layer's
 // reference length: the dealer's grace before it hardens, and what the ore budget is spread over (orePer).
 const DEALS=[4,5,5,6,6,7,7,0];
-// Star lines in board points, per layer (v2.4.0, endless boards). 1 star from the typical (mid) bot's scores before it caves in, on the balance
-// test's boards (pass rates 99% in the Forest down to about 60% from Magmastone); 3 stars from tools/experiments/endless.mjs --p3bot good
-// --mix .03,.4,.5 (the good bot's median), smoothed so they rise layer by layer; 2 stars halfway. 1 star: a typical player reaches it before caving in on nearly every Forest try, falling to
-// about 60% from Magmastone on; 3 stars: a player who knows the scoring gets it about half the time, a planner nearly always; 2 halfway.
+// Star lines in board points, per layer (v2.5.0, the harsher endless dealer). 1 star from the typical (mid) bot's scores before it caves in, on
+// the balance test's boards: it passes about 98% of Forest tries, falling to about 57% in the Crust. 3 stars near the median of a bot that knows
+// the scoring (tools/experiments/endless.mjs --p3bot good --mix .03,.4,.5), smoothed; 2 stars halfway. Deeper rock scores less before it caves
+// in, so the lines no longer rise layer by layer: difficulty rises in how often a typical player makes the line.
 // Board 1-1 (the tutorial board) has a lower 1-star line so it can't realistically fail.
-const STAR_LINES=[[2150,4050,5950],[3150,4900,6600],[3350,5000,6650],[3950,5400,6800],[4000,5400,6800],[4850,5900,6900],[4850,5950,7000],[]];
-const FIRST_BOARD_STARS=[1200,4050,5950];
+const STAR_LINES=[[1100,3100,5100],[1650,3350,5000],[2050,3350,4600],[2150,3350,4500],[2450,3300,4200],[2550,3300,4050],[2250,3100,3900],[]];
+const FIRST_BOARD_STARS=[700,3100,5100];
 const starsFromScore=(score,at)=>at.reduce((n,v)=>n+(score>=v?1:0),0);
 // each star after the first adds 10% of the 1-star line to the day's points when the board is banked
 const starBonus=(stars,line1)=>Math.max(0,stars-1)*Math.round(line1*.1/10)*10;
@@ -157,7 +156,7 @@ const ORE_BUDGET=[
 ];
 // Endless boards last longer than the old fixed ones (a typical player places about 1.8 times as many pieces), so each piece carries less ore:
 // ORE_RATE keeps a layer's 8 boards at part of the next tools, with a few replays for the rest (npm run test:balance).
-const ORE_RATE=.6;
+const ORE_RATE=1;
 const STAR_ORES=['coal','bone','copper','iron','ruby','gold','meteorite','prismore','emerald','diamond'];   // the ores and gems (not wood or rock)
 const STASH_KEYS=['wood','bone','coal','copper','iron','gold','meteorite','prismore','ruby','emerald','diamond'];
 const GEM_KEYS=['ruby','emerald','diamond'];

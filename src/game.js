@@ -3,7 +3,7 @@ const N = 8, T = 16;
 const A = window.DCA || { track(){}, attempt(){}, setScreen(){}, setBoard(){}, isOn:()=>false, canConfigure:()=>false, setOptOut(){} };
 const {TOOL_WEAR,POTION_MOVES,WORKSHOP,BELT_MAX,FOSSIL_BONE,specialHaul,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS,GEM_KEYS,lineName,STAR_ORES,SCORE,placePoints,starsFromScore,starBonus,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf}=DeepcoreData;
 const M=DeepcoreMaps, Meta=DeepcoreMeta;
-const {SHAPES,SHAPE_STRS,SHAPE_BY_KEY,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,getBit,bitOf,chooseSet,chooseNext,chooseTray,BIG_IDS,pickWeighted,rankMoves,rampD,wildOf,orePiece}=DeepcoreCore;
+const {SHAPES,SHAPE_STRS,SHAPE_BY_KEY,applyMove,countHoles,hasLockedHole,healthy,solveCount,pocketInfo,getBit,bitOf,chooseSet,chooseNext,chooseTray,BIG_IDS,pickWeighted,rankMoves,rampD,wildOf,orePiece,RAMP}=DeepcoreCore;
 const FONT_D = '"Jersey 10", "Courier New", monospace';
 
 // ---------- texture helpers (procedural, original 16×16 pixel art) ----------
@@ -389,7 +389,7 @@ const mercyTilt=()=>Math.min(.75,Math.max(0,((dayState.fails||{})[level-1]||0)-1
 // After that the dealer hardens (C.rampD) and, more and more often, deals an awkward piece with no promise (C.wildOf), so boards end.
 // dealtN counts the pieces dealt (tray and next); each piece carries its share of the layer's ore (C.orePiece, def.orePer).
 let dealtN=0, nextPiece=null;
-const dealOpts=()=>{ const g=levelDef(level).grace; return {luck:luck>0?1:0,tilt:mercyTilt(),big:bigNext>0,wild:(luck>0?.5:1)*(1-mercyTilt())*wildOf(moves,g)}; };
+const dealOpts=()=>{ const g=levelDef(level).grace; return {luck:luck>0?1:0,tilt:mercyTilt(),big:bigNext>0,mercy:RAMP.mercy,wild:(luck>0?.5:1)*(1-mercyTilt())*wildOf(moves,g)}; };
 const dealD=()=>rampD(difficulty(),moves,levelDef(level).grace);
 function dealPiece(s){ dealtN++; const p=dressPiece(s,(pieces||[]).filter(Boolean)); orePiece(p,levelDef(level),dealt); return p; }
 function dealOne(){
@@ -775,7 +775,7 @@ function renderFx(now){
 
 // ---------- settings and the lifetime profile (rank, streaks, records, discovery log) ----------
 const K_SET='deepcore-settings', K_LIFE='deepcore-life', K_INST='deepcore-install';
-let settings={sfxVol:70,musicVol:50,music:false,reduce:false,large:false}, life=Meta.newLife();
+let settings={sfxVol:70,musicVol:50,music:true,reduce:false,large:false}, life=Meta.newLife();
 function saveSettings(){ lsSet(K_SET,settings); }
 function loadSettings(){ const v=lsGet(K_SET); if(v){ Object.assign(settings,v); if(v.volume!==undefined&&v.sfxVol===undefined){ settings.sfxVol=v.volume; delete settings.volume; } } }   // one volume became two in v2.1.0
 function saveLife(){ lsSet(K_LIFE,life); }
@@ -1101,7 +1101,7 @@ function openPause(){
 let askDone=null;
 function ask(title,text,yes='Yes',no='Cancel'){
   if(askDone) askDone(false);
-  $('askTitle').textContent=title; $('askText').textContent=text||''; $('askText').hidden=!text; $('askYes').textContent=yes; $('askNo').textContent=no;
+  $('askTitle').textContent=title; $('askText').textContent=text||''; $('askText').hidden=!text; $('askYes').textContent=yes; $('askNo').textContent=no||''; $('askNo').hidden=!no;
   $('askScrim').hidden=false; $('askYes').focus();
   return new Promise(res=>{ askDone=v=>{ askDone=null; $('askScrim').hidden=true; res(v); }; });
 }
@@ -1158,8 +1158,8 @@ function loseHand(){
   floatText(innerWidth/2,topY-8,'Haul lost','#ff8a7a'); [330,262,196].forEach((f,j)=>blip(f,.16,'sawtooth',.05,j*.1));
   return total;
 }
-// a cave-in (F-14): stars already reached on the board are kept (the board counts as cleared), the haul is lost. Once per board a Lucky
-// Dodge (F-15) trades half the haul for undoing the last placement with fresh pieces, so the haul only spills once the player decides.
+// a cave-in (v2.5.0): a failure. No stars, no haul: retry the board to earn them. Once per board a Lucky Dodge (F-15) trades half the haul
+// for undoing the last placement with fresh pieces, so the haul only spills once the player decides.
 let dodgeUsed=false, caveSettled=true;
 const haulCount=()=>Object.values(hand).reduce((a,b)=>a+(b||0),0);
 const canDodge=()=>!dodgeUsed&&!!undo&&haulCount()>0;
@@ -1168,7 +1168,6 @@ function gameOver(){
   if(reached) return;   // the board already ended at its target
   { const f=dayState.fails=dayState.fails||{}; f[level-1]=(f[level-1]||0)+1; saveDay(); life.caveIns++; }
   const tg=levelDef(level).target||1, st=starsNow();
-  if(st>=1&&!practice){ recordClear(st,score); saveDay(); }   // the stars stay even though the haul is buried
   A.track('board_fail',{hand:haulCount(),stars:st,idx:level-1,label:boardLabel(level-1),score,target:tg,pct:Math.round(100*score/tg),moves,duration_ms:Math.round(performance.now()-boardT0),can_dodge:canDodge(),attempt:(dayState.attempts||{})[level-1]||1});
   over=true; caveSettled=false; if(!canDodge()) settleCaveIn(); saveBoard(); setTimeout(()=>{ if(over) showOver(); },650);
 }
@@ -1236,12 +1235,12 @@ function showOver(){
   const dd=levelDef(level), st=starsNow(), fails=(dayState.fails||{})[level-1]||0; $('finalScore').textContent=score.toLocaleString();
   $('overWhy').textContent=`The cave gave way after ${moves} placement${moves===1?'':'s'}.`;
   $('overBar').hidden=true;
-  $('finalNote').textContent=st?`You keep your ${'★'.repeat(st)} on this board, but the ore you mined on it is buried. Your stash and belt are safe.`:'The ore you mined on this board is buried. Your stash and belt are safe.';
-  $('overTip').textContent=caveInTip()+(fails>=2&&!st?' The dealer will go easier on your next try.':'');
+  $('finalNote').textContent=st?`The board isn't cleared and your ${'★'.repeat(st)} and the ore you mined on it are lost: next time, haul out with the mine cart before it gets risky. Your stash and belt are safe.`:'The board isn\'t cleared and the ore you mined on it is lost. Your stash and belt are safe.';
+  $('overTip').textContent=caveInTip()+(fails>=2?' The dealer will go easier on your next try.':'');
   if(dockCount('rescue')) $('overTip').textContent='You had a Potion of Protection on your belt. Tap it to drink it before you get stuck: it guards you for '+POTION_MOVES+' placements.';
-  $('retry').textContent=st?'Mine it again':'Retry board'; $('again').textContent=st?'Continue':'Map';
+  $('retry').textContent='Retry'; $('again').textContent='Return to map';
   const dg=$('dodge'), can=canDodge()&&!caveSettled; dg.hidden=!can; $('over').classList.toggle('dodging',can);
-  if(can){ const h=haulCount(), give=Object.values(hand).reduce((a,v)=>a+Math.floor((v||0)/2),0); $('dodgeTxt').textContent=give?`Give up ${give} of your ${h} ore to undo your last placement and keep mining. Once per board.`:'Undo your last placement and keep mining. Once per board.'; }
+  if(can){ const h=haulCount(), give=Object.values(hand).reduce((a,v)=>a+Math.floor((v||0)/2),0); $('dodgeTxt').textContent=give?`Costs ${give} of your ${h} ore · undoes your last placement`:'Undoes your last placement'; }
   $('over').hidden=false; blip(110,.4,'sawtooth',.05);
 }
 $('dodge').onclick=()=>luckyDodge();
@@ -1322,7 +1321,8 @@ function buildStash(){
 const canAfford=r=>Object.entries(r.cost).every(([k,v])=>(bank[k]||0)>=v);
 // the map's Craft button glows when something can be made now: an item with a free belt slot, the next tools, or an upgrade
 const wsNext=()=>Object.values(WORKSHOP).filter(w=>!wk()[w.id]&&(!w.needs||wk()[w.needs]));
-const canMake=()=>RECIPES.some(r=>(r.kind==='equip'||wk().table)&&beltFree()>=0&&canAfford(r)) || wsNext().some(w=>canAfford(w)) || (tool()<TOOLS.length-1&&canAfford({cost:tcost(tool()+1)}));
+const canBuild=w=>w.stars?runStarGot()>=w.stars:canAfford(w);   // belt slots open with this run's stars (v2.5.0), the brewing table with ore
+const canMake=()=>RECIPES.some(r=>(r.kind==='equip'||wk().table)&&beltFree()>=0&&canAfford(r)) || wsNext().some(w=>canBuild(w)) || (tool()<TOOLS.length-1&&canAfford({cost:tcost(tool()+1)}));
 function updateAnvilGlow(){ const b=$('mapCraft'); if(b) b.classList.toggle('afford',canMake()); }
 // the strip has room for two digits: bigger counts read 99+ (Craft shows the real totals)
 const cap99=n=>n>99?'99+':String(n);
@@ -1375,8 +1375,8 @@ function craftRow(icon,name,desc,cost,onTap,id){
 }
 const say=(title,text)=>ask(title,text,'OK',null);
 async function tryMake(verb,name,cost,doIt,needsBelt){
-  if(needsBelt&&beltFree()<0){ say('Belt is full!','Use or drop an item on your belt first.'); return; }
-  if(!canAfford({cost})){ say('Not enough resources!',`${name} needs ${costText(cost)}. Replaying boards you have cleared gives ore too.`); return; }
+  if(!canAfford({cost})){ say('Not enough resources!',`${name} needs ${costText(cost)}. Replaying boards you have cleared gives ore too.`); return; }   // v2.5.0: before "belt full"
+  if(needsBelt&&beltFree()<0){ say('Belt is full!','You need an empty belt slot for that!'); return; }
   if(await ask(`${verb} ${name}?`,`Uses ${costText(cost)}.${needsBelt?' It goes on your belt.':''}`,'Yes','No')) doIt();
 }
 function renderCraft(){
@@ -1384,6 +1384,9 @@ function renderCraft(){
   const body=$('craftBody'), top=body.scrollTop; body.innerHTML=''; const t=tool();
   const h3=x=>{ const e=document.createElement('h3'); e.textContent=x; body.append(e); };
   h3('TOOLS');
+  { const rowT=document.createElement('div'); rowT.className='toolrow'; rowT.setAttribute('aria-label','Your tools');
+    TOOLS.forEach((T0,k)=>{ const c=document.createElement('canvas'); c.width=c.height=T; c.getContext('2d').drawImage(ITEM['tool_'+T0.id],0,0); const w=document.createElement('div');
+      w.className='tt'+(k<=t?' have':'')+(k===t?' cur':''); w.title=k<=t?T0.name:`${T0.name} (not forged yet)`; w.append(c); rowT.append(w); }); body.append(rowT); }
   if(t<TOOLS.length-1){ const T1=TOOLS[t+1], c=tcost(t+1); body.append(craftRow(ITEM['tool_'+T1.id],T1.name,`Opens ${ZONES[t+1].name}.`,c,()=>tryMake('Forge',T1.name,c,()=>forgeTool(t+1)),'tool')); }
   else body.append(craftRow(ITEM['tool_'+TOOLS[t].id],TOOLS[t].name,'Strong enough for every layer.',null,null,'tool'));
   h3('MINING EQUIPMENT');
@@ -1405,8 +1408,9 @@ function beltTap(i){
   if(i>=cap){ beltSel=-1; beltSlots($('craftBeltSlots'),'craft');
     const w=WORKSHOP['belt'+(i+1)], prevLocked=w.needs&&!wk()[w.needs];
     const pop=beltPop(i,`<div class="nm"></div><div class="ds"></div>`); if(!pop) return; pop.querySelector('.nm').textContent=w.name; pop.querySelector('.ds').textContent=prevLocked?'Unlock belt slot 2 first.':w.desc;
-    if(!prevLocked){ pop.append(costChips(w.cost)); const b=document.createElement('button'); b.type='button'; b.className='go'; b.id='beltUnlock';
-      const can=canAfford(w); b.textContent=can?'Unlock':'Not enough yet'; b.disabled=!can; b.onclick=async()=>{ closeBeltPop(); if(await ask(`Unlock ${w.name.toLowerCase()}?`,`Uses ${costText(w.cost)}.`,'Yes','No')) buildWorkshop(w.id); }; pop.append(b); }
+    if(!prevLocked){ const got=runStarGot(), sp=document.createElement('div'); sp.className='cost starcost'+(got<w.stars?' short':''); sp.textContent=`★ ${Math.min(got,w.stars)}/${w.stars} stars this run`; pop.append(sp);
+      const b=document.createElement('button'); b.type='button'; b.className='go'; b.id='beltUnlock';
+      const can=canBuild(w); b.textContent=can?'Unlock':`Earn ${w.stars-got} more star${w.stars-got===1?'':'s'}`; b.disabled=!can; b.onclick=async()=>{ closeBeltPop(); if(await ask(`Unlock ${w.name.toLowerCase()}?`,`You've earned ${got} stars this run. Stars aren't spent.`,'Yes','No')) buildWorkshop(w.id); }; pop.append(b); }
     return; }
   if(beltSel>=0){ if(beltSel!==i){ const a=specials[beltSel]; specials[beltSel]=specials[i]; specials[i]=a; saveProfile(); A.track('belt_move',{from:beltSel,to:i}); blip(660,.06,'triangle',.05); }
     beltSel=-1; closeBeltPop(); renderDock(); return; }
@@ -1417,7 +1421,7 @@ function beltTap(i){
   $('beltDrop').onclick=async()=>{ closeBeltPop(); const idx=beltSel; beltSel=-1; if(await ask(`Drop the ${MATS[m].name}?`,'It is gone for good: its ore is not refunded.','Drop','Keep')){ dockRemove(idx); saveProfile(); A.track('belt_drop',{m}); } renderDock(); };
 }
 function buildWorkshop(id){
-  const w=WORKSHOP[id]; if(!w||wk()[id]||(w.needs&&!wk()[w.needs])||!canAfford(w)) return;
+  const w=WORKSHOP[id]; if(!w||wk()[id]||(w.needs&&!wk()[w.needs])||!canBuild(w)) return;
   Object.entries(w.cost).forEach(([k,v])=>bank[k]-=v); wk()[id]=1; saveDay(); fitDock(); saveProfile();
   A.track('workshop_built',{id,day:dayState.days,idx:level-1}); life.seen['ws_'+id]=true;
   updateStash(Object.keys(w.cost)); renderDock(); refreshCraft();
@@ -1442,7 +1446,7 @@ function mendTools(){
   if(!used) return; saveDay(); saveProfile(); updateStash(['prismore']); A.track('tools_mended',{used,dur:Math.round(dayState.dur)});
   [659,880,1175].forEach((f,j)=>blip(f,.12,'triangle',.06,j*.07)); refreshCraft(); updateDur();
 }
-function openCraft(focus){ if(busy&&screen==='game') return; beltSel=-1; $('craftPanel').hidden=false; renderCraft(); A.track('craft_open',{screen});
+function openCraft(focus){ if(busy&&screen==='game') return; beltSel=-1; $('nodeCard').hidden=true; closeZonePop(); $('craftPanel').hidden=false; renderCraft(); A.track('craft_open',{screen});
   if(focus){ const r=document.querySelector(`#craftBody [data-id="${focus}"]`); if(r){ r.scrollIntoView({block:'nearest'}); r.classList.remove('flash'); void r.offsetWidth; r.classList.add('flash'); } }
   tipOnce('craft',()=>toast('Tap anything to make it. What you make goes on your belt, and your belt is all you carry into a board.',5200)); }
 $('mapCraft').onclick=()=>openCraft();
@@ -1476,9 +1480,10 @@ function resRow(cv,name,rarity,pts,line1,line2){
 function iconOf(src){ const cv=document.createElement('canvas'); cv.width=cv.height=T; cv.getContext('2d').drawImage(src,0,0); return cv; }
 const INFO_TABS={
   Play(b){
+    { const rb=document.createElement('button'); rb.type='button'; rb.id='guideTutor'; rb.className='go'; rb.textContent='Replay the tutorial'; rb.onclick=()=>replayTutorial(); b.append(rb); }
     b.append(infoEl('h3','THE GOAL'),infoEl('p',`Drag the three pieces onto the 8×8 board. Fill a whole row or column and it clears, mining every block in it. Each piece you place is replaced at once by the NEXT piece shown above the board, so you can plan ahead. A board has no set number of pieces: score points for stars, and leave whenever you have at least one. Board by board you dig down through seven layers to the Ancient Core at the heart of the world. It takes a couple of weeks of daily play.`));
-    b.append(infoEl('h3','LEAVING A BOARD'),infoList([`The mine cart bar under your belt rolls toward the exit as you score. Once you have a star it lights up: tap it to leave with your haul.`,`Earn the third star and the board ends there, fully mined.`,`Or keep going: the longer a board lasts, the more awkward the pieces get, until the cave gives way.`]));
-    b.append(infoEl('h3','CAVE-IN'),infoList([`If none of your three pieces fits anywhere, the cave collapses. The ore you mined on that board is lost; stars you already reached on it are kept.`,`Once per board the cave-in screen offers a Lucky Dodge: give up half of that board's haul to undo your last placement and keep mining.`,`A Potion of Protection undoes a cave-in for free while it lasts.`]));
+    b.append(infoEl('h3','LEAVING A BOARD'),infoList([`The mine cart bar under your belt rolls toward the exit as you score. Once you have a star it lights up: tap it to leave with your haul.`,`Earn the third star and the board ends there, fully mined.`,`Or keep going for more stars and ore: the longer a board lasts, the more awkward the pieces get. Careless placements cave in fast.`]));
+    b.append(infoEl('h3','CAVE-IN'),infoList([`If none of your three pieces fits anywhere, the cave collapses: the board isn't cleared, and the stars and ore you got on it are lost. Haul out with the mine cart before it gets risky.`,`Once per board the cave-in screen offers a Lucky Dodge: tap it to give up half of that board's haul, undo your last placement and keep mining.`,`A Potion of Protection undoes a cave-in for free while it lasts.`]));
     b.append(infoEl('h3','HAULING ORE'),infoList([`Ore, gems and wood you mine on a board show up in the stash strip as a green +number. That's your haul for this board.`,`Leave the board with a star and the haul joins your stash, which you keep for the whole descent. The longer you mine, the more you haul, and the more a cave-in costs.`,`Replaying a board you've already cleared gives ore too, so you can always gather more.`]));
     b.append(infoEl('h3','SCORING'),infoList([`Every block you place scores ${SCORE.block}. Every line you clear scores ${SCORE.line}. Mining ore and gems gives resources, not points.`,`Clear 2, 3 or 4 lines with one piece for a Double (+${SCORE.combo[2]}), Triple (+${SCORE.combo[3]}) or Quad (+${SCORE.combo[4]}).`,`Streak: clear on back-to-back placements. Each clear in a row after the first adds +${SCORE.streakStep}, up to +${SCORE.streakMax}. A placement that clears nothing ends the streak.`,`All Clear (an empty board) adds +${SCORE.allClear}, and the next pieces are big easy ones.`,`Star Drill +${SCORE.special.drill}, Blast Charge +${SCORE.special.blast}, Sledgehammer +${SCORE.special.sledgehammer}. A Potion of Luck costs ${-SCORE.special.luck} points and a Potion of Protection ${-SCORE.special.rescue}.`,`"Perfect!" means yours was the only placement that kept the whole tray playable; "Great fit!" one of two or three.`,`If you cave in twice on the same board, the dealer starts to go easier on you.`]));
     b.append(infoEl('h3','STARS'),infoList([`Your points on a board earn 0 to 3 stars; the star lines rise layer by layer. The three stars next to the score fill up as you score and light up as you earn them.`,`Deep down, stars come from combos and streaks: the blocks and the lines you have to clear anyway are not enough.`,`At the end, CONTINUE banks your haul and stars, or RETRY plays the board again. A retry starts over: that board's haul is not kept. Stars you already earned on a board stay.`,`Each star after the first adds bonus points to your day.`]));
@@ -1495,7 +1500,7 @@ const INFO_TABS={
   },
   Crafting(b){
     b.append(infoEl('h3','CRAFT'),infoEl('p',`Everything is made in Craft, on the map (the Craft button at the end of your belt): tools, mining equipment and potions. Tap a row to make it; it asks first.`));
-    b.append(infoEl('h3','YOUR BELT'),infoList([`What you make goes on your belt, and your belt is all you carry into a board: nothing can be made during a board.`,`You start with one belt slot, shared by equipment and potions. Belt slots 2 and 3 are big late-run goals: tap the glowing locked slot in Craft to see what it costs.`,`In Craft, tap an item on your belt and then another slot to move it, or Drop it to make room.`,`Build the brewing table (${Object.entries(WORKSHOP.table.cost).map(([k,v])=>`${v} ${DROPS[k][0].toLowerCase()}`).join(', ')}) to brew potions.`,`On a board: drag a Star Drill to an edge of the board to mine a whole row or column (top or bottom edge for a column, left or right edge for a row), a Blast Charge onto the board to mine the 3×3 patch under it, or a Sledgehammer to shake the blocks into a fresh layout. Tap a potion to drink it: it lasts ${POTION_MOVES} placements.`]));
+    b.append(infoEl('h3','YOUR BELT'),infoList([`What you make goes on your belt, and your belt is all you carry into a board: nothing can be made during a board.`,`You start with one belt slot, shared by equipment and potions. Belt slots 2 and 3 open with the stars you earn this run (${WORKSHOP.belt2.stars} and ${WORKSHOP.belt3.stars}): tap the glowing locked slot in Craft. Stars aren't spent.`,`In Craft, tap an item on your belt and then another slot to move it, or Drop it to make room.`,`Build the brewing table (${Object.entries(WORKSHOP.table.cost).map(([k,v])=>`${v} ${DROPS[k][0].toLowerCase()}`).join(', ')}) to brew potions.`,`On a board: drag a Star Drill to an edge of the board to mine a whole row or column (top or bottom edge for a column, left or right edge for a row), a Blast Charge onto the board to mine the 3×3 patch under it, or a Sledgehammer to shake the blocks into a fresh layout. Tap a potion to drink it: it lasts ${POTION_MOVES} placements.`]));
     b.append(infoEl('h3','WHAT YOU CAN CRAFT'));
     craftList().forEach(c=>{ const row=infoEl('div',undefined,'irow'); row.append(iconOf(c.icon||(c.item?ITEM[c.item]:(SPR[c.mat]||TEX[c.mat])))); const d=infoEl('div'); d.append(infoEl('div',c.name,'nm'),infoEl('div',c.desc,'meta'),
       infoEl('div','Costs: '+Object.entries(c.cost).map(([k,v])=>`${v} ${DROPS[k][0]}`).join(', '),'meta')); row.append(d); b.append(row); });
@@ -1668,7 +1673,7 @@ function show(which){
   if(which!=='game'&&tut.active){ tut.active=false; $('tutor').hidden=true; }
   if(screen!==which||which==='home') A.track('screen_view',{screen:which});
   screen=which; A.setScreen(which); if(which!=='game') closeSheet();
-  $('home').hidden = which!=='home'; $('map').hidden = which!=='map'; $('craftPanel').hidden=true; closeBeltPop(); $('info').hidden=true;
+  $('home').hidden = which!=='home'; $('map').hidden = which!=='map'; $('craftPanel').hidden=true; if(coachSteps){ $('coach').hidden=true; coachSteps=null; coachEndFn=null; } closeBeltPop(); $('info').hidden=true;
   if(which==='game'){ layout(); drawTray(); ensureLoop(); }
 }
 function homeView(v){ ['homeMain','homeSettings'].forEach(id=>$(id).hidden = id!==v); $('home').classList.toggle('sub',v!=='homeMain'); }
@@ -1723,7 +1728,7 @@ function toast(msg,ms=2200){ let t=document.getElementById('toast'); if(!t){ t=d
 function syncSettingsUI(){ $('reduceOn').checked=!!settings.reduce; $('largeOn').checked=!!settings.large; $('codeBox').hidden=true; resetArmed=false; $('resetBtn').textContent='Reset all progress'; }
 $('reduceOn').addEventListener('change',e=>{ settings.reduce=e.target.checked; saveSettings(); applyDisplaySettings(); A.track('setting_change',{setting:'reduce_motion',value:settings.reduce}); });
 $('largeOn').addEventListener('change',e=>{ settings.large=e.target.checked; saveSettings(); applyDisplaySettings(); A.track('setting_change',{setting:'large_text',value:settings.large}); });
-$('tutorBtn').onclick=()=>{ life.tutorialDone=false; saveLife(); toast('Start board 1-1 to replay the tutorial'); A.track('tutorial_replay'); };
+$('tutorBtn').onclick=()=>replayTutorial();
 let resetArmed=false;
 $('resetBtn').onclick=()=>{
   if(!resetArmed){ resetArmed=true; $('resetBtn').textContent='Tap again to erase everything'; setTimeout(()=>{ resetArmed=false; $('resetBtn').textContent='Reset all progress'; },4000); return; }
@@ -1842,7 +1847,7 @@ function updateMapDate(){ if(!dayState) return; $('runStars').innerHTML=`${runSt
   $('runStats').setAttribute('aria-label',`This run: ${runStarGot()} of ${runStarMax()} stars, ${plStats().t} placements`); }
 // tap a layer's placements chip: its boards, with stars and placements for the cleared ones
 function openZonePop(zi,chip){
-  closeZonePop(); const z=ZONES[zi], pl=plStats(), pop=document.createElement('div'); pop.id='zonePop'; pop.className='zpop'; pop.setAttribute('role','dialog');
+  closeZonePop(); const z=ZONES[zi], pl=plStats(), pop=document.createElement('div'); pop.id='zonePop'; pop.className='zpop'; pop.setAttribute('role','dialog'); pop.setAttribute('aria-label',`${z.name}: boards and placements`);
   const cleared=Array.from({length:z.boards},(_,j)=>isDone(idxOf(zi,j))).filter(Boolean).length, f=frontier();
   const h=document.createElement('h3'); h.textContent=z.name; const sub=document.createElement('div'); sub.className='sub'; sub.innerHTML=`<b>${(pl.z[zi]||0).toLocaleString()}</b> placements so far · ${cleared} of ${z.boards} boards cleared`;
   pop.append(h,sub);
@@ -1873,7 +1878,7 @@ function buildMap(){
     if(i===CORE_IDX){ b.classList.add('core'); if(!isDone(i)&&current<0) current=i; b.append(iconOf(ITEM.portal)); b.setAttribute('aria-label','The Ancient Core'); }
     else if(gateWaiting(i)){ b.classList.add('gate'); if(current<0) current=i; b.append(iconOf(ITEM['tool_'+TOOLS[toolNeeded(zoneOfIdx(i))].id])); b.setAttribute('aria-label',`Board ${boardLabel(i)}, needs ${TOOLS[toolNeeded(zoneOfIdx(i))].name}`); }
     else { const done=isDone(i); if(done) b.classList.add('done'); else { b.classList.add('open'); if(current<0) current=i; }
-      b.innerHTML=done?'<span>✓</span>':`<span>${jOfIdx(i)+1}</span>`; b.setAttribute('aria-label',`Board ${boardLabel(i)}${done?', mined':''}`); }
+      const st=(dayState.stars||{})[i]||0; b.innerHTML=done?`<span>✓</span>${st?`<i class="nstars">${'★'.repeat(st)}<em>${'★'.repeat(3-st)}</em></i>`:''}`:`<span>${jOfIdx(i)+1}</span>`; b.setAttribute('aria-label',`Board ${boardLabel(i)}${done?`, mined${st?`, ${st} star${st>1?'s':''}`:''}`:''}`); }
     if(sb&&sb.idx===i) b.classList.add('progress'); if(opts_.justDone===i) b.classList.add('fresh');
     b.onclick=()=>openCard(i); nodes.append(b); };
   let opts_=buildMap.opts||{};
@@ -1896,6 +1901,7 @@ function showMap(opts){
   if(opts.broke) setTimeout(()=>mapNotice('broke'),500);
   else if(dayState.notice) setTimeout(()=>{ const n=dayState.notice; dayState.notice=null; saveDay(); mapNotice('missed',n); },500);
   else if(opts.camp) setTimeout(()=>mapNotice('camp',{camp:opts.camp}),600);
+  else if(tourPending()) setTimeout(mapTour,700);
   else setTimeout(mapTips,600);
 }
 // the map's first-time tips: how the descent works, then what to do at the first locked layer
@@ -1928,9 +1934,9 @@ function openCard(i){
   if(gate){
     const tier=toolNeeded(z), T0=TOOLS[tier], cost=tcost(tier), tgt=document.createElement('span'); tgt.className='tgt'; tgt.textContent=`Needs ${T0.name}`; g.append(tgt); g.append(costChips(cost));
     const can=canAfford({cost}), prevZ=z-1;
-    go.disabled=false;
-    if(can){ go.textContent=`Forge ${T0.name}`; note.textContent=`${ZONES[z].name} is too hard for your ${TOOLS[tool()].short.toLowerCase()} tools.`; go.dataset.gate='forge'; }
-    else { go.textContent='Open Craft'; note.textContent=`Not enough yet. Replay boards in ${ZONES[prevZ].name} to gather more (replays give ore).`; go.dataset.gate='craft'; }
+    go.disabled=false; go.textContent='Open Craft'; go.dataset.gate='craft';   // v2.5.0: tools are forged in Craft only, never from the board card
+    note.textContent=can?`${ZONES[z].name} is too hard for your ${TOOLS[tool()].short.toLowerCase()} tools. You have what ${T0.name} cost: forge them in Craft.`
+      :`${ZONES[z].name} is too hard for your ${TOOLS[tool()].short.toLowerCase()} tools. Forge ${T0.name} in Craft. Short of something? Replay boards in ${ZONES[prevZ].name} (replays give ore).`;
   } else {
     const tgt=document.createElement('span'); tgt.className='tgt'; tgt.textContent=`★ ${def.starAt.map(v=>v.toLocaleString()).join(' / ')}`; g.append(tgt);
     [...def.ores, ...Object.keys(def.gems||{})].forEach(res=>{ const s=document.createElement('span'); s.title=DROPS[res][0]; s.append(iconOf(ITEM[res])); g.append(s); });
@@ -1942,7 +1948,7 @@ function openCard(i){
       if(sb&&sb.idx!==i) note.textContent=`Starting this board ends your run on ${boardLabel(sb.idx)}.`; }
   }
   go.onclick=()=>{ $('nodeCard').hidden=true;
-    if(gate){ const how=go.dataset.gate; if(how==='forge'){ forgeTool(toolNeeded(z)); showMap({}); } else openCraft('tool'); return; }
+    if(gate){ openCraft('tool'); return; }
     const s2=savedBoard(); show('game');
     if(s2&&s2.idx===i){ restoreBoard(s2); } else { clearBoardSave(); startBoard(i); } };
   card.hidden=false;
@@ -2155,18 +2161,70 @@ $('hintBtn').onclick=askHint;
 const tut={active:false,stage:0,placed:0}, TUT_SET=['###','###','##'], TUT_TARGETS=[[7,0],[7,3],[7,6]];
 function showTutor(text,withNext){ $('tutorText').textContent=text; $('tutorNext').hidden=!withNext; $('tutor').style.top='calc(max(env(safe-area-inset-top,0px),14px) + 54px)'; $('tutor').hidden=false; }
 function tutorHintFor(i){ const t=TUT_TARGETS[i]; if(!t||!pieces||!pieces[i]||!fitsAt(pieces[i],t[0],t[1])) return false; hintInfo={i,r0:t[0],c0:t[1]}; slots.forEach(sl=>sl.classList.remove('hint')); slots[i].classList.add('hint'); return true; }
-function tutorStart(){ tut.active=true; tut.placed=0; showTutor('Welcome to the mine! Drag a piece from the tray onto the glowing spot.',false); tutorHintFor(0); A.track('tutorial_start'); }
-function tutorFinish(skipped){ if(!tut.active&&life.tutorialDone) return; tut.active=false; life.tutorialDone=true; saveLife(); $('tutor').hidden=true; clearHint(); A.track(skipped?'tutorial_skip':'tutorial_complete',{placed:tut.placed}); }
+function tutorStart(){ tut.active=true; tut.placed=0; showTutor('Drag a piece from the tray onto the glowing spot.',false); tutorHintFor(0); A.track('tutorial_start',{part:'board'}); }
+function tutorFinish(skipped){ if(!tut.active&&life.tutorialDone) return; tut.active=false; life.tutorialDone=true; if(!life.tips) life.tips={}; life.tips.tour=1; saveLife(); $('tutor').hidden=true; if(coachSteps){ $('coach').hidden=true; coachSteps=null; coachEndFn=null; } clearHint(); A.track(skipped?'tutorial_skip':'tutorial_complete',{placed:tut.placed}); }
 function tutorAfterPlace(n){
   if(!tut.active) return; tut.placed++;
-  if(n>0){ showTutor('Row cleared! Every block in it was mined, and the ore goes to your haul (the green +numbers). Place every piece the board deals you, scoring enough for a star, to clear it. If no piece fits, the cave collapses.',true); clearHint(); return; }
+  if(n>0){ $('tutor').hidden=true; clearHint(); setTimeout(()=>{ if(tut.active&&screen==='game') boardTour(); },500); return; }
   const next=tut.placed;   // the scripted pieces go in slot order; the slots they leave are refilled
   if(next<3&&tutorHintFor(next)) showTutor(tut.placed===1?'Nice! Fill the rest of the bottom row.':'One more piece completes the row.',false);
   else { clearHint(); showTutor('Fill a whole row or a whole column to clear it.',false); }
 }
 const tutorBlocks=(i,t)=>tut.active&&!!hintInfo&&(i!==hintInfo.i||t.r0!==hintInfo.r0||t.c0!==hintInfo.c0);
 function tutorNudge(){ showTutor('Not there: drag the glowing piece onto the glowing spot.',false); $('tutor').classList.remove('nudge'); void $('tutor').offsetWidth; $('tutor').classList.add('nudge'); blip(220,.08,'triangle',.05); }
-$('tutorNext').onclick=()=>tutorFinish(false); $('tutorSkip').onclick=()=>tutorFinish(true);
+$('tutorNext').onclick=()=>tutorFinish(false); $('tutorSkip').onclick=async()=>{ if(await ask('Skip the tutorial?','You can replay it any time from the Guide or Settings.','Skip','Keep going')) tutorFinish(true); };
+// ---------- the guided tour (v2.5.0): on the first play, the map, the belt and Craft, then board 1-1 hands-on, then the board's parts ----------
+// coach(steps): each step spotlights one element ({sel, text, before, after}); Skip asks first. Replayable from the Guide and Settings.
+let coachSteps=null, coachI=0, coachEndFn=null;
+function coach(steps,onEnd){ coachSteps=steps; coachI=0; coachEndFn=onEnd; $('coach').hidden=false; coachShow(); }
+function coachShow(){
+  const st=coachSteps[coachI]; if(st.before) st.before();
+  $('coachStep').textContent=`${st.group||'TUTORIAL'} · ${coachI+1} OF ${coachSteps.length}`; $('coachText').textContent=st.text; $('coachNext').textContent=st.next||(coachI===coachSteps.length-1?'Done':'Next');
+  const place=()=>{ const el=st.sel&&document.querySelector(st.sel), hole=$('coachHole'), card=$('coachCard'); $('coach').classList.toggle('dim',!el);
+    if(el){ const r=el.getBoundingClientRect(), pad=6; hole.style.left=(r.left-pad)+'px'; hole.style.top=(r.top-pad)+'px'; hole.style.width=(r.width+2*pad)+'px'; hole.style.height=(r.height+2*pad)+'px';
+      const below=r.top+r.height/2<innerHeight/2; card.style.top=below?Math.min(innerHeight-card.offsetHeight-12,r.bottom+pad+14)+'px':''; card.style.bottom=below?'':Math.min(innerHeight-card.offsetHeight-12,innerHeight-r.top+pad+14)+'px'; }
+    else { card.style.top='50%'; card.style.bottom=''; card.style.transform='translateY(-50%)'; }
+    if(el) card.style.transform=''; };
+  requestAnimationFrame(()=>requestAnimationFrame(place));
+  A.track('tour_step',{group:st.group||'',i:coachI});
+}
+function coachEnd(skipped){ $('coach').hidden=true; const fn=coachEndFn; coachSteps=null; coachEndFn=null; if(fn) fn(skipped); }
+$('coachNext').onclick=()=>{ if(!coachSteps) return; const st=coachSteps[coachI]; if(st.after) st.after(); coachI++; if(coachI>=coachSteps.length) coachEnd(false); else coachShow(); };
+$('coachSkip').onclick=async()=>{ if(!coachSteps) return; if(await ask('Skip the tutorial?','You can replay it any time from the Guide or Settings.','Skip','Keep going')){ const st=coachSteps[coachI]; if(st.after) st.after(); coachEnd(true); } };
+window.addEventListener('resize',()=>{ if(coachSteps) coachShow(); });
+const tourPending=()=>!life.tutorialDone&&!(life.tips||{}).tour;
+function mapTour(){
+  if(screen!=='map'||coachSteps) return; if(!life.tips) life.tips={}; life.tips.tour=1; life.tips.map=1; life.tips.craft=1; saveLife(); A.track('tutorial_start',{part:'map'});
+  const first=()=>document.querySelector('#mapNodes .node.open')?'#mapNodes .node.open':'#mapNodes .node';
+  coach([
+    {group:'THE MINE',sel:first(),text:'Welcome to Deepcore! Each circle is a board. Clear boards to dig down through seven layers of rock to the Ancient Core.'},
+    {group:'THE MINE',sel:'#runStats',text:'Up here: the stars you have earned this run, and every piece you have placed.'},
+    {group:'THE MINE',sel:'.zchip',text:'Each layer counts its placements too. Tap a layer\'s chip to see its boards and their stars.'},
+    {group:'YOUR BELT',sel:'#mapBeltSlots',text:'This is your belt: the special items you carry into a board. You start with one slot; more open as you earn stars.'},
+    {group:'CRAFT',sel:'#mapCraft',text:'Craft makes everything: better tools to open the next layer, mining equipment and potions. Nothing can be made during a board, so pack your belt first.'},
+    {group:'CRAFT',sel:'.toolrow',before:()=>{ if($('craftPanel').hidden) openCraft(); },text:'Your tools: each layer needs the next ones. They cost ore you mine on the boards.'},
+    {group:'CRAFT',sel:'#craftBody .ci[data-id="drill"]',text:'Tap any row to make it (it asks first). What you make goes straight onto your belt.',after:()=>{ $('craftClose').onclick(); }},
+    {group:'THE MINE',sel:first(),text:'Let\'s dig! Your first board shows you the basics.',next:'Start board 1'},
+  ],skipped=>{ if(skipped){ tutorFinish(true); return; } if(screen==='map'){ const sb=savedBoard(); show('game'); if(sb&&sb.idx===0) restoreBoard(sb); else { clearBoardSave(); startBoard(0); } } });
+}
+function boardTour(){
+  coach([
+    {group:'SCORING',sel:'#goalsBar',text:'Every block placed and every line cleared scores points. Points fill the three stars on the right.'},
+    {group:'SCORING',sel:'#nextBox',text:'NEXT is the piece that replaces the one you place. Look at it before you choose: it helps you plan.'},
+    {group:'SCORING',sel:'#boardWell',text:'Clear 2, 3 or 4 lines with one piece for a combo, and clear on back-to-back placements for a streak. That is how you reach three stars.'},
+    {group:'HAULING',sel:'#stash',text:'Ore and gems you mine are your haul: the green +numbers. They pay for tools and items in Craft.'},
+    {group:'HAULING',sel:'#cartBar',text:'Once you have a star the mine cart lights up: tap it to haul out and keep everything. Keep mining for more stars, but the longer a board runs, the trickier the pieces get. If the cave caves in, you lose the board and its haul.'},
+    {group:'YOUR BELT',sel:'#dock',text:'Your belt: the items you crafted ride here. Drag a Star Drill to an edge of the board, a Blast Charge onto it, or a Sledgehammer to reshuffle it. Tap a potion to drink it.'},
+    {group:'HELP',sel:'#hintBtn',text:'Stuck? Hint shows a good move for 5 coal. The Guide next to it explains everything, and can replay this tutorial.'},
+    {group:'YOUR TURN',sel:null,text:'That\'s it! Score your first star, then tap the mine cart to haul out.',next:'Let\'s go'},
+  ],skipped=>tutorFinish(skipped));
+}
+// replay from the Guide or Settings: board 1-1 is replayed (any board in progress elsewhere is given up, after asking)
+async function replayTutorial(){
+  const sb=savedBoard(); if(sb&&sb.idx!==0&&!await ask('Replay the tutorial?',`It plays board 1-1, which ends your board ${boardLabel(sb.idx)} in progress.`,'Replay','Cancel')) return;
+  if(sb&&sb.idx!==0) clearBoardSave(); life.tutorialDone=false; if(!life.tips) life.tips={}; life.tips.tour=0; saveLife(); A.track('tutorial_replay');
+  $('info').hidden=true; homeView('homeMain'); showMap({});
+}
 let looping=false;
 function ensureLoop(){ if(!looping){ looping=true; requestAnimationFrame(render); } }
 function render(now){

@@ -29,7 +29,7 @@ check(await T(() => { const s = window.__deepcore.test.state(); return !!s.hintI
 // the right spot works
 await tt('place', 0, 7, 0); await page.waitForTimeout(900);
 check((await T(() => window.__deepcore.test.tut().placed)) === 1 && /bottom row/.test(await T(() => document.getElementById('tutorText').textContent)), 'the glowing spot takes the piece and the tutorial moves on');
-await page.tap('#tutorSkip'); await page.waitForTimeout(200);
+await page.tap('#tutorSkip'); await page.waitForTimeout(200); await page.tap('#askYes'); await page.waitForTimeout(200);
 check(!(await T(() => window.__deepcore.test.tut().active)), 'Skip still ends the tutorial');
 
 // ---- B-4: counts below the icons, 99+ above 99 ----
