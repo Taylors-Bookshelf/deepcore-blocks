@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.6.0 — difficulty setting, a better tools row, tools that look the part
+- **Difficulty**, in Settings: **Casual** (the default) brings back the forgiving dealer from 2.4.0, where pieces almost always fit with your tray. **Challenging** is the 2.5.0 dealer, where careless placements cave in fast. Each has its own star lines. A board in progress keeps the difficulty it started with.
+- **Craft's tools row** replaces the big "forge the next tools" row: bigger tiles with each tool's name, a quiet "Current" label instead of a highlight, and what the next tools open and cost underneath. The next tools glow when you can afford them and have reached their layer: tap to forge.
+- **New tool art for every tier**: a twig mallet for branch, bone, copper with rivets, iron with wrapped handles, polished steel with a leather grip and a glint, and Galaxy Alloy glowing cyan with stars.
+
 ## 2.5.0 — fair cave-ins, a guided tutorial, stars on the map
 - **Careless play caves in now.** The dealer used to rescue bad placements for the first 12–21 pieces of a board. Now a quarter of pieces come with no promise from the start, the full promise is much shorter, and the dealer no longer helps more as the board fills. In the simulator a deliberately bad player caves in after about 10 placements, a typical one lasts about 23.
 - **A cave-in is a failure**: no stars and no ore from that board. Retry it to earn them. Haul out with the mine cart when it gets risky.

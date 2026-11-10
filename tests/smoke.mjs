@@ -51,7 +51,8 @@ await page.click('#coachSkip'); await page.waitForTimeout(150); await page.click
 if (await page.evaluate(() => !document.getElementById('coach').hidden)) fail('Skip should end the tour');
 await page.click('#mapCraft'); await page.waitForTimeout(300);
 const names = await page.$$eval('#craftBody .ci .nm', e => e.map(x => x.textContent));
-if (names.slice(1).join() !== 'Star Drill,Blast Charge,Sledgehammer,Brewing table,Potion of Protection,Potion of Luck') fail('unexpected Craft rows: ' + names);
+if (names.join() !== 'Star Drill,Blast Charge,Sledgehammer,Brewing table,Potion of Protection,Potion of Luck') fail('unexpected Craft rows: ' + names);
+if ((await page.$$eval('.toolrow .tt', e => e.length)) !== 6) fail('Craft should show the six tools in a row');
 await page.click('#craftBody .ci[data-id="drill"]'); await page.waitForTimeout(150);
 if (await page.textContent('#askTitle') !== 'Craft Star Drill?') fail('tapping a row should ask first');
 await page.click('#askYes'); await page.waitForTimeout(200);

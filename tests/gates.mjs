@@ -22,13 +22,13 @@ check(n.filter(c => c.includes('gate')).length === 1, 'the first Limestone board
 await page.tap('.node.gate'); await page.waitForTimeout(250);
 check(/Open Craft/.test(await T(() => document.getElementById('ncGo').textContent)) && /Replay boards/.test(await T(() => document.getElementById('ncNote').textContent)), 'without the bones the gate points to Craft and to replaying boards');
 await page.tap('#ncClose'); await page.tap('#mapCraft'); await page.waitForTimeout(250);
-check(await T(() => /Bone tools/.test(document.getElementById('craftBody').textContent) && !!document.querySelector('#craftBody .ci[data-id="tool"] .short')), 'Craft offers bone tools, not yet affordable');
+check(await T(() => /Bone tools/.test(document.getElementById('craftBody').textContent) && !!document.querySelector('.toolinfo .short') && document.querySelector('.toolrow .tt.next .tn').textContent === 'Bone' && !document.querySelector('.toolrow .tt.ready') && !document.querySelector('#craftBody .ci[data-id="tool"]')), 'Craft\'s tools row marks bone tools Next, not yet affordable, with no separate forge row (v2.6.0)');
 await page.tap('#craftClose');
 const bc = await tt('tcost', 1); await tt('setBank', { bone: bc.bone, wood: bc.wood, coal: 3 }); await tt('buildMap'); await page.tap('.node.gate'); await page.waitForTimeout(250);
 check(/Open Craft/.test(await T(() => document.getElementById('ncGo').textContent)) && /forge them in Craft/.test(await T(() => document.getElementById('ncNote').textContent)) && (await st()).day.tool === 0, `even with ${bc.bone} bone and ${bc.wood} wood the gate only points to Craft: tools are never forged from the board card (v2.5.0)`);
 await page.tap('#ncGo'); await page.waitForTimeout(400);
 check(await T(() => !document.getElementById('craftPanel').hidden && document.getElementById('nodeCard').hidden), 'Open Craft opens Craft and closes the card');
-await page.click('#craftBody .ci[data-id="tool"]'); await page.waitForTimeout(150); await page.click('#askYes'); await page.waitForTimeout(300); await page.tap('#craftClose'); await page.waitForTimeout(400);
+check(await T(() => !!document.querySelector('.toolrow .tt.next.ready')), 'with the bones and the Forest cleared, the next tool glows'); await page.click('.toolrow .tt.next'); await page.waitForTimeout(150); await page.click('#askYes'); await page.waitForTimeout(300); await page.tap('#craftClose'); await page.waitForTimeout(400);
 let s = await st(); n = await nodes();
 { const c = await tt('tcost', 1); check(s.day.tool === 1 && !s.bank.bone && !s.bank.wood && s.bank.coal === 3 && !n.some(c => c.includes('gate')), `forging bone tools in Craft (today's price) opens Limestone Caves right away on the map (${JSON.stringify(s.bank)})`); }
 await page.tap('.node.open'); await page.waitForTimeout(600);

@@ -20,7 +20,7 @@ check(await page.evaluate(() => !!document.querySelector('#mapBelt #mapCraft')),
 await page.click('#mapCraft'); await page.waitForTimeout(300);
 check((await slots('#craftBeltSlots')).join() === 'empty,glow,locked', 'in Craft, the next locked slot glows to invite a tap');
 const rows = await page.$$eval('#craftBody .ci', e => e.map(x => x.dataset.id));
-check(rows.join() === 'tool,drill,blast,sledgehammer,table,rescue,luck', `Craft lists tools, equipment, the brewing table and potions (${rows})`);
+check(rows.join() === 'drill,blast,sledgehammer,table,rescue,luck' && (await page.$$('.toolrow .tt')).length === 6, `Craft lists the tools row, equipment, the brewing table and potions (${rows})`);
 
 // ---- craft into the free slot; a full belt says so ----
 await row('blast'); check(await yes() === 'Craft Blast Charge?', 'tapping a row asks first');

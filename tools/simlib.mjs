@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 export const D = require('../src/data.js'), C = require('../src/core.js');
 export const args = Object.fromEntries(process.argv.slice(2).reduce((a, x, i, arr) => x.startsWith('--') ? [...a, [x.slice(2), arr[i + 1] && !arr[i + 1].startsWith('--') ? arr[i + 1] : true]] : a, []));
-export const cfg = { bot: args.bot || 'greedy', luck: +(args.luck || 0), fails: +(args.fails || 0) };
+export const cfg = { bot: args.bot || 'greedy', luck: +(args.luck || 0), fails: +(args.fails || 0), diff: args.diff || process.env.DIFF || 'casual' };   // --diff casual|challenging (v2.6.0)
 const N = 8;
 // try different zone tuning without editing data.js: --zd "1:.28,.46;2:.5,.68"
 if (args.zd) args.zd.split(';').forEach(x => { const [i, v] = x.split(':'); D.ZONES[+i].d = v.split(',').map(Number); });
@@ -74,7 +74,7 @@ function botMove(lo, hi, pcs, rnd) {
 // win = every deal placed and at least 1 star. fails: earlier cave-ins on this board (the dealer's mercy tilt). onMine(mats) may
 // return 'break' to stop the board (tools/run.mjs: the Galaxy Alloy tools breaking in the Crust).
 export function runBoard(zi, bj, seed, fails = 0, _unused = null, onMine = null) {
-  const def = { ...D.boardParams(zi, bj) }, rnd = makeRun(seed);
+  const def = { ...D.boardParams(zi, bj, null, cfg.diff) }, rnd = makeRun(seed);
   const mats = prefill(def, rnd); let [lo, hi] = bitsOf(mats);
   let score = 0, streak = 0, moves = 0, bigNext = false, deals = 0, allClears = 0, multi = 0, clearMoves = 0; const dealt = {}, got = {}, left = C.rollBudget(def.budget, rnd);
   const tilt = Math.min(.75, Math.max(0, fails - 1) * .35);
@@ -82,7 +82,7 @@ export function runBoard(zi, bj, seed, fails = 0, _unused = null, onMine = null)
   const end = died => { const stars = died ? 0 : D.starsFromScore(score, def.starAt); return { win: stars > 0, completed: !died, stars, score, moves, deals, got: died && ROLLING ? {} : got, target: def.target, allClears, multi, clearMoves, died }; };
   if (ROLLING) {   // v2.4.0, endless boards: one piece per placement, the dealer hardens past the grace; the bots don't use the preview
     let n = 0, big = 0;
-    const dd = () => C.rampD(def.d, n, def.grace), opt = () => ({ rnd, luck: cfg.luck, tilt, big: big > 0, mercy: C.RAMP.mercy, wild: C.wildOf(n, def.grace) * (1 - tilt) * (cfg.luck ? .5 : 1) });
+    const dd = () => C.rampD(def.d, n, def.grace, def.ramp), opt = () => ({ rnd, luck: cfg.luck, tilt, big: big > 0, mercy: def.ramp.mercy, wild: C.wildOf(n, def.grace, def.ramp) * (1 - tilt) * (cfg.luck ? .5 : 1) });
     const dress = (s, others) => C.orePiece(C.dressPiece(s, def, { rnd, dealt, budgeted: true, specialBlocked: others.some(q => q && q.mats.some(m => D.SPECIAL_MIX[m])) }), def, dealt, rnd);
     let pcs = []; C.chooseTray(lo, hi, 3, dd(), { ...opt(), wild: 0 }).forEach(s => pcs.push(dress(s, pcs)));
     let next = dress(C.chooseNext(lo, hi, pcs.map(p => C.SHAPES[p.sid]), dd(), opt()), pcs); deals = 1;

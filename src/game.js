@@ -331,12 +331,13 @@ const PACIFIC=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',ye
 function todayKey(){ return PACIFIC.format(new Date()); }
 const freshRun=day=>({v:2, seed:day+'#'+Math.floor(Math.random()*1e9).toString(36), started:day, day, lastClear:'', days:0, done:[], scores:{}, stars:{}, attempts:{}, fails:{}, tool:0, dur:DUR_MAX, camp:0, notice:null, mined:{}});
 let dayState=freshRun(todayKey());
-const _bd={};
+const _bd={}; let curDiff=null;   // the difficulty of the board in play (v2.6.0)
 function boardDef(idx){
-  const key=dayState.seed+':'+dayState.day+':'+idx; if(_bd[key]) return _bd[key];
+  const df=(curDiff&&idx===level-1&&pieces)?curDiff:(settings.diff||'casual');   // a board keeps the difficulty it started with
+  const key=dayState.seed+':'+dayState.day+':'+idx+':'+df; if(_bd[key]) return _bd[key];
   const zi=zoneOfIdx(idx), j=jOfIdx(idx), z=ZONES[zi];
   const nm=boardName(zi,j);
-  return _bd[key]={ idx, name:nm, goals:{}, ...DeepcoreData.boardParams(zi,j,modifierFor(dayState.day)) };
+  return _bd[key]={ idx, name:nm, goals:{}, ...DeepcoreData.boardParams(zi,j,modifierFor(dayState.day),df) };
 }
 function levelDef(L){ return boardDef(L-1); }
 // v2.1.1: boards are numbered within their layer ("Magmastone board #3"); the grid maps (F-11) will have far too many to name
@@ -389,8 +390,8 @@ const mercyTilt=()=>Math.min(.75,Math.max(0,((dayState.fails||{})[level-1]||0)-1
 // After that the dealer hardens (C.rampD) and, more and more often, deals an awkward piece with no promise (C.wildOf), so boards end.
 // dealtN counts the pieces dealt (tray and next); each piece carries its share of the layer's ore (C.orePiece, def.orePer).
 let dealtN=0, nextPiece=null;
-const dealOpts=()=>{ const g=levelDef(level).grace; return {luck:luck>0?1:0,tilt:mercyTilt(),big:bigNext>0,mercy:RAMP.mercy,wild:(luck>0?.5:1)*(1-mercyTilt())*wildOf(moves,g)}; };
-const dealD=()=>rampD(difficulty(),moves,levelDef(level).grace);
+const dealOpts=()=>{ const dd=levelDef(level), g=dd.grace; return {luck:luck>0?1:0,tilt:mercyTilt(),big:bigNext>0,mercy:dd.ramp.mercy,wild:(luck>0?.5:1)*(1-mercyTilt())*wildOf(moves,g,dd.ramp)}; };
+const dealD=()=>rampD(difficulty(),moves,levelDef(level).grace,levelDef(level).ramp);
 function dealPiece(s){ dealtN++; const p=dressPiece(s,(pieces||[]).filter(Boolean)); orePiece(p,levelDef(level),dealt); return p; }
 function dealOne(){
   const [lo,hi]=occBits(grid), held=(pieces||[]).filter(Boolean).map(p=>SHAPES[p.sid]);
@@ -571,21 +572,39 @@ const ITEM={};
     WP(i,j, d>5.6?'#140e0a' : d>4.6?'#5a3d20' : d>3.3?'#b88a52' : d>2.4?'#8f6838' : d>1.4?'#c79a62' : '#8f6838'); }
   WP(5,5,'#e8c892'); WP(6,5,'#e8c892'); WP(5,6,'#e8c892');
   ITEM.wood=w;
-  // tools: an old miner's hammer crossed with a chisel; the hammer head and the chisel show the material
-  const HEADS={branch:['#6b4a24','#8a6234','#4a3218'],bone:['#efe6cf','#ffffff','#b8a888'],copper:['#e0803a','#ffc08a','#9a4a1a'],iron:['#b8bcc4','#eef0f4','#6e737c'],steel:['#8fb0d0','#e8f4ff','#4a6a8a'],galaxy:['#9a7aff','#d8f4ff','#3a2a7a']};
-  TOOLS.forEach(t0=>{ const cc=document.createElement('canvas'); cc.width=cc.height=T; const cx=cc.getContext('2d'); const px=new Map();
+  // tools: an old miner's hammer crossed with a chisel. v2.6.0: each tier looks clearly better than the last: a twig mallet and a stick for
+  // branch, bone, copper with rivets, iron with wrapped handles, polished steel with a leather grip and a glint, and Galaxy Alloy glowing
+  // with a cyan outline and stars. Pixels are placed by their two diagonals (s=x+y, d=x-y).
+  const TL={
+    branch:{h:['#6b4a24','#8a6234','#4a3218'], c:['#7a5630','#9a7040','#4a3218'], wood:['#7a5630','#5a3d20'], head:4},
+    bone:  {h:['#e6dcc2','#ffffff','#a89878'], c:['#e6dcc2','#ffffff','#a89878'], wood:['#a87444','#6a4520'], head:4, notch:true},
+    copper:{h:['#e0803a','#ffc08a','#9a4a1a'], c:['#e0803a','#ffc08a','#9a4a1a'], wood:['#a87444','#6a4520'], head:5, rivets:'#5a2a0a'},
+    iron:  {h:['#a8adb6','#e6e9ee','#5e636c'], c:['#b8bcc4','#eef0f4','#6e737c'], wood:['#a87444','#6a4520'], head:5, wraps:'#3a3a40', rivets:'#3a3f46'},
+    steel: {h:['#7fa6cc','#f2f9ff','#3a5878'], c:['#9cc0e0','#ffffff','#4a6a8a'], wood:['#4a3020','#2e1d12'], head:5, wraps:'#1c1410', shine:true, glint:true},
+    galaxy:{h:['#8a5cff','#d8f4ff','#3a1a8a'], c:['#a07aff','#e8fbff','#4a2a9a'], wood:['#2a2440','#141024'], head:5, wraps:'#6ae3ff', shine:true, glow:'#6ae3ff', stars:true},
+  };
+  TOOLS.forEach(t0=>{ const cc=document.createElement('canvas'); cc.width=cc.height=T; const cx=cc.getContext('2d'); const px=new Map(), L=TL[t0.id];
     const P=(i,j,col)=>{ if(i>=0&&j>=0&&i<T&&j<T) px.set(i+','+j,col); };
-    const [mid,lt,dk]=HEADS[t0.id], wood=t0.id==='branch'?['#7a5630','#5a3d20']:t0.id==='galaxy'?['#3a3550','#1a1828']:['#a87444','#6a4520'];
-    // pixels are placed by their two diagonals (s=x+y, d=x-y): the chisel runs bottom-left to top-right, the hammer top-left to bottom-right
     const each=(f)=>{ for(let j=0;j<T;j++)for(let i=0;i<T;i++) f(i,j,i+j,i-j); };
-    each((i,j,s,d)=>{ const sh=s>=14&&s<=16&&d>=-7&&d<=9, tip=s===15&&d>=10&&d<=11; if(sh||tip) P(i,j, tip||d>=8?lt : s===14?lt:s===15?mid:dk); });   // chisel shank and edge
-    each((i,j,s,d)=>{ if(s>=13&&s<=17&&d>=-11&&d<=-8) P(i,j, s===13||s===17||d===-11?dk:mid); });                                         // its struck, mushroomed end
-    each((i,j,s,d)=>{ if((d===0||d===1)&&s>=10&&s<=27) P(i,j, d===0?wood[0]:wood[1]); });                                                  // hammer handle
-    each((i,j,s,d)=>{ if(s>=6&&s<=9&&Math.abs(d)<=5) P(i,j, Math.abs(d)===5||s===9?dk : s===6?lt:mid); });                                 // hammer head
-    if(t0.id==='galaxy'){ P(3,4,'#ffffff'); P(12,3,'#6ae3ff'); P(6,3,'#ffd6f5'); }
-    if(t0.id==='branch'){ P(12,12,'#4a8a2c'); P(13,13,'#3a6a22'); }
+    const [cm,cl,cd]=L.c, [hm,hl,hd]=L.h;
+    // the chisel, bottom-left to top-right: a shank, an edge, a struck end
+    each((i,j,s,d)=>{ const sh=s>=14&&s<=16&&d>=-7&&d<=9, tip=s===15&&d>=10&&d<=11; if(sh||tip) P(i,j, tip||d>=8?(L.shine?'#ffffff':cl) : s===14?cl:s===15?cm:cd); });
+    each((i,j,s,d)=>{ if(s>=13&&s<=17&&d>=-11&&d<=-8) P(i,j, s===13||s===17||d===-11?cd:cm); });
+    // the hammer's handle, top-left to bottom-right, with wraps on the better tools
+    each((i,j,s,d)=>{ if((d===0||d===1)&&s>=10&&s<=27){ const wrap=L.wraps&&s>=18&&(s%3===0); P(i,j, wrap?L.wraps:d===0?L.wood[0]:L.wood[1]); } });
+    if(t0.id==='branch'){ P(9,9,'#4a3218'); P(12,12,'#4a8a2c'); P(13,12,'#3a6a22'); }   // a knot and a leaf
+    // the head across its top: wider for the metal tools
+    const hw=L.head; each((i,j,s,d)=>{ if(s>=6&&s<=9&&Math.abs(d)<=hw) P(i,j, Math.abs(d)===hw||s===9?hd : s===6?hl:hm); });
+    if(L.shine) each((i,j,s,d)=>{ if(s===6&&Math.abs(d)<=hw-1) P(i,j,'#ffffff'); });
+    if(L.rivets){ P(3,4,L.rivets); P(6,1,L.rivets); }
+    if(L.notch){ P(4,4,hd); }
+    // outline: dark, or a cyan glow for Galaxy Alloy
     const rim=[]; px.forEach((_,k)=>{ const [i,j]=k.split(',').map(Number); [[1,0],[-1,0],[0,1],[0,-1]].forEach(([a,b])=>{ const n=(i+a)+','+(j+b); if(!px.has(n)&&i+a>=0&&j+b>=0&&i+a<T&&j+b<T) rim.push(n); }); });
-    rim.forEach(n=>px.set(n,'#140e0a'));
+    rim.forEach(n=>px.set(n,L.glow?'#2a6a8a':'#140e0a'));
+    if(L.glow){ const halo=[]; px.forEach((_,k)=>{ const [i,j]=k.split(',').map(Number); [[1,0],[-1,0],[0,1],[0,-1]].forEach(([a,b])=>{ const n=(i+a)+','+(j+b); if(!px.has(n)&&i+a>=0&&j+b>=0&&i+a<T&&j+b<T) halo.push(n); }); });
+      halo.forEach(n=>px.set(n,'rgba(106,227,255,.45)')); }
+    if(L.glint){ P(14,1,'#ffffff'); P(13,1,'#cfe8ff'); P(14,2,'#cfe8ff'); }
+    if(L.stars){ [[1,1,'#ffffff'],[14,0,'#ffd6f5'],[15,4,'#6ae3ff'],[0,9,'#ffffff'],[11,14,'#ffd6f5'],[6,8,'#ffffff']].forEach(([i,j,c])=>px.set(i+','+j,c)); }
     px.forEach((col,k)=>{ const [i,j]=k.split(',').map(Number); cx.fillStyle=col; cx.fillRect(i,j,1,1); });
     ITEM['tool_'+t0.id]=cc; });
   // the portal piece for the Core: a violet ring around a white-hot heart
@@ -775,7 +794,7 @@ function renderFx(now){
 
 // ---------- settings and the lifetime profile (rank, streaks, records, discovery log) ----------
 const K_SET='deepcore-settings', K_LIFE='deepcore-life', K_INST='deepcore-install';
-let settings={sfxVol:70,musicVol:50,music:true,reduce:false,large:false}, life=Meta.newLife();
+let settings={sfxVol:70,musicVol:50,music:true,reduce:false,large:false,diff:'casual'}, life=Meta.newLife();
 function saveSettings(){ lsSet(K_SET,settings); }
 function loadSettings(){ const v=lsGet(K_SET); if(v){ Object.assign(settings,v); if(v.volume!==undefined&&v.sfxVol===undefined){ settings.sfxVol=v.volume; delete settings.volume; } } }   // one volume became two in v2.1.0
 function saveLife(){ lsSet(K_LIFE,life); }
@@ -860,7 +879,7 @@ function startBoard(idx){
   practice=false; reached=false; reachScore=0; clearBonus=0; decided=true; clearHint(); closeSheet();   // replays give ore again: the stash is kept for the whole descent
   life.zones[boardDef(idx).zone]=true;
   const att=dayState.attempts=dayState.attempts||{}; att[idx]=(att[idx]||0)+1; saveDay();
-  undo=null; hand={}; dealt={}; meterLit=0; dealtN=0; nextPiece=null; dodgeUsed=false; caveSettled=true; level=idx+1; score=0; shown=0; collected={}; shownCol={}; since={}; bigNext=0; grid=emptyGrid(); pieces=null; combo=0; sinceClear=0; over=false; moves=0; busy=false;
+  curDiff=settings.diff||'casual'; undo=null; hand={}; dealt={}; meterLit=0; dealtN=0; nextPiece=null; dodgeUsed=false; caveSettled=true; level=idx+1; score=0; shown=0; collected={}; shownCol={}; since={}; bigNext=0; grid=emptyGrid(); pieces=null; combo=0; sinceClear=0; over=false; moves=0; busy=false;
   prefill();
   updateStash(); $('over').hidden=true; buildGoals(); updateHUD(); dealSet(); drawTray(); showBanner(); saveBoard();
   if(tut.active) setTimeout(()=>{ if(tut.active&&screen==='game') tutorStart(); },2300);
@@ -1384,11 +1403,23 @@ function renderCraft(){
   const body=$('craftBody'), top=body.scrollTop; body.innerHTML=''; const t=tool();
   const h3=x=>{ const e=document.createElement('h3'); e.textContent=x; body.append(e); };
   h3('TOOLS');
+  // v2.6.0: one row of all six tools (no separate forge row). Forged ones are lit, the current one says so; the next one glows once you can
+  // afford it and have reached its layer, and a tap forges it (it asks first). Under the row: what the next tools open and cost.
   { const rowT=document.createElement('div'); rowT.className='toolrow'; rowT.setAttribute('aria-label','Your tools');
-    TOOLS.forEach((T0,k)=>{ const c=document.createElement('canvas'); c.width=c.height=T; c.getContext('2d').drawImage(ITEM['tool_'+T0.id],0,0); const w=document.createElement('div');
-      w.className='tt'+(k<=t?' have':'')+(k===t?' cur':''); w.title=k<=t?T0.name:`${T0.name} (not forged yet)`; w.append(c); rowT.append(w); }); body.append(rowT); }
-  if(t<TOOLS.length-1){ const T1=TOOLS[t+1], c=tcost(t+1); body.append(craftRow(ITEM['tool_'+T1.id],T1.name,`Opens ${ZONES[t+1].name}.`,c,()=>tryMake('Forge',T1.name,c,()=>forgeTool(t+1)),'tool')); }
-  else body.append(craftRow(ITEM['tool_'+TOOLS[t].id],TOOLS[t].name,'Strong enough for every layer.',null,null,'tool'));
+    const nx=t+1<TOOLS.length?t+1:-1, reached=nx>0&&isDone(Z_START[nx]-1), nc=nx>0?tcost(nx):null;
+    TOOLS.forEach((T0,k)=>{ const w=document.createElement('button'); w.type='button'; w.dataset.tier=k;
+      w.className='tt'+(k<=t?' have':'')+(k===t?' cur':'')+(k===nx?' next':'')+(k===nx&&reached&&canAfford({cost:nc})?' ready':'');
+      const c=document.createElement('canvas'); c.width=c.height=T; c.getContext('2d').drawImage(ITEM['tool_'+T0.id],0,0);
+      const nm=document.createElement('span'); nm.className='tn'; nm.textContent=T0.short.replace(' Alloy','');
+      const tag=document.createElement('span'); tag.className='tg'; tag.textContent=k===t?'Current':k===nx?'Next':k<t?'Forged':'';
+      w.append(c,nm,tag); w.setAttribute('aria-label',`${T0.name}${k===t?', your current tools':k<t?', forged':k===nx?', next: tap to forge':', not forged yet'}`);
+      w.onclick=()=>{ if(k===nx) tryMake('Forge',T0.name,nc,()=>forgeTool(nx)); else if(k<=t) say(T0.name,k===t?`Your current tools. ${k<TOOLS.length-1?`Good down to the end of ${ZONES[k].name}.`:'Strong enough for every layer.'}`:'You forged these earlier.'); else say(T0.name,`Forge ${TOOLS[nx].name} first.`); };
+      rowT.append(w); });
+    body.append(rowT);
+    const info=document.createElement('div'); info.className='toolinfo';
+    if(nx>0){ const p=document.createElement('div'); p.innerHTML=`<b></b> <span></span>`; p.querySelector('b').textContent=`Next: ${TOOLS[nx].name}`; p.querySelector('span').textContent=`· opens ${ZONES[nx].name}`; info.append(p,costChips(nc)); }
+    else info.textContent='Your tools are strong enough for every layer.';
+    body.append(info); }
   h3('MINING EQUIPMENT');
   RECIPES.filter(r=>r.kind==='equip').forEach(rc=>body.append(craftRow(SPR[rc.m]||TEX[rc.m],MATS[rc.m].name,rc.desc,rc.cost,()=>tryMake('Craft',MATS[rc.m].name,rc.cost,()=>smelt(rc),true),rc.m)));
   h3('POTIONS');
@@ -1447,7 +1478,7 @@ function mendTools(){
   [659,880,1175].forEach((f,j)=>blip(f,.12,'triangle',.06,j*.07)); refreshCraft(); updateDur();
 }
 function openCraft(focus){ if(busy&&screen==='game') return; beltSel=-1; $('nodeCard').hidden=true; closeZonePop(); $('craftPanel').hidden=false; renderCraft(); A.track('craft_open',{screen});
-  if(focus){ const r=document.querySelector(`#craftBody [data-id="${focus}"]`); if(r){ r.scrollIntoView({block:'nearest'}); r.classList.remove('flash'); void r.offsetWidth; r.classList.add('flash'); } }
+  if(focus){ const r=focus==='tool'?document.querySelector('#craftBody .tt.next'):document.querySelector(`#craftBody [data-id="${focus}"]`); if(r){ r.scrollIntoView({block:'nearest'}); r.classList.remove('flash'); void r.offsetWidth; r.classList.add('flash'); } }
   tipOnce('craft',()=>toast('Tap anything to make it. What you make goes on your belt, and your belt is all you carry into a board.',5200)); }
 $('mapCraft').onclick=()=>openCraft();
 $('craftClose').onclick=()=>{ closeBeltPop(); beltSel=-1; $('craftPanel').hidden=true; renderDock(); if(screen==='map') buildMap(); };
@@ -1633,7 +1664,7 @@ function checkDay(){
   }
   life.twists[modifierFor(today).id]=true;
 }
-function saveBoard(){ if(!pieces) return; lsSet(K_BOARD,{seed:dayState.seed,day:dayState.day,idx:level-1,practice,reached,reachScore,clearBonus,decided,grid,pieces,nextPiece,score,combo,sinceClear,collected,hand,since,bigNext,moves,over,undo,dealt,dealtN,dodgeUsed}); saveProfile(); }
+function saveBoard(){ if(!pieces) return; lsSet(K_BOARD,{seed:dayState.seed,day:dayState.day,idx:level-1,practice,reached,reachScore,clearBonus,decided,grid,pieces,nextPiece,score,combo,sinceClear,collected,hand,since,bigNext,moves,over,undo,dealt,dealtN,dodgeUsed,diff:curDiff}); saveProfile(); }
 function clearBoardSave(){ lsDel(K_BOARD); }
 // a saved board is only trusted if it has the right shape; anything else (an old format, a damaged save) is discarded
 function validBoard(b){
@@ -1643,7 +1674,7 @@ function validBoard(b){
 function savedBoard(){ const b=lsGet(K_BOARD); if(b&&!validBoard(b)){ lsDel(K_BOARD); return null; } return (b && b.seed===dayState.seed && !b.over && b.moves>0) ? b : null; }
 const okMat=m=>MATS[m]?m:(m==='cinnabar'?'ruby':m==='jackhammer'?'sledgehammer':'copper');   // blocks retired since the save was written
 function restoreBoard(b){
-  level=b.idx+1; ({grid,pieces,score,combo,sinceClear,collected}=b);
+  curDiff=b.diff||'casual'; level=b.idx+1; ({grid,pieces,score,combo,sinceClear,collected}=b);
   grid=grid.map(row=>row.map(m=>m&&okMat(m))); pieces=pieces.map(p=>p&&{...p,mats:p.mats.map(okMat)});
   hand=b.hand||{}; practice=!!b.practice; reached=!!b.reached; reachScore=b.reachScore||0; clearBonus=b.clearBonus||0; decided=b.decided!==false; clearHint(); since=b.since||{}; bigNext=+b.bigNext||0; moves=b.moves||0; over=!!b.over; undo=b.undo||null; dealt=b.dealt||{}; dealtN=b.dealtN||0; dodgeUsed=!!b.dodgeUsed; caveSettled=true; nextPiece=b.nextPiece?{...b.nextPiece,mats:b.nextPiece.mats.map(okMat)}:null; if(!nextPiece&&!over&&!reached) nextPiece=dealOne();   // a pre-2.3.0 save gets its next piece now
   shownCol={...collected}; shown=score; busy=false;
@@ -1725,7 +1756,11 @@ function toast(msg,ms=2200){ let t=document.getElementById('toast'); if(!t){ t=d
   t.textContent=msg; t.hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ t.hidden=true; },ms); }
 
 // ---- settings screen ----
-function syncSettingsUI(){ $('reduceOn').checked=!!settings.reduce; $('largeOn').checked=!!settings.large; $('codeBox').hidden=true; resetArmed=false; $('resetBtn').textContent='Reset all progress'; }
+function syncSettingsUI(){ syncDiffUI(); $('reduceOn').checked=!!settings.reduce; $('largeOn').checked=!!settings.large; $('codeBox').hidden=true; resetArmed=false; $('resetBtn').textContent='Reset all progress'; }
+// difficulty (v2.6.0): Casual (default) or Challenging; a board in progress keeps the one it started with
+const DIFF_NOTE={casual:'The dealer is forgiving: pieces almost always fit with your tray.',challenging:'Careless placements cave in fast, and the star lines are set for it.'};
+function syncDiffUI(){ const d=settings.diff||'casual'; document.querySelectorAll('.diffRow .seg button').forEach(b=>{ const on=b.dataset.d===d; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); }); $('diffNote').textContent=DIFF_NOTE[d]+(savedBoard()?' Your board in progress keeps its difficulty.':''); }
+document.querySelectorAll('.diffRow .seg button').forEach(b=>b.addEventListener('click',()=>{ if(settings.diff===b.dataset.d) return; settings.diff=b.dataset.d; saveSettings(); syncDiffUI(); A.track('setting_change',{setting:'difficulty',value:settings.diff}); }));
 $('reduceOn').addEventListener('change',e=>{ settings.reduce=e.target.checked; saveSettings(); applyDisplaySettings(); A.track('setting_change',{setting:'reduce_motion',value:settings.reduce}); });
 $('largeOn').addEventListener('change',e=>{ settings.large=e.target.checked; saveSettings(); applyDisplaySettings(); A.track('setting_change',{setting:'large_text',value:settings.large}); });
 $('tutorBtn').onclick=()=>replayTutorial();
@@ -2324,7 +2359,7 @@ if(['localhost','127.0.0.1','[::1]'].includes(location.hostname) && /[?&]debug\b
   place:(i,r,c)=>place(i,r,c), state:()=>({reached,reachScore,clearBonus,decided,hintInfo,combo,sinceClear,grid,pieces,score,busy,over,bank,hand,luck,luckLive,specials,crafted:Object.fromEntries(RECIPES.map(r=>[r.m,dockCount(r.m)])),moves,dodgeUsed,dealt,screen,level,dayState}),
   fits:(p,r,c)=>fitsAt(p,r,c), setCell:(r,c,m)=>{grid[r][c]=m;}, setPieces:(ps)=>{pieces=ps; drawTray();},
   give:(b)=>{Object.assign(bank,b); updateStash();}, def:()=>levelDef(level), start:(i)=>{show('game'); startBoard(i);},
-  setScore:(v)=>{score=v;}, bar:()=>{ shown=score; updateBar(); }, deals:()=>({dealt:dealtN,moves,next:nextPiece,grace:levelDef(level).grace,wild:wildOf(moves,levelDef(level).grace)}), dodge:()=>luckyDodge(), canDodge:()=>canDodge(), setMoves:(n)=>{ moves=n; updateBar(); }, pl:()=>({...plStats(),shapes:dayState.shapes||{},life:life.shapes||{}}), cart:()=>{ $('cartBar').onclick(); }, leave:()=>{ if(starsNow()>=1&&!reached) reachTarget(); }, openCraft:(f)=>openCraft(f), beltTap:(i)=>beltTap(i), belt:()=>specials.slice(), zonePop:(z)=>openZonePop(z,document.querySelectorAll('.zchip')[z]||document.body), setNext:(p)=>{ nextPiece=p; drawTray(); }, tickPotions:(n=1)=>{ for(let k=0;k<n;k++) tickPotions(); }, setCollected:(o)=>{collected=o;}, collected:()=>collected, tickDay:()=>refreshIfNewDay(), fx:()=>({fxList:fxList.length,fxParts:fxParts.length,particles:particles.length}), setDayRaw:(d)=>{ dayState.day=d; saveDay(); }, musicOn:()=>!!(music&&music.isOn()), life:()=>life, settings:()=>settings, tut:()=>tut, fillHome:()=>fillHome(), showHome:()=>showHome(), resetText:()=>Meta.resetText(), share:()=>doShare(), reach:()=>reachTarget(), hint:()=>useHint(), mod:()=>modifierFor(dayState.day), tcost:(t)=>tcost(t), addSpecial:(m)=>{ const i=specials.findIndex((v,k)=>!v&&k<beltCap()); if(i>=0) specials[i]=m; else specials[beltCap()-1]=m; renderDock(); }, tilt:()=>mercyTilt(), practice:()=>practice, previewDay:(d)=>{ dayState.day=d; buildMap(); }, setTool:(t,dur)=>{ dayState.tool=t; if(dur!==undefined) dayState.dur=dur; saveDay(); }, run:()=>dayState, forge:(t)=>forgeTool(t), mend:()=>mendTools(), settle:()=>{ settle(dayState.day); saveDay(); }, setRun:(o)=>{ Object.assign(dayState,o); saveDay(); }, frontier:()=>frontier(), openCore:()=>openCore(), placePortal:()=>placePortal(), fragments:(n)=>{ if(n!==undefined){ fragments=n; saveProfile(); } return fragments; }, markDone:(a)=>{ dayState.done=a.slice(); saveDay(); }, openMap:()=>showMap({}), buildMap:()=>buildMap(), mapInfo:()=>({maxY:mapState().maxY,map:MAP}), newDay:(d)=>{ const s0=lsGet(K_DAY); if(s0){ s0.day=d; lsSet(K_DAY,s0); } checkDay(); }, history:()=>({}), setBank:(b)=>{ bank=b; updateStash(); }, craftTool:(t)=>forgeTool(t),    allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:(m)=>drinkPotion(m||'luck'), workshop:(id)=>{ if(id){ const w=WORKSHOP[id]; if(w&&!wk()[id]){ wk()[id]=1; saveDay(); renderDock(); } } return {...wk()}; }, build:(id)=>buildWorkshop(id), fitDock:()=>fitDock(), potions:()=>({luck,luckLive,prot,protLive}), deal:()=>dealSet(), complete:()=>{ if(!reached){ reached=true; reachScore=score; decided=false; } if(starsNow()<1) score=Math.max(score,starAt()[0]); bankBoard(); }, result:()=>showResult(), retry:()=>retryBoard(), audioState:()=>ac?ac.state:'none',
+  setScore:(v)=>{score=v;}, bar:()=>{ shown=score; updateBar(); }, deals:()=>({dealt:dealtN,moves,next:nextPiece,grace:levelDef(level).grace,wild:wildOf(moves,levelDef(level).grace,levelDef(level).ramp),diff:levelDef(level).diff}), dodge:()=>luckyDodge(), canDodge:()=>canDodge(), setMoves:(n)=>{ moves=n; updateBar(); }, pl:()=>({...plStats(),shapes:dayState.shapes||{},life:life.shapes||{}}), cart:()=>{ $('cartBar').onclick(); }, leave:()=>{ if(starsNow()>=1&&!reached) reachTarget(); }, openCraft:(f)=>openCraft(f), beltTap:(i)=>beltTap(i), belt:()=>specials.slice(), zonePop:(z)=>openZonePop(z,document.querySelectorAll('.zchip')[z]||document.body), setNext:(p)=>{ nextPiece=p; drawTray(); }, tickPotions:(n=1)=>{ for(let k=0;k<n;k++) tickPotions(); }, setCollected:(o)=>{collected=o;}, collected:()=>collected, tickDay:()=>refreshIfNewDay(), fx:()=>({fxList:fxList.length,fxParts:fxParts.length,particles:particles.length}), setDayRaw:(d)=>{ dayState.day=d; saveDay(); }, musicOn:()=>!!(music&&music.isOn()), life:()=>life, settings:()=>settings, tut:()=>tut, fillHome:()=>fillHome(), showHome:()=>showHome(), resetText:()=>Meta.resetText(), share:()=>doShare(), reach:()=>reachTarget(), hint:()=>useHint(), mod:()=>modifierFor(dayState.day), tcost:(t)=>tcost(t), addSpecial:(m)=>{ const i=specials.findIndex((v,k)=>!v&&k<beltCap()); if(i>=0) specials[i]=m; else specials[beltCap()-1]=m; renderDock(); }, tilt:()=>mercyTilt(), practice:()=>practice, previewDay:(d)=>{ dayState.day=d; buildMap(); }, setTool:(t,dur)=>{ dayState.tool=t; if(dur!==undefined) dayState.dur=dur; saveDay(); }, run:()=>dayState, forge:(t)=>forgeTool(t), mend:()=>mendTools(), settle:()=>{ settle(dayState.day); saveDay(); }, setRun:(o)=>{ Object.assign(dayState,o); saveDay(); }, frontier:()=>frontier(), openCore:()=>openCore(), placePortal:()=>placePortal(), fragments:(n)=>{ if(n!==undefined){ fragments=n; saveProfile(); } return fragments; }, markDone:(a)=>{ dayState.done=a.slice(); saveDay(); }, openMap:()=>showMap({}), buildMap:()=>buildMap(), mapInfo:()=>({maxY:mapState().maxY,map:MAP}), newDay:(d)=>{ const s0=lsGet(K_DAY); if(s0){ s0.day=d; lsSet(K_DAY,s0); } checkDay(); }, history:()=>({}), setBank:(b)=>{ bank=b; updateStash(); }, craftTool:(t)=>forgeTool(t),    allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:(m)=>drinkPotion(m||'luck'), workshop:(id)=>{ if(id){ const w=WORKSHOP[id]; if(w&&!wk()[id]){ wk()[id]=1; saveDay(); renderDock(); } } return {...wk()}; }, build:(id)=>buildWorkshop(id), fitDock:()=>fitDock(), potions:()=>({luck,luckLive,prot,protLive}), deal:()=>dealSet(), complete:()=>{ if(!reached){ reached=true; reachScore=score; decided=false; } if(starsNow()<1) score=Math.max(score,starAt()[0]); bankBoard(); }, result:()=>showResult(), retry:()=>retryBoard(), audioState:()=>ac?ac.state:'none',
 }};
 start();
 })();

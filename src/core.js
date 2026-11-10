@@ -246,8 +246,9 @@ function chooseNext(lo,hi,held,d,opts={}){
 // the full promise lasts only 40% of the old board length (graceMul), and there is no crowded-board mercy on endless boards (mercy).
 // tools/experiments/endless.mjs: a worst-move player caves in after about 10 placements, a random one about 14, a typical one about 23.
 const RAMP={step:.02,max:.97,wild:.08,wildMax:.9,awk:3,wild0:.25,graceMul:.4,mercy:0};
-const rampD=(d,placed,grace)=>Math.min(Math.max(d,RAMP.max),d+RAMP.step*Math.max(0,placed-Math.round((grace||0)*RAMP.graceMul)));
-const wildOf=(placed,grace)=>Math.min(RAMP.wildMax,RAMP.wild0+RAMP.wild*Math.max(0,placed-Math.round((grace||0)*RAMP.graceMul)));
+// r: the difficulty's ramp ({wild0, graceMul, mercy}, data.js DIFFS); without one, RAMP's own values (Challenging)
+const rampD=(d,placed,grace,r)=>Math.min(Math.max(d,RAMP.max),d+RAMP.step*Math.max(0,placed-Math.round((grace||0)*((r&&r.graceMul)??RAMP.graceMul))));
+const wildOf=(placed,grace,r)=>Math.min(RAMP.wildMax,((r&&r.wild0)??RAMP.wild0)+RAMP.wild*Math.max(0,placed-Math.round((grace||0)*((r&&r.graceMul)??RAMP.graceMul))));
 // a whole tray of k pieces (start of a board, a Protection save): a dealt set of three, or fewer one at a time near the end
 function chooseTray(lo,hi,k,d,opts={}){
   if(k>=3) return chooseSet(lo,hi,d,opts);

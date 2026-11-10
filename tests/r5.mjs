@@ -89,6 +89,17 @@ check(await T(() => /Stars/.test(document.getElementById('runStats').textContent
 
 // settings
 await T(() => window.__deepcore.test.showHome()); await page.tap('#settingsBtn'); await page.waitForTimeout(200);
+// difficulty (v2.6.0): Casual by default; Challenging uses its own dealer and star lines; a board in progress keeps its difficulty
+check(await T(() => document.getElementById('diffCasual').classList.contains('on') && window.__deepcore.test.settings().diff === 'casual'), 'difficulty defaults to Casual');
+const linesFor = () => T(() => window.__deepcore.test.def().starAt.join());
+await page.tap('#diffChallenging'); await page.waitForTimeout(100);
+check(await T(() => window.__deepcore.test.settings().diff === 'challenging' && document.getElementById('diffChallenging').getAttribute('aria-checked') === 'true'), 'Settings switches to Challenging');
+await tt('start', 9); await page.waitForTimeout(2400);
+check((await T(() => window.__deepcore.test.def().ramp.wild0)) === 0.25 && (await linesFor()) === (await T(() => window.DeepcoreData.DIFFS.challenging.lines[1].join())), 'a Challenging board uses the harsher dealer and its own star lines');
+await T(() => { window.__deepcore.test.settings().diff = 'casual'; });
+check((await linesFor()) === (await T(() => window.DeepcoreData.DIFFS.challenging.lines[1].join())), 'switching difficulty mid-board leaves the board in progress as it was');
+await T(() => window.__deepcore.test.showHome()); await page.tap('#settingsBtn'); await page.waitForTimeout(200); await page.tap('#diffCasual'); await page.waitForTimeout(100);
+check(await T(() => window.__deepcore.test.settings().diff === 'casual'), 'and back to Casual');
 await page.check('#reduceOn'); await page.check('#largeOn');
 check(await T(() => document.documentElement.classList.contains('reduce') && document.documentElement.classList.contains('large')), 'reduce-motion and larger-text switches apply at once');
 await page.tap('#settingsBack'); await page.tap('#homeSound'); await page.waitForTimeout(200);

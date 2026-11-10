@@ -634,3 +634,29 @@ label.tog input:checked::after{transform:translateX(18px);background:#fff}
 #coachText{margin:0;font-size:15px;line-height:1.45}
 #coachCard .row{display:flex;gap:8px}#coachCard .row button{flex:1;min-height:40px;padding:6px 10px;font-size:14px}
 @media (prefers-reduced-motion: reduce){#coachHole{transition:none}}
+/* v2.6.0: difficulty switch in Settings */
+.diffRow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.diffRow>span{font-weight:600}
+.seg{display:flex;padding:3px;border-radius:10px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--panel-line)}
+.seg button{min-height:38px;padding:6px 12px;font-size:14px;background:transparent;box-shadow:none;color:var(--muted)}
+.seg button.on{background:var(--lamp);color:var(--on-lamp);box-shadow:inset 0 -2px 0 #b8892f}
+#diffNote{margin-top:-4px}
+/* v2.6.0: the tools row: bigger tiles with names; "Current" as quiet text; the next tool glows when it can be forged */
+.toolrow{padding:8px 6px}
+.toolrow .tt{flex:1;min-width:0;width:auto;height:auto;min-height:0;padding:6px 2px 5px;display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:8px;background:var(--slot);box-shadow:none}
+.toolrow .tt canvas{width:40px;height:40px}
+.toolrow .tt.cur{box-shadow:none}
+.toolrow .tt .tn{font-size:11px;font-weight:700;color:var(--muted);line-height:1.1}
+.toolrow .tt.have .tn{color:var(--text)}
+.toolrow .tt .tg{font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);min-height:10px;line-height:1}
+.toolrow .tt.cur .tg{color:var(--lamp)}
+.toolrow .tt.ready{background:#3a3427;box-shadow:inset 0 0 0 2px rgba(255,207,92,.8),0 0 14px rgba(255,207,92,.5);animation:beltGlow 1.6s ease-in-out infinite}
+.toolrow .tt.ready canvas{filter:none;opacity:.85}
+.toolrow .tt.ready .tg{color:var(--lamp)}
+.toolrow .tt.flash{animation:craftPulse 1s ease-out 2}
+.toolinfo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;padding:2px 4px;font-size:13px;color:var(--muted)}
+.toolinfo b{color:var(--text);font-weight:700}
+.toolinfo .cost{display:flex;gap:10px;font-family:var(--font-display);font-size:20px;line-height:1}
+.toolinfo .cost span{display:inline-flex;align-items:center;gap:3px}.toolinfo .cost canvas{width:16px;height:16px;image-rendering:pixelated}
+.toolinfo .cost .short{color:var(--danger-text)}
+@media (prefers-reduced-motion: reduce){.toolrow .tt.ready{animation:none}}

@@ -130,13 +130,21 @@ function placePoints(cells,lines,streak,allClear){
 // Before v2.4.0 a board was a fixed number of deals (3 pieces each). Boards are endless now (F-14); DEALS×3 is kept as each layer's
 // reference length: the dealer's grace before it hardens, and what the ore budget is spread over (orePer).
 const DEALS=[4,5,5,6,6,7,7,0];
-// Star lines in board points, per layer (v2.5.0, the harsher endless dealer). 1 star from the typical (mid) bot's scores before it caves in, on
-// the balance test's boards: it passes about 98% of Forest tries, falling to about 57% in the Crust. 3 stars near the median of a bot that knows
-// the scoring (tools/experiments/endless.mjs --p3bot good --mix .03,.4,.5), smoothed; 2 stars halfway. Deeper rock scores less before it caves
-// in, so the lines no longer rise layer by layer: difficulty rises in how often a typical player makes the line.
-// Board 1-1 (the tutorial board) has a lower 1-star line so it can't realistically fail.
-const STAR_LINES=[[1100,3100,5100],[1650,3350,5000],[2050,3350,4600],[2150,3350,4500],[2450,3300,4200],[2550,3300,4050],[2250,3100,3900],[]];
-const FIRST_BOARD_STARS=[700,3100,5100];
+// Difficulty (v2.6.0, Settings; Casual by default). Casual is the 2.4.0 dealer: every piece keeps the promise that the tray plus it can be
+// placed for the board's old length (12-21 placements), with crowded-board help. Challenging is the 2.5.0 dealer: a quarter of pieces carry no
+// promise from the start, the full promise lasts 40% as long, no crowded-board help (core.js rampD/wildOf take the profile's ramp).
+// Star lines: 1 star from target pass rates for the typical (mid) bot before it caves in, 98-99% in the Forest down to about 60% (Casual) or
+// 57% (Challenging) deep down; 3 stars near the median of a bot that knows the scoring (tools/experiments/endless.mjs --p3bot good); 2 halfway.
+// Challenging's deep rock scores less before it caves in, so its lines fall layer by layer. Board 1-1 (the tutorial) has a lower 1-star line.
+// oreRate: Casual boards last longer, so each piece carries less ore (npm run test:balance checks both).
+const DIFFS={
+  casual:      {id:'casual', name:'Casual', ramp:{wild0:0, graceMul:1, mercy:1}, oreRate:.6, first:[1200,4050,5950],
+                lines:[[2150,4050,5950],[3150,4900,6600],[3350,5000,6650],[3950,5400,6800],[4000,5400,6800],[4850,5900,6900],[4850,5950,7000],[]]},
+  challenging: {id:'challenging', name:'Challenging', ramp:{wild0:.25, graceMul:.4, mercy:0}, oreRate:1, first:[700,3100,5100],
+                lines:[[1100,3100,5100],[1650,3350,5000],[2050,3350,4600],[2150,3350,4500],[2450,3300,4200],[2550,3300,4050],[2250,3100,3900],[]]},
+};
+const diffOf=id=>DIFFS[id]||DIFFS.casual;
+const STAR_LINES=DIFFS.casual.lines, FIRST_BOARD_STARS=DIFFS.casual.first;   // the default's lines (tests and tools read these)
 const starsFromScore=(score,at)=>at.reduce((n,v)=>n+(score>=v?1:0),0);
 // each star after the first adds 10% of the 1-star line to the day's points when the board is banked
 const starBonus=(stars,line1)=>Math.max(0,stars-1)*Math.round(line1*.1/10)*10;
@@ -154,9 +162,6 @@ const ORE_BUDGET=[
   {iron:1, gold:.5, prismore:1},
   {},
 ];
-// Endless boards last longer than the old fixed ones (a typical player places about 1.8 times as many pieces), so each piece carries less ore:
-// ORE_RATE keeps a layer's 8 boards at part of the next tools, with a few replays for the rest (npm run test:balance).
-const ORE_RATE=1;
 const STAR_ORES=['coal','bone','copper','iron','ruby','gold','meteorite','prismore','emerald','diamond'];   // the ores and gems (not wood or rock)
 const STASH_KEYS=['wood','bone','coal','copper','iron','gold','meteorite','prismore','ruby','emerald','diamond'];
 const GEM_KEYS=['ruby','emerald','diamond'];
@@ -164,7 +169,8 @@ const GEM_KEYS=['ruby','emerald','diamond'];
 
 const BASE_MATS=['grass','dirt','sand','log','stone','granite','deep','ember','obsidian','crust'];   // bulk filler blocks (everything else on the board is ore, a gem or a special)
 // Everything that defines a board from the zone table, shared by the game and the simulator
-function boardParams(zi,j,mod){
+function boardParams(zi,j,mod,diff){
+  const df=diffOf(diff);
   const z=ZONES[zi], n=z.boards, f=n>1?j/(n-1):0;
   const oreBoost={...(z.boost||{})}; if(mod&&mod.ore) Object.entries(mod.ore).forEach(([k,v])=>{ oreBoost[k]=(oreBoost[k]||1)*v; });
   const gems={}; Object.entries(z.gems||{}).forEach(([k,g])=>{ gems[k]=mod&&mod.gemMul?{p:g.p*mod.gemMul,cap:g.cap+(mod.gemCapAdd||0)}:g; });
@@ -173,13 +179,13 @@ function boardParams(zi,j,mod){
   const budget={}; Object.entries(ORE_BUDGET[zi]||{}).forEach(([k,v])=>{ const gem=!!(z.gems&&z.gems[k]); if(!ores.includes(k)&&!gem) return;
     budget[k]=v*(gem?((mod&&mod.gemMul)||1):((mod&&mod.ore&&mod.ore[k])||1)); });
   // endless boards (F-14, v2.4.0): the budget becomes a rate per piece dealt, over the old board length (DEALS×3 pieces)
-  const orePer={}, oreCap={}; Object.entries(budget).forEach(([k,v])=>{ if(!DEALS[zi]) return; orePer[k]=ORE_RATE*v/(DEALS[zi]*3); if(!ORES[k]) oreCap[k]=Math.max(1,Math.ceil(v*2)); });   // gems: at most twice the old budget a board
+  const orePer={}, oreCap={}; Object.entries(budget).forEach(([k,v])=>{ if(!DEALS[zi]) return; orePer[k]=df.oreRate*v/(DEALS[zi]*3); if(!ORES[k]) oreCap[k]=Math.max(1,Math.ceil(v*2)); });   // gems: at most twice the old budget a board
   const base=z.mixes[Math.min(z.mixes.length-1,Math.round(f*(z.mixes.length-1)))];
-  const starAt=z.core?[]:(zi===0&&j===0?FIRST_BOARD_STARS:STAR_LINES[zi]).slice();
+  const starAt=z.core?[]:(zi===0&&j===0?df.first:df.lines[zi]).slice();
   return { zone:zi, j, starAt, deals:DEALS[zi], budget, orePer, oreCap, zoneName:z.name, rock:z.rock, base, ores, oreBoost, gems, specialMul:(mod&&mod.specialMul)||1,
-    target:starAt[0]||0, grace:DEALS[zi]*3, core:!!z.core, d:Math.min(.97,z.d[0]+(z.d[1]-z.d[0])*f), pre:Math.round(z.pre[0]+(z.pre[1]-z.pre[0])*f) };
+    target:starAt[0]||0, grace:DEALS[zi]*3, ramp:df.ramp, diff:df.id, core:!!z.core, d:Math.min(.97,z.d[0]+(z.d[1]-z.d[0])*f), pre:Math.round(z.pre[0]+(z.pre[1]-z.pre[0])*f) };
 }
 const lineName=n=> n>=5?'Mega!' : n===4?'Quad!' : n===3?'Triple!' : n===2?'Double!' : '';
-const api={TOOL_WEAR,POTION_MOVES,WORKSHOP,BELT_MAX,SCORE,comboBonus,streakBonus,placePoints,DEALS,STAR_LINES,FIRST_BOARD_STARS,starsFromScore,ORE_BUDGET,FOSSIL_BONE,TREASURE,specialHaul,MODIFIERS,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf,STAR_ORES,starBonus,lineName,GEM_KEYS,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS};
+const api={DIFFS,diffOf,TOOL_WEAR,POTION_MOVES,WORKSHOP,BELT_MAX,SCORE,comboBonus,streakBonus,placePoints,DEALS,STAR_LINES,FIRST_BOARD_STARS,starsFromScore,ORE_BUDGET,FOSSIL_BONE,TREASURE,specialHaul,MODIFIERS,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf,STAR_ORES,starBonus,lineName,GEM_KEYS,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.DeepcoreData=api;
 })(typeof self!=='undefined'?self:globalThis);

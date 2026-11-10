@@ -48,9 +48,9 @@ function skilledPlan(lo, hi, pcs, streak, next) {   // plans the tray and the ne
 }
 // one endless board: returns the score after every placement (trace) and whether it caved in
 export function runEndless(zi, j, seed, bot) {
-  const def = D.boardParams(zi, j), rnd = D.rng(seed * 7919 + 13); let [lo, hi] = bitsOf(prefill(def, rnd));
+  const def = D.boardParams(zi, j, null, args.diff || 'casual'), rnd = D.rng(seed * 7919 + 13); let [lo, hi] = bitsOf(prefill(def, rnd));
   let score = 0, streak = 0, n = 0, big = 0; const trace = [];
-  const opt = () => ({ rnd, big: big > 0, wild: C.wildOf(n, def.grace), mercy: C.RAMP.mercy }), dd = () => C.rampD(def.d, n, def.grace);
+  const opt = () => ({ rnd, big: big > 0, wild: C.wildOf(n, def.grace, def.ramp), mercy: def.ramp.mercy }), dd = () => C.rampD(def.d, n, def.grace, def.ramp);
   let pcs = C.chooseTray(lo, hi, 3, dd(), opt()), next = C.chooseNext(lo, hi, pcs, dd(), opt());
   while (n < CAP) {
     const mv = bot === 'skilled' ? skilledPlan(lo, hi, pcs, streak, next) : bot === 'good' ? goodMove(lo, hi, pcs, streak, rnd) : bot === 'bad' ? badMove(lo, hi, pcs, streak, rnd) : bot === 'random' ? randomMove(lo, hi, pcs, streak, rnd) : midMove(lo, hi, pcs, streak, rnd);
