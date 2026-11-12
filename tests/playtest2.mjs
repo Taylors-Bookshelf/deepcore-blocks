@@ -15,7 +15,7 @@ await T((one) => { const t = window.__deepcore.test; for (let r = 0; r < 8; r++)
   t.setPieces([null, { cells: [[0, 0], [0, 1]], h: 1, w: 2, mats: ['stone', 'stone'], sid: 1 }, null]); t.place(1, 7, 6); }, one);
 await page.waitForTimeout(2600);
 await T(() => window.__deepcore.test.leave()); await page.waitForTimeout(1200);
-check(await T(() => !document.getElementById('sheetScrim').hidden && /BOARD CLEARED/.test(document.getElementById('sheet').textContent)), 'leaving with a star ends the board with the results sheet');
+check(await T(() => !document.getElementById('sheetScrim').hidden && /CAVE MINED/.test(document.getElementById('sheet').textContent)), 'leaving with a star ends the board with the results sheet');
 check(await T(() => document.getElementById('resRetry').textContent === 'RETRY' && document.getElementById('resGo').textContent === 'CONTINUE' && !document.getElementById('kpGo') && !document.getElementById('bankBtn')), 'the results sheet offers RETRY and CONTINUE; KEEP MINING and FINISH are gone');
 const tray = await T(() => [...document.querySelectorAll('.slot canvas')].map(c => !c.hidden));
 check(tray[1] && !tray[0] && !tray[2], `endless boards: the placed piece's slot took the next piece (${tray})`);

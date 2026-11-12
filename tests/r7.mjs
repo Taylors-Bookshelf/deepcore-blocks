@@ -33,13 +33,13 @@ await page.tap('#tutorSkip'); await page.waitForTimeout(200); await page.tap('#a
 check(!(await T(() => window.__deepcore.test.tut().active)), 'Skip still ends the tutorial');
 
 // ---- B-4: counts below the icons, 99+ above 99 ----
-await tt('setBank', { coal: 150, bone: 7, wood: 99 }); await page.waitForTimeout(200);
+await tt('setBank', { coal: 1500, bone: 7, wood: 99 }); await page.waitForTimeout(200);
 const strip = await T(() => [...document.querySelectorAll('.si')].filter(e => !e.hidden).map(e => { const c = e.querySelector('canvas').getBoundingClientRect(), n = e.querySelector('.n').getBoundingClientRect(); return { k: e.dataset.k, n: e.querySelector('.n').textContent, icon: c.width, below: n.top >= c.bottom - 1, inside: n.bottom <= document.getElementById('stash').getBoundingClientRect().bottom + .5 }; }));
 const by = Object.fromEntries(strip.map(o => [o.k, o]));
-check(by.coal && by.coal.n === '99+' && by.wood.n === '99' && by.bone.n === '7', `counts above 99 read 99+ (${strip.map(o => o.k + ':' + o.n)})`);
+check(by.coal && by.coal.n === '1500' && by.wood.n === '99' && by.bone.n === '7', `counts show the real number, no cap (v2.6.1) (${strip.map(o => o.k + ':' + o.n)})`);
 check(strip.every(o => o.below && o.inside), 'every count sits below its icon, inside the strip');
 check(strip.every(o => o.icon >= 22), `icons keep their full size (${strip.map(o => o.icon)})`);
-check(await T(() => /150/.test(document.querySelector('.si[data-k="coal"]').title)), 'the real total is in the tooltip');
+check(await T(() => /1,500/.test(document.querySelector('.si[data-k="coal"]').title)), 'the real total is in the tooltip');
 
 // ---- B-1: coming back from sleep resets an interrupted drag and the map keeps taking taps ----
 const sleep = async () => { await T(() => { Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); }); await page.waitForTimeout(150);

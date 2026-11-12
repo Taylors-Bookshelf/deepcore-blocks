@@ -87,7 +87,7 @@ function createMusic(ctx,dest){
   const note=i=>scale[((i%5)+5)%5]+12*Math.floor(i/5);
   function start(){
     if(on) return; on=true;
-    const out=ctx.createGain(); out.gain.value=0; out.connect(dest); out.gain.linearRampToValueAtTime(.32,ctx.currentTime+2.5);   // well under the sound effects
+    const out=ctx.createGain(); out.gain.setValueAtTime(0,ctx.currentTime); out.connect(dest); out.gain.linearRampToValueAtTime(.32,ctx.currentTime+2.5);   // well under the sound effects (anchored: Safari ramps from time 0 otherwise)
     const dry=ctx.createGain(); dry.gain.value=.8; dry.connect(out);
     const echo=ctx.createDelay(1.5); echo.delayTime.value=BEAT*.75; const fb=ctx.createGain(); fb.gain.value=.3;
     const elp=ctx.createBiquadFilter(); elp.type='lowpass'; elp.frequency.value=1400; echo.connect(elp); elp.connect(fb); fb.connect(echo); elp.connect(out);
@@ -102,8 +102,10 @@ function createMusic(ctx,dest){
       g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.07,t+1.4); g.gain.setValueAtTime(.07,t+len-1.6); g.gain.linearRampToValueAtTime(0,t+len+.4);
       o.connect(g); g.connect(lp); o.start(t); o.stop(t+len+.5); }); };
     let bar=0, step=0, pos=6, next=ctx.currentTime+.4;
+    let timer=0;
     const plan=()=>{
       if(!on) return;
+      if(next<ctx.currentTime) next=ctx.currentTime+.1;   // v2.6.1: after a pause with the clock running, skip what was missed instead of playing it all at once
       while(next<ctx.currentTime+2.5){
         const c=chords[Math.floor(bar/2)%4], beatInBar=step%4;
         if(step%8===0) pad(c,next,BEAT*8);
@@ -118,7 +120,7 @@ function createMusic(ctx,dest){
         }
         step++; if(step%4===0) bar++; next+=BEAT;
       }
-      timers.push(setTimeout(plan,900));
+      clearTimeout(timer); timer=setTimeout(plan,900); timers=[timer];
     };
     plan();
   }

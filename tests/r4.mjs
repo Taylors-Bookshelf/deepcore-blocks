@@ -64,7 +64,8 @@ await tt('cart'); await page.waitForTimeout(150);
 check(await T(() => document.getElementById('askTitle').textContent === 'Done here?'), 'tapping it asks "Done here?"');
 await page.click('#askNo'); await page.waitForTimeout(200); s = await st(); check(!s.reached && s.screen === 'game', 'No keeps you mining');
 await tt('cart'); await page.waitForTimeout(150); await page.click('#askYes'); await page.waitForTimeout(1100);
-check(await T(() => /BOARD CLEARED/.test(document.getElementById('sheet').textContent) && document.querySelectorAll('.shStar.got').length === 2 && !!document.getElementById('resRetry') && !!document.getElementById('resGo')), 'Yes ends the board: the results sheet shows 2 stars and offers RETRY or CONTINUE');
+check(await T(() => /CAVE MINED/.test(document.getElementById('sheet').textContent) && document.querySelectorAll('.shStar.got').length === 2 && !!document.getElementById('resRetry') && !!document.getElementById('resGo')), 'Yes ends the board: the results sheet shows 2 stars and offers RETRY or CONTINUE');
+check(await T(() => !document.querySelector('#sheet .shHandle') && document.getElementById('sheet').classList.contains('pop')), 'the results card is a centred card with no grab handle (v2.6.1)');
 await page.tap('#resRetry'); await page.waitForTimeout(2600); s = await st();
 check(s.screen === 'game' && !s.reached && s.score < 50 && !Object.keys(s.hand).length && s.bank.coal === 10 && !s.day.done.includes(9) && !(s.day.stars || {})[9], 'RETRY restarts the board and discards that run (ore, points, stars)');
 // 3. CONTINUE banks the haul and records the stars and the star bonus

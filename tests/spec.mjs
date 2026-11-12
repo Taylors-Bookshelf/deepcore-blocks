@@ -55,6 +55,12 @@ const near = (a, b, tol = 1) => Math.abs(a - b) <= tol;
   check(piece.flat().every(Boolean), 'a 1x5 piece is not clipped on the short phone');
   check(await t.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight), 'the page does not scroll');
   await t.close(); }
+// ---- landscape (v2.6.1): board on the left at full height, everything else on the right, nothing off screen ----
+for (const [w, h] of [[844, 390], [1180, 820]]) { const t = await setup(w, h); const m = await measure(t.page);
+  check(m.board.x >= 0 && m.board.b <= m.vh + 1 && m.tray.x >= m.board.r && m.tray.b <= m.vh + 1 && m.dock.b <= m.vh && m.hdr.x >= m.board.r, `landscape ${w}x${h}: the board is on the left and the tray, belt and header fit on the right (board ${Math.round(m.board.w)}px)`);
+  const piece = await t.page.evaluate(() => [...document.querySelectorAll('.slot')].map(s => { const c = s.firstElementChild; return c.clientWidth <= s.clientWidth && c.clientHeight <= s.clientHeight; }));
+  check(piece.every(Boolean) && await t.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight), `landscape ${w}x${h}: pieces fit their slots and the page doesn't scroll`);
+  await t.close(); }
 // ---- Craft and the map on a short phone (v2.5.0: a screenshot showed Craft rows squashed into each other) ----
 { const t = await phone({ viewport: { width: 375, height: 600 } }); await t.page.goto(t.base + '?debug'); await t.page.waitForTimeout(700);
   await t.page.evaluate(() => { const T = window.__deepcore.test; T.setRun({ stars: { 0: 3, 1: 2, 2: 1 } }); T.markDone([0, 1, 2]); T.setTool(2); T.openMap(); }); await t.page.waitForTimeout(1200);

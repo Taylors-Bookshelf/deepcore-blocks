@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.6.1 — clearer resources, landscape and tablets, smoother endings
+- **The home-screen name** is now "Deepcore Blocks".
+- **Spending is visible.** Craft shows your whole stash at the top with real counts. Costs now show just the amount needed, in red when you're short (they used to read "9/9" whether you had 9 coal or 900, before and after crafting). Making something shows what it cost, and the spent counts pulse.
+- **Counts show the real number** (they stopped at 99+, which hid every change after an hour of play).
+- **One resource order everywhere** (wood, bone, coal, copper, iron, gold, meteorite, prism ore, ruby, emerald, diamond): the results card, costs and board cards match the stash strip.
+- **The results card** is a centred card with no grab handle (it needs a choice, so it can't be swiped away).
+- **One "Cave mined!" moment**: the words, the jingle and the blocks breaking happen once, and Continue goes straight to the map (there used to be a second celebration and a two-second wait).
+- **Music** restarts by itself when you come back to the game (it used to wait for a tap), and no longer plays a pile of missed notes after a pause.
+- **Landscape phones and tablets on their side** get a two-column layout: the board on the left at full height, everything else on the right. Tablets held upright get a wider column and a bigger board.
+
 ## 2.6.0 — difficulty setting, a better tools row, tools that look the part
 - **Difficulty**, in Settings: **Casual** (the default) brings back the forgiving dealer from 2.4.0, where pieces almost always fit with your tray. **Challenging** is the 2.5.0 dealer, where careless placements cave in fast. Each has its own star lines. A board in progress keeps the difficulty it started with.
 - **Craft's tools row** replaces the big "forge the next tools" row: bigger tiles with each tool's name, a quiet "Current" label instead of a highlight, and what the next tools open and cost underneath. The next tools glow when you can afford them and have reached their layer: tap to forge.

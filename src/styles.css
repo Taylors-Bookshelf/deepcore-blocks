@@ -660,3 +660,31 @@ label.tog input:checked::after{transform:translateX(18px);background:#fff}
 .toolinfo .cost span{display:inline-flex;align-items:center;gap:3px}.toolinfo .cost canvas{width:16px;height:16px;image-rendering:pixelated}
 .toolinfo .cost .short{color:var(--danger-text)}
 @media (prefers-reduced-motion: reduce){.toolrow .tt.ready{animation:none}}
+/* v2.6.1: Craft shows your stash (real totals) under the belt */
+.cstash{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 12px;margin-top:10px;font-family:var(--font-display);font-size:20px;line-height:1}
+.cstash span{display:inline-flex;align-items:center;gap:3px}.cstash canvas{width:18px;height:18px;image-rendering:pixelated}
+.cstash .none{font-family:var(--font-ui);font-size:13px;color:var(--muted)}
+.cstash span.bump{animation:bump .4s ease-out}
+#sheet.pop.result{width:min(380px,100%);text-align:left}
+#sheet.pop.result .shLabel,#sheet.pop.result .shTitle{text-align:center}
+/* ---------- v2.6.1: wide screens (landscape phones, tablets on their side): board on the left at full height, everything else on the right ---------- */
+@media (orientation:landscape) and (min-aspect-ratio:13/10){
+  #app{display:grid;max-width:1200px;grid-template-columns:min(calc(100dvh - 28px),58vw) minmax(300px,440px);grid-template-rows:auto auto auto 1fr auto auto auto;
+    grid-template-areas:"board hdr" "board goals" "board stash" "board gap" "board dock" "board cart" "board tray";column-gap:20px;row-gap:8px;justify-content:center;align-content:stretch}
+  #hdr{grid-area:hdr} #goalsBar{grid-area:goals} #stash{grid-area:stash} #dock{grid-area:dock} #cartBar{grid-area:cart} #trayWrap{grid-area:tray}
+  #boardWrap{grid-area:board;align-self:center;height:100%}
+}
+/* landscape phones are short: tighten the right-hand column so it all fits (tray pieces keep their size) */
+@media (orientation:landscape) and (min-aspect-ratio:13/10) and (max-height:520px){
+  #app{row-gap:5px;padding-top:max(env(safe-area-inset-top,0px),8px);padding-bottom:max(env(safe-area-inset-bottom,0px),8px)}
+  #goalsBar{min-height:46px}
+  #nextBox>span{font-size:9px;line-height:10px}#nextBox>div{width:58px!important;height:36px!important}
+  #starChip{height:36px}#starChip i{font-size:26px}
+  #pscore{font-size:24px;line-height:20px}
+  #stash{height:44px}
+  #beltBar{height:56px}.belt .tool{width:46px;height:46px}.belt .tool canvas.px{width:34px;height:34px}
+  #cartBar{height:28px}#cartBar .cart{width:26px;height:18px;bottom:6px}#cartBar .door{width:26px;height:22px}
+  #hdr{height:40px}
+}
+/* tablets held upright: a little wider column, a bigger board */
+@media (orientation:portrait) and (min-width:700px) and (min-height:900px){ #app{max-width:640px} }

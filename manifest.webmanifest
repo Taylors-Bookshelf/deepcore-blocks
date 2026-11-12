@@ -1,6 +1,6 @@
 {
   "name": "Deepcore Blocks",
-  "short_name": "Deepcore",
+  "short_name": "Deepcore Blocks",
   "description": "A mining block puzzle: place pieces, clear lines, dig from the forest to the Underworld.",
   "start_url": "./",
   "scope": "./",

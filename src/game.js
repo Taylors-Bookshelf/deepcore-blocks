@@ -450,13 +450,14 @@ const SEAM=2; let cell=44, bs=42, trayCell=20; const dpr=Math.max(1,window.devic
 const MEDIA_REDUCE=matchMedia('(prefers-reduced-motion: reduce)').matches; let REDUCE=MEDIA_REDUCE;
 
 // Board geometry: `cell` is the pitch between blocks, `bs` the block size (pitch minus the 2px seam). 42px blocks on a 390pt screen.
+const wide=()=>matchMedia('(orientation:landscape) and (min-aspect-ratio:13/10)').matches;
 function layout(){
   const wrap=$('boardWrap'); wrap.style.flex=''; wrap.style.height='';           // measure the free space, then shrink the wrap to the board so spare room is shared evenly between the rows
-  const availW=Math.min(wrap.clientWidth,560)-8, availH=wrap.clientHeight-8;
+  const availW=Math.min(wrap.clientWidth,820)-8, availH=wrap.clientHeight-8;   // v2.6.1: tablets get a bigger board
   const size=Math.max(200,Math.min(availW,availH));
-  cell=Math.max(26,Math.min(60,Math.floor((size+SEAM)/N))); bs=cell-SEAM; const px=cell*N-SEAM;
+  cell=Math.max(26,Math.min(96,Math.floor((size+SEAM)/N))); bs=cell-SEAM; const px=cell*N-SEAM;
   boardC.style.width=px+'px'; boardC.style.height=px+'px'; boardC.width=Math.round(px*dpr); boardC.height=Math.round(px*dpr);
-  wrap.style.flex='none'; wrap.style.height=(px+8)+'px';
+  if(!wide()){ wrap.style.flex='none'; wrap.style.height=(px+8)+'px'; }   // on wide screens the board's grid cell keeps its full height
   fxC.width=innerWidth*dpr; fxC.height=innerHeight*dpr;
   drawTray();
 }
@@ -830,7 +831,13 @@ function unlockAudio(){
   try{ const b=c.createBuffer(1,1,22050), src=c.createBufferSource(); src.buffer=b; src.connect(c.destination); src.start(0); }catch(e){}
 }
 ['pointerdown','touchstart','touchend','click','keydown'].forEach(ev=>document.addEventListener(ev,unlockAudio,{capture:true,passive:true}));
-document.addEventListener('visibilitychange',()=>{ if(!ac) return; if(document.visibilityState==='visible'){ if(ac.state!=='running') ac.resume().catch(()=>{}); } else if(settings.music) ac.suspend().catch(()=>{}); });
+// v2.6.1: coming back to the game (another app, a locked phone, Control Center) resumes the audio AND restarts the music if it should be playing;
+// before, it only resumed and waited for your next tap. A light watchdog retries while visible; a tap anywhere still unlocks it (unlockAudio).
+function wakeAudio(){ if(!ac||document.visibilityState!=='visible') return; const go=()=>{ if(settings.music&&(!music||!music.isOn())) startMusic(); };
+  if(ac.state!=='running') ac.resume().then(go).catch(()=>{}); else go(); }
+document.addEventListener('visibilitychange',()=>{ if(!ac) return; if(document.visibilityState==='visible') wakeAudio(); else if(settings.music) ac.suspend().catch(()=>{}); });
+window.addEventListener('pageshow',wakeAudio); window.addEventListener('focus',wakeAudio);
+setInterval(()=>{ if(ac&&settings.music&&document.visibilityState==='visible'&&(ac.state!=='running'||!music||!music.isOn())) wakeAudio(); },4000);
 function blip(freq,dur=.08,type='square',vol=.05,when=0){
   if(!soundOn) return;
   try{ const c=audioCtx(); if(!c) return; if(c.state!=='running'){ c.resume().catch(()=>{}); return; }
@@ -1064,28 +1071,31 @@ function reachTarget(){
   const dd=levelDef(level), stars=starsNow(); reached=true; reachScore=score; decided=false; busy=true; clearHint();
   A.track('board_target',{idx:level-1,label:boardLabel(level-1),stars,yield:yieldNow(),star_at:starAt(),score,target:dd.target,moves,duration_ms:Math.round(performance.now()-boardT0),attempt:(dayState.attempts||{})[level-1]||1});
   saveBoard();
-  if(stars){ showCombo('Board cleared!'); [523,659,784,1047].forEach((f,j)=>blip(f,.18,'triangle',.07,.1+j*.1)); }
+  // v2.6.1: one celebration: the words, the jingle and the blocks breaking happen here, once; CONTINUE then goes straight to the map
+  if(stars){ showCombo('Cave mined!'); [523,659,784,1047].forEach((f,j)=>blip(f,.18,'triangle',.07,.1+j*.1));
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++) if(grid[r][c]){ burst(r,c,grid[r][c],4); grid[r][c]=null; } shake(); }
   else { showCombo('Not enough points'); [392,330,262].forEach((f,j)=>blip(f,.16,'triangle',.06,j*.1)); }
   const lv=level, still=()=>level===lv&&reached&&!decided&&screen==='game';   // the player may have left for another board in the meantime
-  setTimeout(()=>{ if(still()) showResult(); },800);
+  setTimeout(()=>{ if(still()) showResult(); },REDUCE?250:700);
 }
 function showResult(){
   const sh=$('sheet'); sh.innerHTML=''; sheetMode='result'; busy=true;
   const el=(tag,cls,txt)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!==undefined) e.textContent=txt; return e; };
   const at=starAt(), y=score, stars=starsFromScore(y,at);
-  sh.append(el('div','shHandle'),el('div','shLabel',stars?'BOARD CLEARED':'NOT ENOUGH POINTS'),el('div','shTitle',stars?undefined:`${score.toLocaleString()} points`));
+  sh.append(el('div','shLabel',stars?'CAVE MINED':'NOT ENOUGH POINTS'),el('div','shTitle',stars?undefined:`${score.toLocaleString()} points`));
   if(stars){ const t=sh.lastChild; t.classList.add('shTitleStars'); t.setAttribute('aria-label',`${stars} of 3 stars`); t.append(el('span','on','★'.repeat(stars)),el('span','off','★'.repeat(3-stars))); }
   sh.append(el('div','shBody',stars
     ?`${score.toLocaleString()} points in ${moves} placements. Continue to keep your haul and stars, or retry for more stars: a retry starts over and this board's haul is not kept.`
     :`You placed every piece but scored too few points for a star, so the board is not cleared. Retry it: clear several lines at once and keep clearing on back-to-back moves. This run's haul is not kept.`));
   const row=el('div','shStars'); at.forEach((x,k)=>{ const b=el('div','shStar'+(y>=x?' got':'')); b.style.animationDelay=(.15+.18*k)+'s'; b.append(el('b',undefined,'★'.repeat(k+1)),el('span',undefined,`${x.toLocaleString()} pts`)); row.append(b); }); sh.append(row);
-  const got=Object.entries(hand).filter(([,v])=>v>0);
+  const got=sortedEntries(hand).filter(([,v])=>v>0);
   if(got.length){ const hr=el('div','shHaul'); hr.setAttribute('aria-label','Haul from this run'); got.forEach(([k,v])=>{ const c=el('span'); c.title=DROPS[k][0]; c.append(iconOf(ITEM[k]),document.createTextNode(` ${v}`)); hr.append(c); }); sh.append(hr); }
   const btns=el('div','shBtns'), retry=el('button',stars?'alt':'go','RETRY'), other=stars?el('button','go','CONTINUE'):el('button','alt','MAP');
   retry.id='resRetry'; other.id=stars?'resGo':'resMap'; retry.type=other.type='button';
   if(stars){ other.style.flex='1.4'; btns.append(retry,other); } else { retry.style.flex='1.4'; btns.append(other,retry); }
   sh.append(btns);
   retry.onclick=retryBoard; other.onclick=stars?()=>{ closeSheet(); bankBoard(); }:leaveBoard;
+  $('sheetScrim').classList.add('center'); sh.classList.add('pop'); sh.classList.add('result');   // v2.6.1: a centred card, no grab handle: it needs a choice, so it can't be swiped away
   $('sheetScrim').hidden=false;
 }
 // ---- pause (v2.1.1): a centred card with the board, the layer's stars, the next star line and three icon buttons ----
@@ -1153,15 +1163,9 @@ function bankBoard(){
   clearBonus=150+100*zoneOfIdx(idx); const sb=starBonus(stars,dd.target), pts=score+clearBonus+sb, haul=bankHand();
   recordClear(stars,pts);
   A.track('board_complete',{stars,star_bonus:sb,haul:Object.values(haul).reduce((a,b)=>a+b,0),yield:yieldNow(),idx,label:boardLabel(idx),score,target:dd.target,moves,duration_ms:Math.round(performance.now()-boardT0),attempt:(dayState.attempts||{})[idx]||1});
-  showCombo(`${'★'.repeat(stars)} Board cleared!`);
-  [523,659,784,1047].forEach((f,j)=>blip(f,.18,'triangle',.07,.1+j*.1));
   saveDay(); saveProfile(); clearBoardSave();
-  setTimeout(()=>{
-    shownCol={...collected}; updateGoals();
-    for(let r=0;r<N;r++)for(let c=0;c<N;c++) if(grid[r][c]){ burst(r,c,grid[r][c],4); grid[r][c]=null; }
-    shake();
-    setTimeout(()=>{ busy=false; pieces=null; const camp=campReached; campReached=0; showMap({justDone:idx, camp}); },900);
-  },1100);
+  shownCol={...collected}; updateGoals();
+  setTimeout(()=>{ busy=false; pieces=null; const camp=campReached; campReached=0; showMap({justDone:idx, camp}); },REDUCE?100:300);
 }
 const completeBoard=bankBoard;
 // a cave-in without a Potion of Protection: whatever you hauled on this attempt spills back out of the stash
@@ -1343,8 +1347,12 @@ const wsNext=()=>Object.values(WORKSHOP).filter(w=>!wk()[w.id]&&(!w.needs||wk()[
 const canBuild=w=>w.stars?runStarGot()>=w.stars:canAfford(w);   // belt slots open with this run's stars (v2.5.0), the brewing table with ore
 const canMake=()=>RECIPES.some(r=>(r.kind==='equip'||wk().table)&&beltFree()>=0&&canAfford(r)) || wsNext().some(w=>canBuild(w)) || (tool()<TOOLS.length-1&&canAfford({cost:tcost(tool()+1)}));
 function updateAnvilGlow(){ const b=$('mapCraft'); if(b) b.classList.toggle('afford',canMake()); }
-// the strip has room for two digits: bigger counts read 99+ (Craft shows the real totals)
-const cap99=n=>n>99?'99+':String(n);
+// v2.6.1: counts show the real number (the old 99+ cap hid every change after an hour of play); four digits fit the strip at 375pt,
+// and a stash that big would be a balance problem anyway (the simulated typical player ends a run with at most ~220 of anything)
+const cap99=n=>String(n);
+// every list of resources uses the stash strip's order (STASH_KEYS): wood, bone, coal, copper, iron, gold, meteorite, prism ore, ruby, emerald, diamond
+const stashOrder=(a,b)=>STASH_KEYS.indexOf(a)-STASH_KEYS.indexOf(b);
+const sortedEntries=o=>Object.entries(o).sort((x,y)=>stashOrder(x[0],y[0]));
 function updateStash(bumped=[]){
   // only what matters right now: anything you hold, plus what this board can give you
   const dd=screen==='game'&&level?levelDef(level):null, here=new Set(dd?[...(dd.ores||[]),...Object.keys(dd.gems||{}),...(dd.base&&dd.base.log?['wood']:[])]:STASH_KEYS);
@@ -1384,8 +1392,8 @@ $('sheetScrim').addEventListener('pointerdown',e=>{ if(e.target.id==='sheetScrim
 // The belt stays at the top: tap an item to pick it up, then another slot to move it (or Drop it); tap the glowing locked slot to see
 // what it costs. Each row is one tap: it asks before spending anything, or says why it can't.
 let beltSel=-1;
-const costText=cost=>Object.entries(cost).map(([k,v])=>`${v} ${DROPS[k][0].toLowerCase()}`).join(', ');
-function costChips(cost){ const c=document.createElement('div'); c.className='cost'; Object.entries(cost).forEach(([k,v])=>{ const sp=document.createElement('span'), have=bank[k]||0; if(have<v) sp.className='short'; sp.append(iconOf(ITEM[k]),document.createTextNode(`${Math.min(have,v)}/${v}`)); sp.title=DROPS[k][0]; c.append(sp); }); return c; }
+const costText=cost=>sortedEntries(cost).map(([k,v])=>`${v} ${DROPS[k][0].toLowerCase()}`).join(', ');
+function costChips(cost){ const c=document.createElement('div'); c.className='cost'; sortedEntries(cost).forEach(([k,v])=>{ const sp=document.createElement('span'), have=bank[k]||0; if(have<v) sp.className='short'; sp.append(iconOf(ITEM[k]),document.createTextNode(String(v))); sp.title=`${DROPS[k][0]}: costs ${v}, you have ${(have).toLocaleString()}`; c.append(sp); }); return c; }   // v2.6.1: just the cost, red when you're short; your totals are in Craft's stash at the top (the old min(have, cost)/cost hid spending)
 function craftRow(icon,name,desc,cost,onTap,id){
   const row=document.createElement('button'); row.type='button'; row.className='ci'; if(id) row.dataset.id=id;
   const ic=document.createElement('canvas'); ic.width=ic.height=T; ic.getContext('2d').drawImage(icon,0,0);
@@ -1398,8 +1406,11 @@ async function tryMake(verb,name,cost,doIt,needsBelt){
   if(needsBelt&&beltFree()<0){ say('Belt is full!','You need an empty belt slot for that!'); return; }
   if(await ask(`${verb} ${name}?`,`Uses ${costText(cost)}.${needsBelt?' It goes on your belt.':''}`,'Yes','No')) doIt();
 }
+function renderCraftStash(){ const box=$('craftStash'); if(!box) return; box.innerHTML=''; const have=STASH_KEYS.filter(k=>(bank[k]||0)>0);
+  if(!have.length){ box.innerHTML='<span class="none">Your stash is empty: mine some ore first.</span>'; return; }
+  have.forEach(k=>{ const sp=document.createElement('span'); sp.title=`${DROPS[k][0]}: ${(bank[k]||0).toLocaleString()}`; sp.dataset.k=k; sp.append(iconOf(ITEM[k]),document.createTextNode(cap99(bank[k]))); box.append(sp); }); }
 function renderCraft(){
-  closeBeltPop(); beltSlots($('craftBeltSlots'),'craft');
+  closeBeltPop(); beltSlots($('craftBeltSlots'),'craft'); renderCraftStash();
   const body=$('craftBody'), top=body.scrollTop; body.innerHTML=''; const t=tool();
   const h3=x=>{ const e=document.createElement('h3'); e.textContent=x; body.append(e); };
   h3('TOOLS');
@@ -1455,12 +1466,15 @@ function buildWorkshop(id){
   const w=WORKSHOP[id]; if(!w||wk()[id]||(w.needs&&!wk()[w.needs])||!canBuild(w)) return;
   Object.entries(w.cost).forEach(([k,v])=>bank[k]-=v); wk()[id]=1; saveDay(); fitDock(); saveProfile();
   A.track('workshop_built',{id,day:dayState.days,idx:level-1}); life.seen['ws_'+id]=true;
-  updateStash(Object.keys(w.cost)); renderDock(); refreshCraft();
+  updateStash(Object.keys(w.cost)); renderDock(); refreshCraft(); if(Object.keys(w.cost).length) spent(`${w.name} built`,w.cost);
   [392,523,659,784,1047,1319].forEach((f,j)=>blip(f,.12,'triangle',.06,j*.07));
   if(id==='table') toast(`Brewing table built! Brew potions here, then tap one on your belt during a board to drink it: it lasts ${POTION_MOVES} placements.`,5200);
   else showCombo(w.name+' unlocked!');
 }
 function refreshCraft(){ if(!$('craftPanel').hidden) renderCraft(); }
+// after making something: what it cost, in words, and the spent counts pulse in Craft's stash (v2.6.1: spending used to be invisible)
+function spent(what,cost){ toast(`${what}: −${sortedEntries(cost).map(([k,v])=>`${v} ${DROPS[k][0].toLowerCase()}`).join(', −')}`,2600);
+  Object.keys(cost).forEach(k=>{ const e=document.querySelector(`#craftStash [data-k="${k}"]`); if(e){ e.classList.remove('bump'); void e.offsetWidth; e.classList.add('bump'); } }); }
 const tool=()=>dayState.tool||0;
 const toolBreakable=()=>TOOL_WEAR&&tool()>=TOOLS.length-1;   // wear is off until backlog F-9 (see TOOL_WEAR)
 const tcost=tier=>toolCost(tier,MOD());
@@ -1470,7 +1484,7 @@ function forgeTool(tier){
   life.seen['tool_'+TOOLS[tier].id]=true; saveDay(); saveProfile(); updateStash(Object.keys(cost));
   A.track('tool_forged',{tier,tool:TOOLS[tier].id,day:dayState.days});
   [392,523,659,784,1047].forEach((f,j)=>blip(f,.14,'triangle',.06,j*.08));
-  refreshCraft(); if(screen==='map') buildMap();
+  refreshCraft(); spent(`${TOOLS[tier].name} forged`,cost); if(screen==='map') buildMap();
 }
 function mendTools(){
   if(!toolBreakable()) return; let used=0; while(dayState.dur<DUR_MAX&&(bank.prismore||0)>0){ bank.prismore--; used++; dayState.dur=Math.min(DUR_MAX,dayState.dur+STASH_MEND); }
@@ -1488,7 +1502,7 @@ function smelt(rc){
   A.track('craft',{m:rc.m}); life.specialsCrafted++;
   Object.entries(rc.cost).forEach(([k,v])=>bank[k]-=v);
   specials[i]=rc.m;
-  updateStash(Object.keys(rc.cost)); renderDock(); refreshCraft(); saveProfile();
+  updateStash(Object.keys(rc.cost)); renderDock(); refreshCraft(); saveProfile(); spent(`${MATS[rc.m].name} made`,rc.cost);
   { const t=document.querySelector(`#craftBeltSlots [data-slot="${i}"]`); if(t) t.classList.add('land'); }
   [330,440,660,880,1320].forEach((f,j)=>blip(f,.1,j%2?'square':'triangle',.05,j*.06));
 }
@@ -1974,7 +1988,7 @@ function openCard(i){
       :`${ZONES[z].name} is too hard for your ${TOOLS[tool()].short.toLowerCase()} tools. Forge ${T0.name} in Craft. Short of something? Replay boards in ${ZONES[prevZ].name} (replays give ore).`;
   } else {
     const tgt=document.createElement('span'); tgt.className='tgt'; tgt.textContent=`★ ${def.starAt.map(v=>v.toLocaleString()).join(' / ')}`; g.append(tgt);
-    [...def.ores, ...Object.keys(def.gems||{})].forEach(res=>{ const s=document.createElement('span'); s.title=DROPS[res][0]; s.append(iconOf(ITEM[res])); g.append(s); });
+    [...def.ores, ...Object.keys(def.gems||{})].sort(stashOrder).forEach(res=>{ const s=document.createElement('span'); s.title=DROPS[res][0]; s.append(iconOf(ITEM[res])); g.append(s); });
     { const tw=document.createElement('span'); tw.className='tgt twist'; tw.textContent=`Today: ${MOD().name}`; tw.title=MOD().desc; g.append(tw); }
     if(!open){ go.disabled=true; go.textContent='Locked'; note.textContent=`Mine board ${boardLabel(i-1)} first.`; }
     else { go.disabled=false; go.textContent=(sb&&sb.idx===i)?'Continue':done?'Mine again':'Mine this board';

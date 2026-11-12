@@ -58,6 +58,11 @@ await T(() => window.__deepcore.test.tickPotions(13)); s = await st(); check(s.l
 check(await T(() => document.getElementById('luckTxt').textContent) === "Last lucky placement", "badge says it is the last lucky placement");
 await T(() => window.__deepcore.test.tickPotions(1)); s = await st(); check(!s.luckLive && await T(() => document.getElementById('luckBadge').hidden), 'luck expires with a clear indicator going away');
 
+// ---- real counts, one resource order everywhere (v2.6.1) ----
+await T(() => { const t = window.__deepcore.test; t.setBank({ coal: 1234, iron: 512, copper: 99 }); });
+check(await T(() => document.querySelector('.si[data-k="coal"] .n').textContent === '1234' && document.querySelector('.si[data-k="iron"] .n').textContent === '512'), 'the stash shows real counts, no 99+ or 999+ cap');
+await board(9); await T(() => { const t = window.__deepcore.test; t.giveHand({ iron: 2, coal: 3, copper: 1 }); t.setScore(t.def().starAt[0]); t.leave(); }); await page.waitForTimeout(1300);
+check(await T(() => [...document.querySelectorAll('.shHaul span')].map(e => e.title).join() === 'Coal,Copper,Iron'), 'the results card lists the haul in the stash strip\'s order');
 check(errors.length === 0, 'no page errors ' + errors.join(' | '));
 await close();
 console.log(fails.length ? `FLOW TESTS FAILED (${fails.length})` : 'FLOW TESTS PASSED'); if (fails.length) process.exitCode = 1;
