@@ -170,6 +170,12 @@ Why: since 2.2.0 you can craft mid-board whenever you like, so extra slots only 
 
 **F-19 Craft sections** (proposed 2026-11-10; with F-18): Craft is split into a Workbench section (tools and mining equipment) and a Brewing Table section (potions). The sections themselves are the unlockables: a locked section shows what building it costs, and opens once built, instead of the workbench and brewing table being rows in the list.
 
+**F-20 Reasons to come back** (proposed 2026-11-12; for discussion, nothing built). The daily twist was toned down in 2.7.0; options to replace or join it:
+- **Daily:** three small daily jobs ("clear 10 lines with combos", "mine 20 copper", "use a Star Drill") paying a chest of ore; a "lamp oil" first-board-of-the-day bonus (double ore on the first cave mined each day); the existing streak given a visible reward ladder (day 3, 7, 14).
+- **Weekly:** a weekly challenge cave (the same seeded board for everyone, best score kept, a badge for 1/2/3 stars); a rotating "rare vein" week where one resource is richer.
+- **Monthly:** a collection to complete (a fossil or gem set, a cosmetic for the map or belt), or a seasonal theme for the surface and music.
+- Recommended order: daily jobs and the weekly cave first (cheap, no backend), collections later.
+
 **I-30 Resource curve** (replaces I-4 Scarcity pass): each zone's main ore covers most of the next tools, so the main path never forces you back up; earlier ores still turn up as rarer veins deeper down, so going back is an option, never a chore; every resource keeps a late-game use (repairs, slot unlocks, brewing) so nothing piles up uselessly. Tuned on F-11's grids.
 
 ## Open items

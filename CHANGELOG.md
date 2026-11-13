@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.7.0 — know your rocks, bigger moments, Diamond tools
+- **What's that block?** Tap any block on the board to see its name and what it's for. The pause card has a legend of everything on the board, and the Guide's rock list uses the real names (Topsoil, Limestone, Slate, Granite, Basalt, Magmastone, Crust rock).
+- **Diamond tools** replace Galaxy Alloy as the last tools: diamond-tipped, icy and sparkling. They cost 22 meteorite, 15 iron and 2 diamonds, so diamonds have a use again.
+- **Board cards show how much of each resource a board gives** (Lots, Some, Few, Rare), most first, to help pick boards when farming.
+- **Crafting warns you** when a special would use resources your next tools need: those costs are underlined, and the confirm says how much you'd have left.
+- **Bigger moments.** Line combos get a big DOUBLE / TRIPLE / QUAD / MEGA banner, confetti from the cleared lines, a glowing board edge, a chord that grows with the combo, a shake and (on Android) a buzz. Streaks show as a flame chip by the score that heats up, with callouts at 3, 5, 8 and 12. Equipment, rare finds and All Clears got richer sounds: a whoosh, a coin shower.
+- **Crisp reward text**: the glow now sits behind the letters instead of blurring them, and rare-find rewards sit on a dark plate.
+- **Daily twists are about half as strong** (Gold Rush 1.5×, Treasure Day 2×, Forge Day 15% off, and so on).
+
 ## 2.6.1 — clearer resources, landscape and tablets, smoother endings
 - **The home-screen name** is now "Deepcore Blocks".
 - **Spending is visible.** Craft shows your whole stash at the top with real counts. Costs now show just the amount needed, in red when you're short (they used to read "9/9" whether you had 9 coal or 900, before and after crafting). Making something shows what it cost, and the spent counts pulse.

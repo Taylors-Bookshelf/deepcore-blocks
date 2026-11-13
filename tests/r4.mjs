@@ -32,10 +32,10 @@ check(new Set(mods).size === D.MODIFIERS.length, `every one of the ${D.MODIFIERS
 check(D.modifierFor(days[3]).id === D.modifierFor(days[3]).id, 'a day always has the same twist');
 const byId = Object.fromEntries(D.MODIFIERS.map(m => [m.id, m]));
 const base = D.boardParams(3, 1), gold = D.boardParams(3, 1, byId.gold_rush), gem = D.boardParams(4, 1, byId.gem_fever), tre = D.boardParams(3, 1, byId.treasure_day);
-check(gold.budget.gold === 3 * base.budget.gold, 'Gold Rush triples the gold budget');
+check(Math.abs(gold.budget.gold - 1.5 * base.budget.gold) < 1e-9, 'Gold Rush adds 50% gold (v2.7.0)');
 check(gem.budget.emerald > D.boardParams(4, 1).budget.emerald && gem.budget.diamond > D.boardParams(4, 1).budget.diamond, 'Gem Fever raises the board\'s gem budget');
-check(tre.specialMul === 3 && base.specialMul === 1, 'Treasure Day triples special blocks');
-check(D.ZONES.every((z, i) => i === 0 || i >= D.TOOLS.length || Object.entries(D.toolCost(i)).every(([k, v]) => D.toolCost(i, byId.forge_day)[k] === Math.ceil(v * .75))), 'Forge Day makes tools 25% cheaper (rounded up)');
+check(tre.specialMul === 2 && base.specialMul === 1, 'Treasure Day doubles special blocks (v2.7.0)');
+check(D.ZONES.every((z, i) => i === 0 || i >= D.TOOLS.length || Object.entries(D.toolCost(i)).every(([k, v]) => D.toolCost(i, byId.forge_day)[k] === Math.ceil(v * .85))), 'Forge Day makes tools 15% cheaper (rounded up)');
 // the hint engine returns legal, ranked moves
 { const S = C.SHAPES, lo = 0, hi = 0; const r = C.rankMoves(lo, hi, [S[3], S[4], null]); check(r.length > 0 && r[0].v >= r[r.length - 1].v, 'rankMoves lists legal moves best first'); }
 
@@ -138,7 +138,7 @@ const modName = await T(() => window.__deepcore.test.mod().name);
 await T(() => window.__deepcore.test.showHome()); await page.waitForTimeout(300);
 check(await T((n) => document.getElementById('homeTwist').textContent.includes(n), modName), `the home screen shows today's twist (${modName})`);
 const forgeDay = days.find(d => D.modifierFor(d).id === 'forge_day'); await tt('previewDay', forgeDay);
-const lc = await tt('tcost', 1); check(lc.bone === Math.ceil(D.TOOLS[1].cost.bone * .75) && lc.wood === Math.ceil(D.TOOLS[1].cost.wood * .75), `on a Forge Day bone tools cost a quarter less (${JSON.stringify(lc)})`);
+const lc = await tt('tcost', 1); check(lc.bone === Math.ceil(D.TOOLS[1].cost.bone * .85) && lc.wood === Math.ceil(D.TOOLS[1].cost.wood * .85), `on a Forge Day bone tools cost 15% less; was a quarter less (${JSON.stringify(lc)})`);
 check(errors.filter(e => !/404/.test(e)).length === 0, 'no page errors ' + errors.join(' | '));
 await close();
 console.log(fails.length ? `R4 TESTS FAILED (${fails.length})` : 'R4 TESTS PASSED'); if (fails.length) process.exitCode = 1;

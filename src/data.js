@@ -52,7 +52,8 @@ const TOOLS=[
   {id:'copper',  name:'Copper tools',       short:'Copper',       cost:{copper:50, wood:10}},
   {id:'iron',    name:'Iron tools',         short:'Iron',         cost:{iron:40, wood:10}},
   {id:'steel',   name:'Steel tools',        short:'Steel',        cost:{iron:45, coal:90}},
-  {id:'galaxy',  name:'Galaxy Alloy tools', short:'Galaxy Alloy', cost:{meteorite:26, iron:15}},
+  // v2.7.0: Diamond tools (were Galaxy Alloy): diamond-tipped, on meteorite steel. Diamonds had no use once belt slots moved to stars. Internal id kept for saves.
+  {id:'galaxy',  name:'Diamond tools',      short:'Diamond',      cost:{meteorite:22, iron:15, diamond:2}},
 ];
 const toolNeeded=z=>Math.min(z,TOOLS.length-1);
 // Galaxy Alloy wears down in the deepest rock. Prism ore mends it: in Magmastone one prism ore mends it completely,
@@ -98,13 +99,13 @@ const WORKSHOP={
 };
 
 // One twist per Pacific day, chosen from the date. They shift resources, never the rules of clearing a board.
-const MODIFIERS=[
-  {id:'gold_rush',    name:'Gold Rush',    desc:'Gold ore turns up 3 times as often today.',                                   ore:{gold:3}},
-  {id:'ruby_rain',    name:'Ruby Rain',    desc:'Rubies are twice as common today.',                                            ore:{ruby:2}},
-  {id:'gem_fever',    name:'Gem Fever',    desc:'Emeralds and diamonds are much more common today.',                            gemMul:1.8, gemCapAdd:1},
-  {id:'treasure_day', name:'Treasure Day', desc:'Fossils and Buried Treasure turn up 3 times as often today.',          specialMul:3},
-  {id:'coal_seams',   name:'Coal Seams',   desc:'Coal is 50% more common today.',                                               ore:{coal:1.5}},
-  {id:'forge_day',    name:'Forge Day',    desc:'Tools cost 25% less to forge today.',                                         toolMul:.75},
+const MODIFIERS=[   // v2.7.0: about half as strong as before (they were 1.5x to 3x), so a twist flavours a day without deciding it
+  {id:'gold_rush',    name:'Gold Rush',    desc:'Gold ore turns up 50% more often today.',                                      ore:{gold:1.5}},
+  {id:'ruby_rain',    name:'Ruby Rain',    desc:'Rubies are 50% more common today.',                                            ore:{ruby:1.5}},
+  {id:'gem_fever',    name:'Gem Fever',    desc:'Emeralds and diamonds are 50% more common today.',                             gemMul:1.5, gemCapAdd:0},
+  {id:'treasure_day', name:'Treasure Day', desc:'Fossils and Buried Treasure turn up twice as often today.',                   specialMul:2},
+  {id:'coal_seams',   name:'Coal Seams',   desc:'Coal is 30% more common today.',                                               ore:{coal:1.3}},
+  {id:'forge_day',    name:'Forge Day',    desc:'Tools cost 15% less to forge today.',                                         toolMul:.85},
 ];
 const modifierFor=day=>MODIFIERS[hashStr('mod:'+day)%MODIFIERS.length];
 // what forging a tool costs on a given day

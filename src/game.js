@@ -465,7 +465,7 @@ window.addEventListener('resize',layout);
 if(window.ResizeObserver) new ResizeObserver(()=>{ if(!$('app').clientHeight) return; layout(); }).observe($('app'));
 
 function buildGoals(){
-  $('goalsBar').innerHTML='<div id="scoreBox" aria-label="Board points"><b id="pscore">0</b><span id="pgoal"></span></div><div id="nextBox" aria-label="Next piece"><span>NEXT</span><div><canvas></canvas></div></div><div id="starChip" role="img" aria-label="Stars"><i>★</i><i>★</i><i>★</i></div>';
+  $('goalsBar').innerHTML='<div id="scoreBox" aria-label="Board points"><b id="pscore">0</b><span id="pgoal"></span><span id="streakChip" hidden></span></div><div id="nextBox" aria-label="Next piece"><span>NEXT</span><div><canvas></canvas></div></div><div id="starChip" role="img" aria-label="Stars"><i>★</i><i>★</i><i>★</i></div>';
   updateBar();
 }
 function updateGoals(){}
@@ -574,7 +574,7 @@ const ITEM={};
   WP(5,5,'#e8c892'); WP(6,5,'#e8c892'); WP(5,6,'#e8c892');
   ITEM.wood=w;
   // tools: an old miner's hammer crossed with a chisel. v2.6.0: each tier looks clearly better than the last: a twig mallet and a stick for
-  // branch, bone, copper with rivets, iron with wrapped handles, polished steel with a leather grip and a glint, and Galaxy Alloy glowing
+  // branch, bone, copper with rivets, iron with wrapped handles, polished steel with a leather grip and a glint, and diamond-tipped tools glowing
   // with a cyan outline and stars. Pixels are placed by their two diagonals (s=x+y, d=x-y).
   const TL={
     branch:{h:['#6b4a24','#8a6234','#4a3218'], c:['#7a5630','#9a7040','#4a3218'], wood:['#7a5630','#5a3d20'], head:4},
@@ -582,7 +582,7 @@ const ITEM={};
     copper:{h:['#e0803a','#ffc08a','#9a4a1a'], c:['#e0803a','#ffc08a','#9a4a1a'], wood:['#a87444','#6a4520'], head:5, rivets:'#5a2a0a'},
     iron:  {h:['#a8adb6','#e6e9ee','#5e636c'], c:['#b8bcc4','#eef0f4','#6e737c'], wood:['#a87444','#6a4520'], head:5, wraps:'#3a3a40', rivets:'#3a3f46'},
     steel: {h:['#7fa6cc','#f2f9ff','#3a5878'], c:['#9cc0e0','#ffffff','#4a6a8a'], wood:['#4a3020','#2e1d12'], head:5, wraps:'#1c1410', shine:true, glint:true},
-    galaxy:{h:['#8a5cff','#d8f4ff','#3a1a8a'], c:['#a07aff','#e8fbff','#4a2a9a'], wood:['#2a2440','#141024'], head:5, wraps:'#6ae3ff', shine:true, glow:'#6ae3ff', stars:true},
+    galaxy:{h:['#5fd8ff','#e8fbff','#1f7fb0'], c:['#7fe4ff','#ffffff','#2a8cc0'], wood:['#3a4250','#20262e'], head:5, wraps:'#7fe8ff', shine:true, glow:'#7fe8ff', stars:true},   // Diamond tools: icy, glowing, sparkling
   };
   TOOLS.forEach(t0=>{ const cc=document.createElement('canvas'); cc.width=cc.height=T; const cx=cc.getContext('2d'); const px=new Map(), L=TL[t0.id];
     const P=(i,j,col)=>{ if(i>=0&&j>=0&&i<T&&j<T) px.set(i+','+j,col); };
@@ -597,15 +597,16 @@ const ITEM={};
     // the head across its top: wider for the metal tools
     const hw=L.head; each((i,j,s,d)=>{ if(s>=6&&s<=9&&Math.abs(d)<=hw) P(i,j, Math.abs(d)===hw||s===9?hd : s===6?hl:hm); });
     if(L.shine) each((i,j,s,d)=>{ if(s===6&&Math.abs(d)<=hw-1) P(i,j,'#ffffff'); });
+    if(L.stars){ each((i,j,s,d)=>{ if(s>=7&&s<=8&&Math.abs(d)<=hw-1&&(d%3===0)) P(i,j,'#ffffff'); if(s===15&&d>=-6&&d<=8&&d%3===0) P(i,j,'#ffffff'); }); }   // Diamond: sparkling facets
     if(L.rivets){ P(3,4,L.rivets); P(6,1,L.rivets); }
     if(L.notch){ P(4,4,hd); }
-    // outline: dark, or a cyan glow for Galaxy Alloy
+    // outline: dark, or an icy glow for the Diamond tools
     const rim=[]; px.forEach((_,k)=>{ const [i,j]=k.split(',').map(Number); [[1,0],[-1,0],[0,1],[0,-1]].forEach(([a,b])=>{ const n=(i+a)+','+(j+b); if(!px.has(n)&&i+a>=0&&j+b>=0&&i+a<T&&j+b<T) rim.push(n); }); });
-    rim.forEach(n=>px.set(n,L.glow?'#2a6a8a':'#140e0a'));
+    rim.forEach(n=>px.set(n,L.glow?'#1f5f7a':'#140e0a'));
     if(L.glow){ const halo=[]; px.forEach((_,k)=>{ const [i,j]=k.split(',').map(Number); [[1,0],[-1,0],[0,1],[0,-1]].forEach(([a,b])=>{ const n=(i+a)+','+(j+b); if(!px.has(n)&&i+a>=0&&j+b>=0&&i+a<T&&j+b<T) halo.push(n); }); });
-      halo.forEach(n=>px.set(n,'rgba(106,227,255,.45)')); }
+      halo.forEach(n=>px.set(n,'rgba(127,232,255,.45)')); }
     if(L.glint){ P(14,1,'#ffffff'); P(13,1,'#cfe8ff'); P(14,2,'#cfe8ff'); }
-    if(L.stars){ [[1,1,'#ffffff'],[14,0,'#ffd6f5'],[15,4,'#6ae3ff'],[0,9,'#ffffff'],[11,14,'#ffd6f5'],[6,8,'#ffffff']].forEach(([i,j,c])=>px.set(i+','+j,c)); }
+    if(L.stars){ [[1,1,'#ffffff'],[14,0,'#ffffff'],[15,4,'#bff6ff'],[0,9,'#ffffff'],[11,14,'#bff6ff'],[6,8,'#ffffff']].forEach(([i,j,c])=>px.set(i+','+j,c)); }
     px.forEach((col,k)=>{ const [i,j]=k.split(',').map(Number); cx.fillStyle=col; cx.fillRect(i,j,1,1); });
     ITEM['tool_'+t0.id]=cc; });
   // the portal piece for the Core: a violet ring around a white-hot heart
@@ -709,12 +710,12 @@ function playSpecial(sp){
     ctx.translate(px,py); ctx.rotate(Math.sin(now/160)*.06*e); ctx.drawImage(TEX[sp.m],-sz/2,-sz/2,sz,sz); ctx.restore();
     // title card
     if(t>.2){ const a=Math.min(1,(t-.2)/.08)*dim, pop=1+.3*Math.max(0,1-(t-.2)/.1);
-      ctx.save(); ctx.globalAlpha=a; ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.font=`700 ${Math.round((B.width*.095*pop)*1.15)}px ${FONT_D}`;
-      ctx.shadowColor=look.rays[0]; ctx.shadowBlur=18; ctx.lineWidth=6; ctx.strokeStyle='#120a04';
-      ctx.strokeText(sp.title,cx,B.top+B.height*.17); ctx.fillStyle='#fff8e6'; ctx.fillText(sp.title,cx,B.top+B.height*.17);
-      ctx.font=`600 ${Math.round((B.width*.06)*1.15)}px ${FONT_D}`; ctx.shadowBlur=10;
-      ctx.strokeText(sp.sub,cx,B.top+B.height*.84); ctx.fillStyle=look.rays[0]; ctx.fillText(sp.sub,cx,B.top+B.height*.84);
+      ctx.save(); ctx.globalAlpha=a;
+      crispText(ctx,sp.title,cx,B.top+B.height*.17,Math.round(B.width*.095*pop*1.15),'#fff8e6',look.rays[0]);
+      // the reward line on a dark plate so it reads cleanly over the rays
+      { const fs=Math.round(B.width*.065*1.15); ctx.font=`700 ${fs}px ${FONT_D}`; const w=ctx.measureText(sp.sub).width+fs*.9, h=fs*1.25, y=B.top+B.height*.84;
+        ctx.fillStyle='rgba(14,10,6,.82)'; ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(cx-w/2,y-h/2,w,h,h*.3); else ctx.rect(cx-w/2,y-h/2,w,h); ctx.fill();
+        crispText(ctx,sp.sub,cx,y,fs,'#fff3c4',null); }
       ctx.restore(); }
     if(!burstDone && t>.2){ burstDone=true; spawnFxParts(look.parts,cx,cy,look.parts==='coin'?46:look.parts==='ember'?60:40,look.cols);
       if(sp.m==='blast'){ shake(true); spawnFxParts('ember',sx,sy,30,look.cols); } }
@@ -725,7 +726,8 @@ function playSpecial(sp){
     return true; }});
   // fanfare
   if(sp.m==='blast'){ blip(60,.7,'sawtooth',.1); blip(45,.8,'square',.07,.05); }
-  [523,659,784,1047,1319,1568].forEach((f,j)=>blip(f,.16,'triangle',.06,.25+j*.08));
+  [523,659,784,1047,1319,1568].forEach((f,j)=>tone(f,.22,'triangle',.06,.25+j*.08));
+  whoosh(.5,.07,.05); if(sp.m==='treasure'||sp.m==='fossil'){ coins(14,.6); tone(2093,.6,'sine',.05,.9); } buzz([30,40,60]);
   return D;
 }
 // brief title splash over the board
@@ -743,14 +745,36 @@ function playSplash(title,sub,key){
     ctx.restore();
     if(!sparked){ sparked=true; spawnFxParts('spark',cx,cy,24,look.cols); }
     const pop=1+.3*Math.max(0,1-t/.15);
-    ctx.save(); ctx.globalAlpha=a; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.font=`700 ${Math.round((B.width*.1*pop)*1.15)}px ${FONT_D}`; ctx.shadowColor=look.rays[0]; ctx.shadowBlur=18;
-    ctx.lineWidth=6; ctx.strokeStyle='#120a04'; ctx.strokeText(title,cx,cy-B.height*.05); ctx.fillStyle='#fff8e6'; ctx.fillText(title,cx,cy-B.height*.05);
-    ctx.font=`600 ${Math.round((B.width*.065)*1.15)}px ${FONT_D}`; ctx.strokeText(sub,cx,cy+B.height*.08); ctx.fillStyle=look.rays[0]; ctx.fillText(sub,cx,cy+B.height*.08);
+    ctx.save(); ctx.globalAlpha=a;
+    crispText(ctx,title,cx,cy-B.height*.05,Math.round(B.width*.1*pop*1.15),'#fff8e6',look.rays[0]);
+    crispText(ctx,sub,cx,cy+B.height*.08,Math.round(B.width*.065*1.15),look.rays[0],null,600);
     ctx.restore(); return true; }});
-  [784,988,1175,1568].forEach((f,j)=>blip(f,.12,'triangle',.05,j*.06));
+  [784,988,1175,1568].forEach((f,j)=>tone(f,.2,'triangle',.05,j*.06)); whoosh(.3,.06); blip(70,.35,'sine',.12); buzz(35);
   return D;
 }
+// v2.7.0: a line combo is a moment: a big DOUBLE / TRIPLE / QUAD banner sized to the combo, confetti bursting out of the cleared lines,
+// the board's edge glowing in the combo's colour, a chord that grows with it, a shake and a buzz. It doesn't hold up play.
+const COMBO_LOOK={2:['DOUBLE!','#7fe8ff'],3:['TRIPLE!','#ffd23f'],4:['QUAD!','#ff7ad9'],5:['MEGA!','#b8ff7a']};
+function playCombo(n,rows,cols,pts){
+  A.track('combo_shown',{lines:n});
+  const [word,col]=COMBO_LOOK[Math.min(5,n)], D=REDUCE?500:1100, t0=performance.now(), B0=boardC.getBoundingClientRect();
+  const lines=[...rows.map(r=>[B0.left+B0.width/2,B0.top+(r+.5)*cell,true]),...cols.map(c=>[B0.left+(c+.5)*cell,B0.top+B0.height/2,false])];
+  lines.forEach(([x,y,row])=>{ for(let k=0;k<N;k++){ const px=row?B0.left+(k+.5)*cell:x, py=row?y:B0.top+(k+.5)*cell; spawnFxParts('spark',px,py,REDUCE?1:(n>=3?4:3),[col,'#ffffff','#fff3c4']); } });
+  fxList.push({draw(ctx,now){ const t=(now-t0)/D; if(t>=1) return false; const B=boardC.getBoundingClientRect(), cx=B.left+B.width/2, cy=B.top+B.height*.42;
+    const a=t<.1?t/.1:t>.75?(1-t)/.25:1;
+    ctx.save(); ctx.strokeStyle=hexA(col,.85*a); ctx.lineWidth=4+n*1.5; ctx.shadowColor=col; ctx.shadowBlur=18+n*6; ctx.strokeRect(B.left-6,B.top-6,B.width+12,B.height+12); ctx.restore();
+    const pop=t<.18?.4+.9*easeOut(t/.18):1+.06*Math.sin((t-.18)*14)*(1-t); ctx.save(); ctx.globalAlpha=a; ctx.translate(cx,cy); ctx.rotate(-.06*(1-Math.min(1,t/.2)));
+    crispText(ctx,word,0,0,Math.round(B.width*(.13+.02*Math.min(3,n-2))*pop),'#ffffff',col); crispText(ctx,`+${pts}`,0,B.width*.13,Math.round(B.width*.065),col,null,600);
+    ctx.restore(); return true; }});
+  const base=[523,659,784,1047,1319,1568]; base.slice(0,Math.min(6,2+n)).forEach((f,j)=>tone(f,.35,'triangle',.05,j*.05)); whoosh(.4,.06+.015*n);
+  if(n>=3){ blip(80,.4,'sine',.12); coins(6+n*2,.2); } if(n>=4) tone(2093,.8,'sine',.05,.3);
+  shake(n>=3); buzz(n>=4?[40,30,40,30,90]:n>=3?[40,30,70]:50);
+}
+// v2.7.0: the streak shows as a flame chip by the score that heats up as it grows, with a callout at 3, 5, 8 and 12 clears in a row
+const STREAK_CALL={3:'On a roll!',5:'On fire!',8:'Unstoppable!',12:'Legendary!'};
+function updateStreak(st,grew){ const el=$('streakChip'); if(!el) return; if(st<2){ if(!el.hidden){ el.classList.add('out'); setTimeout(()=>{ el.hidden=true; el.classList.remove('out'); },300); } return; }
+  el.hidden=false; el.classList.remove('out'); el.textContent=`STREAK ×${st}`; el.dataset.heat=Math.min(4,Math.floor(st/2)); if(grew){ el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+  if(grew&&STREAK_CALL[st]){ showCombo(STREAK_CALL[st]); [659,880,1175,1568].forEach((f,j)=>tone(f*(1+st*.02),.18,'square',.035,.15+j*.07)); buzz(30); } }
 // golden wave across the empty board + title card
 function playAllClear(pts){
   const D=REDUCE?600:1300, t0=performance.now();
@@ -767,14 +791,11 @@ function playAllClear(pts){
     }
     if(!sparked && t>.25){ sparked=true; spawnFxParts('spark',cx,B.top+B.height/2,50,['#fff6c2','#ffd23f','#ffffff']); }
     const a=Math.min(1,t/.12)*(t>.82?(1-t)/.18:1), pop=1+.35*Math.max(0,1-t/.15);
-    ctx.save(); ctx.globalAlpha=a; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.font=`700 ${Math.round((B.width*.13*pop)*1.15)}px ${FONT_D}`;
-    ctx.shadowColor='#ffd23f'; ctx.shadowBlur=24; ctx.lineWidth=7; ctx.strokeStyle='#1a0f04';
-    ctx.strokeText('ALL CLEAR!',cx,B.top+B.height*.44); ctx.fillStyle='#fff3c4'; ctx.fillText('ALL CLEAR!',cx,B.top+B.height*.44);
-    ctx.font=`600 ${Math.round((B.width*.07)*1.15)}px ${FONT_D}`; ctx.shadowBlur=12;
-    ctx.strokeText(`+${pts}`,cx,B.top+B.height*.58); ctx.fillStyle='#ffd23f'; ctx.fillText(`+${pts}`,cx,B.top+B.height*.58);
+    ctx.save(); ctx.globalAlpha=a;
+    crispText(ctx,'ALL CLEAR!',cx,B.top+B.height*.44,Math.round(B.width*.13*pop*1.15),'#fff3c4','#ffd23f');
+    crispText(ctx,`+${pts}`,cx,B.top+B.height*.58,Math.round(B.width*.07*1.15),'#ffd23f',null,600);
     ctx.restore(); return true; }});
-  [659,784,988,1319,1568,1976].forEach((f,j)=>blip(f,.14,'square',.05,j*.06));
+  [659,784,988,1319,1568,1976].forEach((f,j)=>tone(f,.3,'square',.04,j*.06)); whoosh(.6,.08); coins(10,.35); buzz([40,30,80]);
 }
 function renderFx(now){
   const w=innerWidth, h=innerHeight;
@@ -838,6 +859,23 @@ function wakeAudio(){ if(!ac||document.visibilityState!=='visible') return; cons
 document.addEventListener('visibilitychange',()=>{ if(!ac) return; if(document.visibilityState==='visible') wakeAudio(); else if(settings.music) ac.suspend().catch(()=>{}); });
 window.addEventListener('pageshow',wakeAudio); window.addEventListener('focus',wakeAudio);
 setInterval(()=>{ if(ac&&settings.music&&document.visibilityState==='visible'&&(ac.state!=='running'||!music||!music.isOn())) wakeAudio(); },4000);
+// v2.7.0 celebration sounds: a held tone, a filtered-noise whoosh, a coin shower; and a buzz on phones that support it (Android)
+function tone(freq,dur=.25,type='triangle',vol=.05,when=0){ if(!soundOn) return;
+  try{ const c=audioCtx(); if(!c||c.state!=='running') return; const t=c.currentTime+when, o=c.createOscillator(), g=c.createGain();
+    o.type=type; o.frequency.setValueAtTime(freq,t); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+.015); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o.connect(g).connect(sfxBus); o.start(t); o.stop(t+dur+.02); }catch(e){} }
+function whoosh(dur=.35,vol=.08,when=0,up=true){ if(!soundOn) return;
+  try{ const c=audioCtx(); if(!c||c.state!=='running') return; const t=c.currentTime+when, n=Math.floor(c.sampleRate*dur), b=c.createBuffer(1,n,c.sampleRate), d=b.getChannelData(0);
+    for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
+    const src=c.createBufferSource(), f=c.createBiquadFilter(), g=c.createGain(); src.buffer=b; f.type='bandpass'; f.Q.value=1.2;
+    f.frequency.setValueAtTime(up?400:2400,t); f.frequency.exponentialRampToValueAtTime(up?3200:300,t+dur); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    src.connect(f).connect(g).connect(sfxBus); src.start(t); }catch(e){} }
+function coins(n=10,when=0){ for(let k=0;k<n;k++) tone(1800+Math.random()*1400,.09,'square',.025,when+k*.045+Math.random()*.02); }
+function buzz(p){ try{ if(soundOn&&navigator.vibrate) navigator.vibrate(p); }catch(e){} }
+// crisp title text: the glow is a soft halo behind the letters, never a blur on them (v2.7.0: treasure text looked fuzzy)
+function crispText(ctx,text,x,y,px,fill,glow,weight=700){ ctx.save(); ctx.font=`${weight} ${px}px ${FONT_D}`; ctx.textAlign='center'; ctx.textBaseline='middle';
+  if(glow){ ctx.shadowColor=glow; ctx.shadowBlur=px*.5; ctx.globalAlpha*=.55; ctx.fillStyle=glow; ctx.fillText(text,x,y); ctx.globalAlpha/=.55; }
+  ctx.shadowBlur=0; ctx.lineJoin='round'; ctx.lineWidth=Math.max(4,px*.16); ctx.strokeStyle='#120a04'; ctx.strokeText(text,x,y); ctx.fillStyle=fill; ctx.fillText(text,x,y); ctx.restore(); }
 function blip(freq,dur=.08,type='square',vol=.05,when=0){
   if(!soundOn) return;
   try{ const c=audioCtx(); if(!c) return; if(c.state!=='running'){ c.resume().catch(()=>{}); return; }
@@ -1032,12 +1070,14 @@ async function place(i,r0,c0){
     // combo = clearing placements in a row, this one included (the streak); placePoints adds lines, the multi-line combo and the streak
     const pp=placePoints(0,n,combo,false); score+=pp.total;
     flushCtx(ctx);
-    { const B=boardC.getBoundingClientRect(); const cr=rows.length?rows.reduce((a,b)=>a+b,0)/rows.length:3.5, cc=cols.length?cols.reduce((a,b)=>a+b,0)/cols.length:3.5;
+    if(n<2){ const B=boardC.getBoundingClientRect(); const cr=rows.length?rows.reduce((a,b)=>a+b,0)/rows.length:3.5, cc=cols.length?cols.reduce((a,b)=>a+b,0)/cols.length:3.5;   // combos show their points on the banner
       floatText(B.left+(cc+.5)*cell,B.top+(cr+.5)*cell,`+${score-clearStart}${combo>1?'  streak '+combo:''}`,'#fff3c4'); }
-    const msgs=ctx.msgs.slice(); if(n>1) msgs.push(lineName(n));   // the combo multiplier rides with the points, see floatText above
+    const msgs=ctx.msgs.slice();
     if(!hit.length && !blasts.length) msgs.slice(0,3).forEach(showCombo);
-    [392,494,587,784].slice(0,Math.min(4,1+n)).forEach((f,j)=>blip(f*(1+Math.min(combo,6)*.06),.12,'triangle',.06,j*.06));
-    shake(false);
+    [392,494,587,784].slice(0,Math.min(4,1+n)).forEach((f,j)=>blip(f*(1+Math.min(combo,8)*.06),.12,'triangle',.06,j*.06));   // the pitch climbs with the streak
+    const emptied=grid.every(row=>row.every(v=>!v));   // an All Clear has its own, bigger moment
+    if(n>1&&!emptied) playCombo(n,rows,cols,score-clearStart); else shake(n>1);
+    updateStreak(combo,true);
     if(blasts.length){
       life.seen.blast=true; let count=0; for(const [r,c] of blasts) if(grid[r][c]==='blast') count+=await detonate(r,c,hit);
       const pts=SCORE.special.blast*count; score+=pts; A.track('special_triggered',{m:'blast',count});
@@ -1053,7 +1093,7 @@ async function place(i,r0,c0){
       const ac=allClearBonus(); score+=ac; bigNext=3; A.track('all_clear',{bonus:ac,score_after:score,target:levelDef(level).target});
       showSkip(); playAllClear(ac); await skippable(REDUCE?600:1300);
     }
-  } else { sinceClear++; combo=0; }   // the streak breaks on any placement that clears nothing
+  } else { sinceClear++; combo=0; updateStreak(0); }   // the streak breaks on any placement that clears nothing
   busy=false; $('skipHint').hidden=true; skipFlag=false; updateDur();
   if(toolBreakable()&&dayState.dur<=0&&zoneOfIdx(level-1)===CRUST_Z){ toolBreak(); return; }
   // the rolling tray: the emptied slot takes the next piece and a new next piece is dealt; the third star ends the board (F-14)
@@ -1115,6 +1155,12 @@ function openPause(){
   if(at.length&&k<3) line('Next star at:',at[k].toLocaleString()+' points');
   if(zs.max) line(`Stars in ${dd.zoneName.replace(/^The /,'')}:`,`${zs.got} of ${zs.max}`);
   sh.append(info);
+  // v2.7.0: a legend of what this board is made of (rock, ore, gems), with names
+  { const seen=new Set(); Object.keys(dd.base||{}).forEach(k=>seen.add(k)); grid.forEach(row=>row.forEach(m=>{ if(m&&MATS[m]&&MATS[m].kind!=='special'&&MATS[m].kind!=='potion') seen.add(m); }));
+    [...(dd.ores||[]),...Object.keys(dd.gems||{})].forEach(k=>seen.add(k));
+    const leg=el('div','legend'); leg.append(el('div','legLabel','ON THIS BOARD'));
+    const box=el('div','legItems'); [...seen].sort((a,b)=>(MATS[a].kind==='base'?0:1)-(MATS[b].kind==='base'?0:1)||stashOrder(MATS[a].drop||a,MATS[b].drop||b)).forEach(m=>{ const it=el('span','legIt'); it.title=blockWhat(m); it.append(iconOf(texOf(m)||TEX[m]),document.createTextNode(blockName(m))); box.append(it); });
+    leg.append(box,el('div','legHint','Tap any block on the board to see what it is.')); sh.append(leg); }
   const btns=el('div','pauseBtns');
   const mk=(id,icon,label,cls)=>{ const w=el('div','pbWrap'), b=el('button','pbtn '+cls); b.id=id; b.type='button'; b.innerHTML=ICON[icon]; b.setAttribute('aria-label',label); w.append(b,el('span',undefined,label)); btns.append(w); return b; };
   const quit=mk('pauseQuit','exit','Map','alt'), rst=mk('pauseRestart','restart','Restart','alt'), res=mk('pauseResume','play','Resume','go');   // v2.4.0: Map, Restart, Resume from left to right
@@ -1394,16 +1440,25 @@ $('sheetScrim').addEventListener('pointerdown',e=>{ if(e.target.id==='sheetScrim
 let beltSel=-1;
 const costText=cost=>sortedEntries(cost).map(([k,v])=>`${v} ${DROPS[k][0].toLowerCase()}`).join(', ');
 function costChips(cost){ const c=document.createElement('div'); c.className='cost'; sortedEntries(cost).forEach(([k,v])=>{ const sp=document.createElement('span'), have=bank[k]||0; if(have<v) sp.className='short'; sp.append(iconOf(ITEM[k]),document.createTextNode(String(v))); sp.title=`${DROPS[k][0]}: costs ${v}, you have ${(have).toLocaleString()}`; c.append(sp); }); return c; }   // v2.6.1: just the cost, red when you're short; your totals are in Craft's stash at the top (the old min(have, cost)/cost hid spending)
-function craftRow(icon,name,desc,cost,onTap,id){
+function craftRow(icon,name,desc,cost,onTap,id,warnTool){
   const row=document.createElement('button'); row.type='button'; row.className='ci'; if(id) row.dataset.id=id;
   const ic=document.createElement('canvas'); ic.width=ic.height=T; ic.getContext('2d').drawImage(icon,0,0);
   const mid=document.createElement('div'); mid.innerHTML=`<div class="nm"></div><div class="ds"></div>`; mid.querySelector('.nm').textContent=name; mid.querySelector('.ds').textContent=desc;
-  if(cost) mid.append(costChips(cost)); row.append(ic,mid); if(onTap) row.onclick=onTap; else row.disabled=true; return row;
+  if(cost){ const cc=costChips(cost); mid.append(cc);
+    if(warnTool){ const nx=tool()+1; if(nx<TOOLS.length){ const tc=tcost(nx); sortedEntries(cost).forEach(([k],n)=>{ if(tc[k]){ const sp=cc.children[n]; sp.classList.add('tooluse'); sp.title+=` · also needed for ${TOOLS[nx].name}`; } }); } } }
+  row.append(ic,mid); if(onTap) row.onclick=onTap; else row.disabled=true; return row;
 }
 const say=(title,text)=>ask(title,text,'OK',null);
+// v2.7.0: would this item eat into what the next tools need? (crafting specials can stall the descent)
+function toolSqueeze(cost){ const nx=tool()+1; if(nx>=TOOLS.length) return null; const tc=tcost(nx);
+  const hit=sortedEntries(cost).filter(([k,v])=>tc[k]&&(bank[k]||0)-v<tc[k]).map(([k,v])=>[k,Math.max(0,(bank[k]||0)-v),tc[k]]);
+  return hit.length?{tool:TOOLS[nx],hit}:null; }
 async function tryMake(verb,name,cost,doIt,needsBelt){
   if(!canAfford({cost})){ say('Not enough resources!',`${name} needs ${costText(cost)}. Replaying boards you have cleared gives ore too.`); return; }   // v2.5.0: before "belt full"
   if(needsBelt&&beltFree()<0){ say('Belt is full!','You need an empty belt slot for that!'); return; }
+  const sq=needsBelt&&toolSqueeze(cost);
+  if(sq){ const left=sq.hit.map(([k,have,need])=>`${have} of the ${need} ${DROPS[k][0].toLowerCase()}`).join(' and ');
+    if(await ask(`${verb} ${name}?`,`Heads up: ${sq.tool.name} need ${costText(tcost(tool()+1))}. After this you'd have ${left}, so you'd need more mining before you can forge them.`,`${verb} anyway`,'Cancel')) doIt(); return; }
   if(await ask(`${verb} ${name}?`,`Uses ${costText(cost)}.${needsBelt?' It goes on your belt.':''}`,'Yes','No')) doIt();
 }
 function renderCraftStash(){ const box=$('craftStash'); if(!box) return; box.innerHTML=''; const have=STASH_KEYS.filter(k=>(bank[k]||0)>0);
@@ -1432,10 +1487,11 @@ function renderCraft(){
     else info.textContent='Your tools are strong enough for every layer.';
     body.append(info); }
   h3('MINING EQUIPMENT');
-  RECIPES.filter(r=>r.kind==='equip').forEach(rc=>body.append(craftRow(SPR[rc.m]||TEX[rc.m],MATS[rc.m].name,rc.desc,rc.cost,()=>tryMake('Craft',MATS[rc.m].name,rc.cost,()=>smelt(rc),true),rc.m)));
+  { const nx=tool()+1; if(nx<TOOLS.length){ const tc=tcost(nx); if(RECIPES.some(r=>Object.keys(r.cost).some(k=>tc[k]))){ const n=document.createElement('p'); n.className='cnote'; n.innerHTML='<i></i>'; n.append(`Underlined costs are also needed for ${TOOLS[nx].name}: spending them now can slow your way down.`); body.append(n); } } }
+  RECIPES.filter(r=>r.kind==='equip').forEach(rc=>body.append(craftRow(SPR[rc.m]||TEX[rc.m],MATS[rc.m].name,rc.desc,rc.cost,()=>tryMake('Craft',MATS[rc.m].name,rc.cost,()=>smelt(rc),true),rc.m,true)));
   h3('POTIONS');
   if(!wk().table){ const w=WORKSHOP.table; body.append(craftRow(brewIcon,w.name,w.desc,w.cost,()=>tryMake('Build',w.name,w.cost,()=>buildWorkshop('table')),'table')); }
-  RECIPES.filter(r=>r.kind==='potion').forEach(rc=>{ const row=craftRow(SPR[rc.m]||TEX[rc.m],MATS[rc.m].name,rc.desc,rc.cost,()=>{ if(!wk().table){ say('Build the brewing table first','Potions are brewed at the brewing table, just above.'); return; } tryMake('Brew',MATS[rc.m].name,rc.cost,()=>smelt(rc),true); },rc.m); if(!wk().table) row.classList.add('off'); body.append(row); });
+  RECIPES.filter(r=>r.kind==='potion').forEach(rc=>{ const row=craftRow(SPR[rc.m]||TEX[rc.m],MATS[rc.m].name,rc.desc,rc.cost,()=>{ if(!wk().table){ say('Build the brewing table first','Potions are brewed at the brewing table, just above.'); return; } tryMake('Brew',MATS[rc.m].name,rc.cost,()=>smelt(rc),true); },rc.m,true); if(!wk().table) row.classList.add('off'); body.append(row); });
   body.scrollTop=top;
 }
 function closeBeltPop(){ const p=$('beltPop'); if(p) p.remove(); }
@@ -1509,19 +1565,25 @@ function smelt(rc){
 
 // ---------- field guide (the info panel): content is generated from the game's own tables so the numbers never go stale ----------
 const RARITY={ coal:'Common', copper:'Common', ruby:'Unusual', iron:'Unusual', gold:'Rare', emerald:'Rare', diamond:'Rare' };
-const BASE_INFO=[['dirt','Dirt','dirt'],['wood','Wood','log'],['stone','Stone','stone'],['deep','Deep stone','deep'],['obsidian','Obsidian','obsidian'],['ember','Ember rock','ember']];
+const BASE_INFO=[['dirt','Topsoil','dirt'],['wood','Wood','log'],['stone','Limestone','stone'],['deep','Slate','deep'],['granite','Granite','granite'],['obsidian','Basalt','obsidian'],['ember','Magmastone','ember'],['crust','Crust rock','crust']];   // v2.7.0: the names the game uses (were old placeholder names)
 function craftList(){ return [...RECIPES.map(r=>({name:MATS[r.m].name,cost:r.cost,mat:r.m,desc:r.desc})), ...Object.values(WORKSHOP).map(w=>({name:w.name,cost:w.cost,icon:w.id==='table'?brewIcon:anvilIcon,desc:w.desc})), ...TOOLS.slice(1).map((t,i)=>({name:t.name,cost:t.cost,item:'tool_'+t.id,desc:`Opens ${ZONES[i+1].name}.`}))]; }
 function zonesFor(k){
   const names=ZONES.filter(z=>{ const mixes=z.mixes.some(m=>Object.keys(m).includes(k==='wood'?'log':k)); return mixes||z.ores.includes(k)||(z.gems&&z.gems[k]); }).map(z=>z.name);
   return names.length>3 ? names[0]+' to '+names[names.length-1] : names.join(', ');
 }
-function usesOf(k){ const u=craftList().filter(c=>c.cost[k]).map(c=>c.name); return u.length?'Used for: '+u.join(', '):'Points only'; }
+function usesOf(k){ const u=craftList().filter(c=>c.cost[k]).map(c=>c.name); return u.length?'Used for: '+u.join(', '):'Not used for crafting yet'; }
 function infoEl(tag,text,cls){ const e=document.createElement(tag); if(cls) e.className=cls; if(text!==undefined) e.textContent=text; return e; }
 function infoList(items){ const u=infoEl('ul'); items.forEach(t=>u.append(infoEl('li',t))); return u; }
 function resRow(cv,name,rarity,pts,line1,line2){
   const row=infoEl('div',undefined,'irow'); row.append(cv); const d=infoEl('div');
-  const nm=infoEl('div',name,'nm'); if(rarity){ nm.append(infoEl('span',rarity,'rar '+rarity)); } d.append(nm,infoEl('div',`${pts} points each`,'meta'),infoEl('div',line1,'meta')); if(line2) d.append(infoEl('div',line2,'meta')); row.append(d); return row;
+  const nm=infoEl('div',name,'nm'); if(rarity){ nm.append(infoEl('span',rarity,'rar '+rarity)); } d.append(nm,infoEl('div',line1,'meta')); if(line2) d.append(infoEl('div',line2,'meta')); row.append(d); return row;
 }
+// v2.7.0: what each block is, in words (tap a block on the board; the pause card's legend)
+function blockName(m){ if(!m) return ''; if(m==='grass') return 'Topsoil'; if(m==='log') return 'Wood'; return (MATS[m]&&MATS[m].name)||(DROPS[m]&&DROPS[m][0])||m; }
+function blockWhat(m){ const M=MATS[m]; if(!M) return ''; if(m==='log') return 'Wood: kept in your haul. '+usesOf('wood')+'.';
+  if(M.kind==='ore'||M.kind==='gem') return `${M.kind==='gem'?'A gem':'Ore'}: clear its line to mine it into your haul. ${usesOf(M.drop)}.`;
+  if(m==='fossil') return 'A rare find: clear its line for a pile of bones.'; if(m==='treasure') return 'A rare find: clear its line for a haul of ore or gems.';
+  if(M.kind==='special') return 'A special.'; return 'Plain rock: clear its line to make room. It is not kept.'; }
 function iconOf(src){ const cv=document.createElement('canvas'); cv.width=cv.height=T; cv.getContext('2d').drawImage(src,0,0); return cv; }
 const INFO_TABS={
   Play(b){
@@ -1541,7 +1603,7 @@ const INFO_TABS={
     b.append(infoEl('h3','ORE AND GEMS'));
     [...Object.keys(ORES),'emerald','diamond'].sort((a,c)=>VAL[a]-VAL[c]).forEach(k=>b.append(resRow(iconOf(ITEM[k]),DROPS[k][0],RARITY[k],VAL[k],usesOf(k),'Found in: '+zonesFor(k))));
     b.append(infoEl('h3','ROCK AND EARTH'));
-    BASE_INFO.forEach(([d,name,m])=>b.append(resRow(iconOf(TEX[m]),name,'Common',VAL[m],d==='wood'?usesOf('wood'):'Points only','Found in: '+zonesFor(d==='wood'?'wood':d))));
+    BASE_INFO.forEach(([d,name,m])=>b.append(resRow(iconOf(TEX[m]),name,'Common',VAL[m],d==='wood'?usesOf('wood'):'Plain rock: clear it to make room. It is not kept.','Found in: '+zonesFor(d==='wood'?'wood':d))));
   },
   Crafting(b){
     b.append(infoEl('h3','CRAFT'),infoEl('p',`Everything is made in Craft, on the map (the Craft button at the end of your belt): tools, mining equipment and potions. Tap a row to make it; it asks first.`));
@@ -1549,7 +1611,7 @@ const INFO_TABS={
     b.append(infoEl('h3','WHAT YOU CAN CRAFT'));
     craftList().forEach(c=>{ const row=infoEl('div',undefined,'irow'); row.append(iconOf(c.icon||(c.item?ITEM[c.item]:(SPR[c.mat]||TEX[c.mat])))); const d=infoEl('div'); d.append(infoEl('div',c.name,'nm'),infoEl('div',c.desc,'meta'),
       infoEl('div','Costs: '+Object.entries(c.cost).map(([k,v])=>`${v} ${DROPS[k][0]}`).join(', '),'meta')); row.append(d); b.append(row); });
-    b.append(infoEl('h3','TOOLS'),infoList([`Each layer is harder rock and needs better tools: branch tools for the Forest, then bone (from bones in the dirt), copper (Limestone), iron (Slate), steel (iron and coal from Granite) and Galaxy Alloy (meteorite from Basalt).`,`Short of something? Replay boards you have already cleared: replays give ore too.`,`Each layer's 8 boards rarely give quite enough for the next tools on their own: replay a few cleared boards to make up the rest.`]));
+    b.append(infoEl('h3','TOOLS'),infoList([`Each layer is harder rock and needs better tools: branch tools for the Forest, then bone (from bones in the dirt), copper (Limestone), iron (Slate), steel (iron and coal from Granite) and diamond-tipped (meteorite and diamonds from Basalt).`,`Short of something? Replay boards you have already cleared: replays give ore too.`,`Each layer's 8 boards rarely give quite enough for the next tools on their own: replay a few cleared boards to make up the rest.`]));
     b.append(infoEl('h3','THE ANCIENT CORE'),infoList([`Below the Crust lies the Core: one piece, one spot. What happens next is for you to find out.`]));
     b.append(infoEl('h3','WHY IT HELPS'),infoList([`Star Drill (+${SCORE.special.drill}), Blast Charge (+${SCORE.special.blast}) and Sledgehammer (+${SCORE.special.sledgehammer}) rescue a crowded board and score points. What the drill and the blast break is mined into your haul.`,`Potion of Protection (${SCORE.special.rescue} points): for ${POTION_MOVES} placements, a cave-in undoes your last move and deals fresh pieces, and you keep your haul. Drink it before you get stuck.`,`Potion of Luck (${SCORE.special.luck} points): for ${POTION_MOVES} placements the dealer favours pieces that fill gaps and clear lines, and random specials turn up twice as often.`]));
   },
@@ -1581,6 +1643,16 @@ function startSpecialDrag(e,m,idx){
   ghost.hidden=false; moveSpecialDrag(e);
 }
 const boardCellAt=(x,y)=>{ const B=boardC.getBoundingClientRect(); const c=Math.floor((x-B.left)/cell), r=Math.floor((y-B.top)/cell); return (r>=0&&c>=0&&r<N&&c<N)?{r,c}:null; };
+// v2.7.0: tap a block on the board to see what it is ("Is this slate or granite?")
+let blockTipT=0;
+function showBlockTip(r,c){ const m=grid&&grid[r]&&grid[r][c]; let tip=$('blockTip'); if(!tip){ tip=document.createElement('div'); tip.id='blockTip'; tip.setAttribute('role','status'); document.body.append(tip); }
+  if(!m){ tip.hidden=true; return; } const B=boardC.getBoundingClientRect(), x=B.left+(c+.5)*cell, y=B.top+r*cell;
+  tip.innerHTML='<b></b><span></span>'; tip.querySelector('b').textContent=blockName(m); tip.querySelector('span').textContent=blockWhat(m); tip.hidden=false;
+  const w=Math.min(240,innerWidth-24); tip.style.width=w+'px'; tip.style.left=Math.max(12,Math.min(innerWidth-w-12,x-w/2))+'px';
+  const h=tip.offsetHeight; tip.style.top=(y-h-8>8?y-h-8:y+cell+8)+'px'; clearTimeout(blockTipT); blockTipT=setTimeout(()=>{ tip.hidden=true; },2600);
+  A.track('block_tip',{m}); }
+boardC.addEventListener('click',e=>{ if(drag||spDrag||busy&&!over||screen!=='game') return; const at=boardCellAt(e.clientX,e.clientY); if(at) showBlockTip(at.r,at.c); });
+document.addEventListener('pointerdown',e=>{ const t=$('blockTip'); if(t&&!t.hidden&&e.target!==boardC) t.hidden=true; },true);
 function moveSpecialDrag(e){
   if(!spDrag) return;
   const s=Math.round(cell*.9), lift=spDrag.touch?cell*1.2:0;
@@ -1965,7 +2037,7 @@ function mapNotice(kind,n){
   if(kind==='missed') set('The cave settled',`You missed a day, so ${n.lost} board${n.lost===1?'':'s'} in ${ZONES[n.zone].name} caved back in${n.camp?' (back to your camp)':''}. Your tools and stash are safe. Clear a board every day to keep your depth.`,ITEM.wood);
   if(kind==='tip') set(n.title,n.text,n.icon);
   if(kind==='camp') set('Camp made',`You made camp at the top of ${ZONES[n.camp].name}. If you miss a day, you'll only drop back to here.`,ITEM.wood);
-  if(kind==='broke') set('Your tools shattered',`The Crust wore your Galaxy Alloy tools down to nothing. You're back at the start of Magmastone with your tools patched to ${DUR_AFTER_BREAK}%. Mine prism ore to mend them, then try the Crust again.`,ITEM.tool_galaxy);
+  if(kind==='broke') set('Your tools shattered',`The Crust wore your Diamond tools down to nothing. You're back at the start of Magmastone with your tools patched to ${DUR_AFTER_BREAK}%. Mine prism ore to mend them, then try the Crust again.`,ITEM.tool_galaxy);
   [392,494,587].forEach((f,j)=>blip(f,.14,'triangle',.05,j*.1));
 }
 $('pOk').onclick=()=>{ $('prospector').hidden=true; };
@@ -1988,7 +2060,13 @@ function openCard(i){
       :`${ZONES[z].name} is too hard for your ${TOOLS[tool()].short.toLowerCase()} tools. Forge ${T0.name} in Craft. Short of something? Replay boards in ${ZONES[prevZ].name} (replays give ore).`;
   } else {
     const tgt=document.createElement('span'); tgt.className='tgt'; tgt.textContent=`★ ${def.starAt.map(v=>v.toLocaleString()).join(' / ')}`; g.append(tgt);
-    [...def.ores, ...Object.keys(def.gems||{})].sort(stashOrder).forEach(res=>{ const s=document.createElement('span'); s.title=DROPS[res][0]; s.append(iconOf(ITEM[res])); g.append(s); });
+    // v2.7.0: how much of each this board gives (from its rate per piece, today's twist included), most first, to help pick boards to farm
+    { const rates={...def.orePer}; if(def.base&&def.base.log) rates.wood=1; const tier=v=>v>=.2?['Lots',3]:v>=.08?['Some',2]:v>=.025?['Few',1]:['Rare',0];
+      const ab=document.createElement('div'); ab.className='abund'; ab.setAttribute('aria-label','What this board gives');
+      Object.entries(rates).sort((a,b)=>b[1]-a[1]||stashOrder(a[0],b[0])).forEach(([res,v])=>{ const [word,n]=tier(v), it=document.createElement('span'); it.className='ab t'+n; it.title=`${DROPS[res][0]}: ${word.toLowerCase()}`;
+        const pips=document.createElement('i'); pips.innerHTML='<b></b><b></b><b></b>'; [...pips.children].forEach((p,k)=>p.classList.toggle('on',k<n||(n===0&&k===0)));
+        const nm=document.createElement('em'); nm.textContent=word; it.append(iconOf(ITEM[res]),pips,nm); ab.append(it); });
+      g.append(ab); }
     { const tw=document.createElement('span'); tw.className='tgt twist'; tw.textContent=`Today: ${MOD().name}`; tw.title=MOD().desc; g.append(tw); }
     if(!open){ go.disabled=true; go.textContent='Locked'; note.textContent=`Mine board ${boardLabel(i-1)} first.`; }
     else { go.disabled=false; go.textContent=(sb&&sb.idx===i)?'Continue':done?'Mine again':'Mine this board';

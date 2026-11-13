@@ -688,3 +688,33 @@ label.tog input:checked::after{transform:translateX(18px);background:#fff}
 }
 /* tablets held upright: a little wider column, a bigger board */
 @media (orientation:portrait) and (min-width:700px) and (min-height:900px){ #app{max-width:640px} }
+/* v2.7.0: block names: a tip when you tap a block, and a legend on the pause card */
+#blockTip{position:fixed;z-index:30;padding:8px 12px;border-radius:10px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--lamp),0 6px 18px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:2px;pointer-events:none}
+#blockTip b{font-size:15px}#blockTip span{font-size:12px;color:var(--muted);line-height:1.35}
+.legend{display:flex;flex-direction:column;gap:6px;text-align:left}
+.legLabel{font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-align:center}
+.legItems{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 12px}
+.legIt{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600}
+.legIt canvas{width:22px;height:22px;image-rendering:pixelated;border-radius:3px}
+.legHint{font-size:12px;color:var(--muted);text-align:center}
+/* v2.7.0: the board card says how much of each resource the board gives */
+.abund{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.abund .ab{display:inline-flex;flex-direction:column;align-items:center;gap:2px;min-width:46px;padding:5px 6px 4px;border-radius:8px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--panel-line)}
+.abund .ab canvas{width:24px;height:24px;image-rendering:pixelated}
+.abund .ab i{display:flex;gap:2px}.abund .ab i b{width:8px;height:4px;border-radius:2px;background:var(--star-empty)}.abund .ab i b.on{background:var(--lamp)}
+.abund .ab.t0 i b.on{background:#9fe8ff}
+.abund .ab em{font-style:normal;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
+/* v2.7.0: costs the next tools also need are underlined in amber, with a note */
+.ci .cost .tooluse{text-decoration:underline;text-decoration-color:var(--lamp);text-decoration-thickness:2px;text-underline-offset:3px}
+.cnote{margin:0;font-size:12px;color:var(--muted);line-height:1.35;display:flex;gap:6px;align-items:flex-start}
+.cnote i{flex:none;width:14px;height:2px;margin-top:8px;background:var(--lamp);border-radius:1px}
+/* v2.7.0: the streak chip: a little flame that heats up */
+#scoreBox{position:relative}
+#streakChip{position:absolute;left:0;top:-22px;padding:2px 7px;border-radius:7px;font-size:10px;font-weight:700;letter-spacing:1px;color:#2b1505;background:linear-gradient(90deg,#ffd23f,#ff9a1f);box-shadow:0 0 10px rgba(255,154,31,.5);white-space:nowrap;transition:opacity .3s}
+#streakChip[data-heat="2"]{background:linear-gradient(90deg,#ffb03a,#ff6a1f);box-shadow:0 0 14px rgba(255,106,31,.65)}
+#streakChip[data-heat="3"]{background:linear-gradient(90deg,#ff8a3a,#e2481a);color:#fff;box-shadow:0 0 18px rgba(226,72,26,.75)}
+#streakChip[data-heat="4"]{background:linear-gradient(90deg,#ff6ad5,#ff3b55,#ffb03a);color:#fff;box-shadow:0 0 22px rgba(255,59,85,.85);animation:heat 1s ease-in-out infinite}
+#streakChip.bump{animation:bump .35s ease-out}
+#streakChip.out{opacity:0}
+@keyframes heat{50%{filter:brightness(1.25)}}
+@media (prefers-reduced-motion: reduce){#streakChip,#streakChip.bump{animation:none}}

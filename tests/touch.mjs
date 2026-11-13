@@ -60,10 +60,10 @@ check(await page.evaluate(() => document.querySelectorAll('#infoTabs button').le
 for (let i = 1; i <= 4; i++) { await page.tap(`#infoTabs button:nth-child(${i})`); await page.waitForTimeout(80); }
 await page.tap('#infoTabs button:nth-child(2)');
 const txt = await page.evaluate(() => document.getElementById('infoBody').textContent);
-check(/Coal/.test(txt) && /Common/.test(txt) && /Unusual/.test(txt) && /Rare/.test(txt) && /points each/.test(txt), 'resources section lists names, rarity and points');
+check(/Coal/.test(txt) && /Common/.test(txt) && /Unusual/.test(txt) && /Rare/.test(txt) && !/points each/.test(txt) && /Slate/.test(txt) && /Granite/.test(txt) && !/Deep stone/.test(txt), 'resources section lists real names and rarity, no stale points (v2.7.0)');
 await page.tap('#infoTabs button:nth-child(3)');
 const crafting = await page.evaluate(() => document.getElementById('infoBody').textContent);
-check(/Bone tools/.test(crafting) && /Galaxy Alloy/.test(crafting) && /[Rr]eplay/.test(crafting) && !/side tunnel/i.test(crafting) && /Potion of Luck/.test(crafting), 'crafting guide covers the tools, replaying for ore (no side tunnels) and the Potion of Luck');
+check(/Bone tools/.test(crafting) && /diamond-tipped|Diamond tools/.test(crafting) && /[Rr]eplay/.test(crafting) && !/side tunnel/i.test(crafting) && /Potion of Luck/.test(crafting), 'crafting guide covers the tools, replaying for ore (no side tunnels) and the Potion of Luck');
 await page.tap('#infoClose');
 
 // no difficulty label anywhere (there is no difficulty setting)

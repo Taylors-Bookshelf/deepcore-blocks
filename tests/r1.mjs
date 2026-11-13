@@ -65,9 +65,9 @@ s = await st(); check(s.day.fails[2] === 3 && (await tt('tilt')) > .6, `three ca
 // multi-line bonus shows its name
 await tt('start', 4); await page.waitForTimeout(2200);
 await T(() => { const t = window.__deepcore.test; for (let r = 6; r < 8; r++) for (let c = 0; c < 8; c++) t.setCell(r, c, c < 2 && r === 7 ? null : (c === 0 && r === 6 ? null : 'stone')); t.setCell(6, 0, null); t.setCell(6, 1, null); t.setCell(7, 0, null); t.setCell(7, 1, null);
-  t.setPieces([{ cells: [[0, 0], [0, 1], [1, 0], [1, 1]], h: 2, w: 2, mats: ['stone', 'stone', 'stone', 'stone'], sid: 9 }, null, null]); t.place(0, 6, 0); });
+  t.setCell(2, 4, 'stone'); t.setPieces([{ cells: [[0, 0], [0, 1], [1, 0], [1, 1]], h: 2, w: 2, mats: ['stone', 'stone', 'stone', 'stone'], sid: 9 }, null, null]); t.place(0, 6, 0); });
 await page.waitForTimeout(600);
-check(/Double/.test(await T(() => document.getElementById('combo').textContent)), 'a two-line clear announces "Double!"');
+check(await T(() => window.DCA.buffer.some(e => e.event === 'combo_shown' && e.properties.lines === 2)), 'a two-line clear gets the DOUBLE! celebration (v2.7.0: a banner on the board)');
 await page.waitForTimeout(2500);
 
 // ruby: the new gem exists on every rock and in the stash
