@@ -66,4 +66,4 @@ TestFlight needs an Apple Developer Program membership, and Play internal testin
 - Days follow Pacific time: clear a board each day to keep your depth; the daily twist changes at midnight Pacific.
 - Analytics are off until you paste a PostHog project key into `src/config.js`.
 - Art is original pixel art (16×16 PNG sprites in `assets/`, from the design package in `design/`); a few items are still drawn in code. Keep the name, art and any store listing original too.
-- `DECISIONS.md` lists every call made without asking; `CHANGELOG.md` lists each release.
+- The changelog and the decisions log live in the online doc "Deepcore Blocks — Release Tracker & Backlog" (Changelog and Decisions tabs, https://claude.ai/artifact/3q8AVQNjuVmpii19DuSMt7); `CHANGELOG.md` and `DECISIONS.md` point there.

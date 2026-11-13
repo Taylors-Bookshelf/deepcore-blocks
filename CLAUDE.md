@@ -7,9 +7,9 @@ A mining-themed 8×8 block puzzle: drag 3-piece sets onto the board, clear rows 
 - `npm start` serves the folder at http://localhost:8080 (any static server works).
 - `npm install && npx playwright install chromium && npm test` runs every suite (rules, release tests r1/r3/r4/r5/r6/r7, maps, smoke, spec, touch, flow, dock, gates, soak). `npm run test:balance` runs the slow bot-based balance test.
 - Add `?debug` to the URL on **localhost only** to get `window.__deepcore.test` (hooks used by the tests; never rely on them in game code). Tests block analytics so test runs never reach PostHog.
-- Release routine: bump `APP_VERSION` in `src/version.js` (the service worker cache name derives from it), update `CHANGELOG.md`, run `npm test`, commit, tag `vX.Y.Z`, `git push --tags origin main`, then confirm the live site serves the new version, then update the online backlog doc. Pushing to `main` republishes in about 30 seconds.
+- Release routine: bump `APP_VERSION` in `src/version.js` (the service worker cache name derives from it), run `npm test`, commit, tag `vX.Y.Z`, `git push --tags origin main`, then confirm the live site serves the new version, then update the online doc (main tab, Changelog tab, Decisions tab). Pushing to `main` republishes in about 30 seconds.
 - **The backlog lives online only**: the doc "Deepcore Blocks — Release Tracker & Backlog" (https://claude.ai/artifact/3q8AVQNjuVmpii19DuSMt7, doc id `16ea649c-a0fb-4741-98ec-e7907057ec0c`) tracks bugs, features, the roadmap toward v1, version history and design notes. **Read it before starting any change, and update it in the same turn after any change** (current build, version history, item status, roadmap, new ideas). There is no local backlog file (`BACKLOG.md` is only a pointer since 2026-11-13).
-- Decisions made without asking are logged in `DECISIONS.md`; player-facing release notes are in `CHANGELOG.md`.
+- The same doc has a **Changelog** tab (player-facing release notes, newest first, file `e825c1b8-7c8d`) and a **Decisions** tab (decisions made without asking, by version, newest at the bottom, file `b01fcf7a-068d`). Add to both with each release. `CHANGELOG.md` and `DECISIONS.md` are only pointers since 2026-11-13.
 
 ## Files
 
