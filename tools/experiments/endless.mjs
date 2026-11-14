@@ -6,6 +6,7 @@
 import { D, C, args, prefill, bitsOf } from '../simlib.mjs';
 const RUNS = +(args.runs || 30), ZS = String(args.zones || '0,1,2,3,4,5,6').split(',').map(Number), CAP = +(args.cap || 250);
 const BOTS = String(args.bots || 'mid,skilled').split(',');
+if (args.grace0) D.SCORE.streakGrace = 0; if (args.sstep !== undefined) D.SCORE.streakStep = +args.sstep; if (args.smax !== undefined) D.SCORE.streakMax = +args.smax;
 if (args.step !== undefined) C.RAMP.step = +args.step; if (args.grace !== undefined) C.RAMP.grace = +args.grace; if (args.max !== undefined) C.RAMP.max = +args.max; if (args.wild !== undefined) C.RAMP.wild = +args.wild; if (args.wildmax !== undefined) C.RAMP.wildMax = +args.wildmax; if (args.awk !== undefined) C.RAMP.awk = +args.awk; for (const k of ['wild0', 'graceMul', 'mercy']) if (args[k] !== undefined) C.RAMP[k] = +args[k];
 const q = (a, p) => { const b = [...a].sort((x, y) => x - y); return b.length ? b[Math.min(b.length - 1, Math.floor(p * b.length))] : 0; };
 const pct = x => Math.round(100 * x) + '%';
@@ -49,13 +50,13 @@ function skilledPlan(lo, hi, pcs, streak, next) {   // plans the tray and the ne
 // one endless board: returns the score after every placement (trace) and whether it caved in
 export function runEndless(zi, j, seed, bot) {
   const def = D.boardParams(zi, j, null, args.diff || 'casual'), rnd = D.rng(seed * 7919 + 13); let [lo, hi] = bitsOf(prefill(def, rnd));
-  let score = 0, streak = 0, n = 0, big = 0; const trace = [];
+  let score = 0, streak = 0, dim = false, n = 0, big = 0; const trace = [];
   const opt = () => ({ rnd, big: big > 0, wild: C.wildOf(n, def.grace, def.ramp), mercy: def.ramp.mercy }), dd = () => C.rampD(def.d, n, def.grace, def.ramp);
   let pcs = C.chooseTray(lo, hi, 3, dd(), opt()), next = C.chooseNext(lo, hi, pcs, dd(), opt());
   while (n < CAP) {
     const mv = bot === 'skilled' ? skilledPlan(lo, hi, pcs, streak, next) : bot === 'good' ? goodMove(lo, hi, pcs, streak, rnd) : bot === 'bad' ? badMove(lo, hi, pcs, streak, rnd) : bot === 'random' ? randomMove(lo, hi, pcs, streak, rnd) : midMove(lo, hi, pcs, streak, rnd);
     if (!mv || !mv.pl || mv.i >= 3 || (lo & mv.pl.lo) || (hi & mv.pl.hi)) return { trace, caved: true };
-    const r = play(lo, hi, mv.sh, mv.pl, streak); lo = r.lo; hi = r.hi; streak = r.streak; score += r.pts; n++; trace.push(score); if (r.ac) big = 3;
+    const r = play(lo, hi, mv.sh, mv.pl, streak); lo = r.lo; hi = r.hi; ({ st: streak, dim } = D.stepStreak(streak, dim, r.n)); score += D.SCORE.block * mv.sh.n + D.placePoints(0, r.n, streak, r.ac).total; n++; trace.push(score); if (r.ac) big = 3;
     pcs = pcs.map((p, k) => k === mv.i ? next : p); next = C.chooseNext(lo, hi, pcs.filter(Boolean), dd(), opt()); if (big > 0) big--;
     if (pcs.every(p => !p || !p.pl.some(pl => !(lo & pl.lo) && !(hi & pl.hi)))) return { trace, caved: true };
   }

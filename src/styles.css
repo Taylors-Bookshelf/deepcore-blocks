@@ -531,6 +531,9 @@ label.tog input:checked::after{transform:translateX(18px);background:#fff}
 #cartBar canvas{position:absolute;image-rendering:pixelated}
 #cartBar .cart{bottom:8px;left:12px;width:32px;height:22px;transition:left .5s ease-out}
 #cartBar .door{right:8px;bottom:2px;width:32px;height:28px}
+#cartBar .mk{position:absolute;bottom:9px;transform:translateX(-50%);font-size:10px;line-height:1;color:#6a6d74;transition:color .3s,text-shadow .3s;pointer-events:none}
+#cartBar .mk.lit{color:var(--lamp,#ffcf5c);text-shadow:0 0 6px rgba(255,207,92,.7)}
+#cartBar .load{position:absolute;bottom:23px;width:32px;text-align:center;font-size:11px;line-height:1;letter-spacing:-1px;color:#ffcf5c;text-shadow:0 1px 0 #140e0a,0 0 5px rgba(255,207,92,.6);transition:left .5s ease-out;pointer-events:none}
 #cartBar .glowd{position:absolute;right:2px;bottom:0;width:44px;height:36px;background:radial-gradient(circle at 50% 70%,rgba(255,207,92,.55),transparent 65%);opacity:0;transition:opacity .4s}
 #cartBar.off{filter:grayscale(1);opacity:.5}
 #cartBar.on{cursor:pointer;box-shadow:inset 0 0 0 2px rgba(255,207,92,.75),0 0 16px rgba(255,207,92,.4);animation:cartGlow 1.8s ease-in-out infinite}
@@ -590,7 +593,7 @@ label.tog input:checked::after{transform:translateX(18px);background:#fff}
 .spop::before{content:'';position:absolute;top:-8px;left:var(--ax,110px);width:14px;height:14px;background:var(--panel);transform:rotate(45deg);box-shadow:-1px -1px 0 rgba(255,207,92,.5)}
 .spop .nm{font-weight:700;font-size:16px}.spop .ds{font-size:13px;color:var(--muted)}
 .spop button{margin-top:4px}
-@media (prefers-reduced-motion: reduce){.belt .tool.locked.glow,#cartBar.on,#mapCraft.afford,.ci.flash{animation:none}#cartBar .cart{transition:none}}
+@media (prefers-reduced-motion: reduce){.belt .tool.locked.glow,#cartBar.on,#mapCraft.afford,.ci.flash{animation:none}#cartBar .cart,#cartBar .load{transition:none}}
 #over #dodge{flex:none}
 #over.dodging{gap:8px}
 #over.dodging #overTip{display:none}
@@ -683,7 +686,7 @@ label.tog input:checked::after{transform:translateX(18px);background:#fff}
   #pscore{font-size:24px;line-height:20px}
   #stash{height:44px}
   #beltBar{height:56px}.belt .tool{width:46px;height:46px}.belt .tool canvas.px{width:34px;height:34px}
-  #cartBar{height:28px}#cartBar .cart{width:26px;height:18px;bottom:6px}#cartBar .door{width:26px;height:22px}
+  #cartBar{height:28px}#cartBar .cart{width:26px;height:18px;bottom:6px}#cartBar .door{width:26px;height:22px}#cartBar .load{width:26px;bottom:18px;font-size:9px}#cartBar .mk{bottom:7px;font-size:8px}
   #hdr{height:40px}
 }
 /* tablets held upright: a little wider column, a bigger board */
@@ -716,5 +719,6 @@ label.tog input:checked::after{transform:translateX(18px);background:#fff}
 #streakChip[data-heat="4"]{background:linear-gradient(90deg,#ff6ad5,#ff3b55,#ffb03a);color:#fff;box-shadow:0 0 22px rgba(255,59,85,.85);animation:heat 1s ease-in-out infinite}
 #streakChip.bump{animation:bump .35s ease-out}
 #streakChip.out{opacity:0}
+#streakChip.dim{filter:grayscale(.75) brightness(.8);opacity:.6;box-shadow:none;animation:none}   /* v2.8.0: one placement without a clear; the next clear relights it */
 @keyframes heat{50%{filter:brightness(1.25)}}
 @media (prefers-reduced-motion: reduce){#streakChip,#streakChip.bump{animation:none}}

@@ -76,7 +76,7 @@ function botMove(lo, hi, pcs, rnd) {
 export function runBoard(zi, bj, seed, fails = 0, _unused = null, onMine = null) {
   const def = { ...D.boardParams(zi, bj, null, cfg.diff) }, rnd = makeRun(seed);
   const mats = prefill(def, rnd); let [lo, hi] = bitsOf(mats);
-  let score = 0, streak = 0, moves = 0, bigNext = false, deals = 0, allClears = 0, multi = 0, clearMoves = 0; const dealt = {}, got = {}, left = C.rollBudget(def.budget, rnd);
+  let score = 0, streak = 0, dim = false, moves = 0, bigNext = false, deals = 0, allClears = 0, multi = 0, clearMoves = 0; const dealt = {}, got = {}, left = C.rollBudget(def.budget, rnd);
   const tilt = Math.min(.75, Math.max(0, fails - 1) * .35);
   // v2.5.0: a cave-in is a failure (no stars, no haul): only leaving with a star, or the third star, clears a board
   const end = died => { const stars = died ? 0 : D.starsFromScore(score, def.starAt); return { win: stars > 0, completed: !died, stars, score, moves, deals, got: died && ROLLING ? {} : got, target: def.target, allClears, multi, clearMoves, died }; };
@@ -107,10 +107,10 @@ export function runBoard(zi, bj, seed, fails = 0, _unused = null, onMine = null)
     for (let r = 0; r < 8; r++) { let f = true; for (let c = 0; c < 8; c++) if (!mats[r * 8 + c]) f = false; if (f) { n++; for (let c = 0; c < 8; c++) kill.add(r * 8 + c); } }
     for (let c = 0; c < 8; c++) { let f = true; for (let r = 0; r < 8; r++) if (!mats[r * 8 + c]) f = false; if (f) { n++; for (let r = 0; r < 8; r++) kill.add(r * 8 + c); } }
     if (n && onMine && onMine([...kill].map(k => mats[k]).filter(Boolean)) === 'break') return 'break';
-    if (n) { streak++; clearMoves++; if (n > 1) multi++;
+    ({ st: streak, dim } = D.stepStreak(streak, dim, n));
+    if (n) { clearMoves++; if (n > 1) multi++;
       kill.forEach(k => { const m = mats[k]; if (!m) return; if (D.SPECIAL_MIX[m]) { const sp = D.specialHaul(m, zi, rnd); got[sp.k] = (got[sp.k] || 0) + sp.n; }
         else { const res = m === 'log' ? 'wood' : (m === 'grass' ? 'dirt' : m); got[res] = (got[res] || 0) + 1; } mats[k] = null; }); }
-    else streak = 0;
     return n;
   }
   while (deals < def.deals) {
@@ -129,11 +129,11 @@ export function runBoard(zi, bj, seed, fails = 0, _unused = null, onMine = null)
       for (let r = 0; r < 8; r++) { let f = true; for (let c = 0; c < 8; c++) if (!mats[r * 8 + c]) f = false; if (f) { n++; for (let c = 0; c < 8; c++) kill.add(r * 8 + c); } }
       for (let c = 0; c < 8; c++) { let f = true; for (let r = 0; r < 8; r++) if (!mats[r * 8 + c]) f = false; if (f) { n++; for (let r = 0; r < 8; r++) kill.add(r * 8 + c); } }
       if (n && onMine && onMine([...kill].map(k => mats[k]).filter(Boolean)) === 'break') return { ...end(true), broke: true };
-      if (n) { streak++; clearMoves++; if (n > 1) multi++;
+      ({ st: streak, dim } = D.stepStreak(streak, dim, n));
+    if (n) { clearMoves++; if (n > 1) multi++;
         kill.forEach(k => { const m = mats[k]; if (!m) return; if (D.SPECIAL_MIX[m]) { const sp = D.specialHaul(m, zi, rnd); got[sp.k] = (got[sp.k] || 0) + sp.n; }
           else { const res = m === 'log' ? 'wood' : (m === 'grass' ? 'dirt' : m); got[res] = (got[res] || 0) + 1; } mats[k] = null; }); }
-      else streak = 0;
-      [lo, hi] = bitsOf(mats);
+        [lo, hi] = bitsOf(mats);
       const ac = n > 0 && lo === 0 && hi === 0; score += D.placePoints(0, n, streak, ac).total; if (ac) { allClears++; bigNext = true; }
       if (pcs.every(q => !q)) break;
       if (pcs.every(q => !q || !C.SHAPES[q.sid].pl.some(pl => !(lo & pl.lo) && !(hi & pl.hi)))) return end(true);

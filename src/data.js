@@ -117,12 +117,16 @@ const SCORE={
   block:10,                       // every block placed
   line:100,                       // every line cleared
   combo:[0,0,250,600,1200],       // extra for clearing 2 / 3 / 4+ lines with one placement (Double, Triple, Quad)
-  streakStep:50, streakMax:500,   // a clearing placement right after another: +50 for each clear in the run after the first, up to +500
+  streakStep:30, streakMax:300,   // a clearing placement right after another: +30 for each clear in the run after the first, up to +300 (v2.8.0: was 50/500; lowered with the grace so scores stay level)
+  streakGrace:1,                  // v2.8.0: a streak of 2+ survives one placement that clears nothing (it dims); a second one in a row ends it
   allClear:250,                   // the board emptied, on top of the clear's own points
   special:{drill:150, blast:200, sledgehammer:350, luck:-150, rescue:-250},   // crafted specials; random specials pay resources only
 };
 const comboBonus=n=>n<2?0:SCORE.combo[Math.min(n,SCORE.combo.length-1)];
 const streakBonus=st=>st<2?0:Math.min(SCORE.streakMax,SCORE.streakStep*(st-1));
+// the streak after a placement: a clear adds one and relights it; a placement that clears nothing dims a streak of 2+ once (the grace),
+// and a second one in a row ends it. Shared by the game and the simulators.
+function stepStreak(st,dim,lines){ if(lines) return {st:st+1,dim:false}; if(SCORE.streakGrace&&st>=2&&!dim) return {st,dim:true}; return {st:0,dim:false}; }
 // points for one placement: cells placed, lines it cleared, streak = clearing placements in a row including this one
 function placePoints(cells,lines,streak,allClear){
   const p={block:SCORE.block*cells, line:SCORE.line*lines, combo:comboBonus(lines), streak:lines?streakBonus(streak):0, allClear:lines&&allClear?SCORE.allClear:0};
@@ -187,6 +191,6 @@ function boardParams(zi,j,mod,diff){
     target:starAt[0]||0, grace:DEALS[zi]*3, ramp:df.ramp, diff:df.id, core:!!z.core, d:Math.min(.97,z.d[0]+(z.d[1]-z.d[0])*f), pre:Math.round(z.pre[0]+(z.pre[1]-z.pre[0])*f) };
 }
 const lineName=n=> n>=5?'Mega!' : n===4?'Quad!' : n===3?'Triple!' : n===2?'Double!' : '';
-const api={DIFFS,diffOf,TOOL_WEAR,POTION_MOVES,WORKSHOP,BELT_MAX,SCORE,comboBonus,streakBonus,placePoints,DEALS,STAR_LINES,FIRST_BOARD_STARS,starsFromScore,ORE_BUDGET,FOSSIL_BONE,TREASURE,specialHaul,MODIFIERS,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf,STAR_ORES,starBonus,lineName,GEM_KEYS,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS};
+const api={DIFFS,diffOf,TOOL_WEAR,POTION_MOVES,WORKSHOP,BELT_MAX,SCORE,comboBonus,streakBonus,stepStreak,placePoints,DEALS,STAR_LINES,FIRST_BOARD_STARS,starsFromScore,ORE_BUDGET,FOSSIL_BONE,TREASURE,specialHaul,MODIFIERS,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf,STAR_ORES,starBonus,lineName,GEM_KEYS,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.DeepcoreData=api;
 })(typeof self!=='undefined'?self:globalThis);

@@ -11,7 +11,7 @@ const { check, fails } = makeChecker();
 { const P = (c, n, st, ac) => D.placePoints(c, n, st, ac);
   check(P(4, 0, 0, false).total === 40 && P(5, 1, 1, false).total === 150, 'a placement scores 10 a block, a line 100');
   check(P(0, 2, 1, false).combo === 250 && P(0, 3, 1, false).combo === 600 && P(0, 4, 1, false).combo === 1200 && P(0, 5, 1, false).combo === 1200, 'Double +250, Triple +600, Quad (and more) +1200');
-  check(P(0, 1, 2, false).streak === 50 && P(0, 1, 5, false).streak === 200 && P(0, 1, 20, false).streak === 500 && P(0, 0, 3, false).streak === 0, 'a streak adds +50 per clear in a row after the first, up to +500, and only on a clear');
+  check(P(0, 1, 2, false).streak === 30 && P(0, 1, 5, false).streak === 120 && P(0, 1, 20, false).streak === 300 && P(0, 0, 3, false).streak === 0, 'a streak adds +30 per clear in a row after the first, up to +300, and only on a clear');
   check(P(0, 1, 1, true).allClear === 250 && P(0, 0, 0, true).allClear === 0, 'an All Clear adds +250 on top of its clear');
   check(D.SCORE.special.blast === 200 && D.SCORE.special.sledgehammer === 350 && D.SCORE.special.luck === -150 && D.SCORE.special.rescue === -250, 'crafted specials: Blast +200, Sledgehammer +350, Luck Potion -150, Rescue Potion -250'); }
 check(D.ZONES.every((z, zi) => z.core || Array.from({ length: z.boards }, (_, j) => D.boardParams(zi, j)).every(p => p.starAt.length === 3 && p.starAt[0] < p.starAt[1] && p.starAt[1] < p.starAt[2] && p.target === p.starAt[0] && p.deals >= 4)), 'every board has three rising star lines, a 1-star pass mark and at least 4 deals');
