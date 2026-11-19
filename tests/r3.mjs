@@ -1,7 +1,7 @@
 // Release 3: pick-up and return animations, tap to skip.
 import { phone, touchDrag, makeChecker } from './helpers.mjs';
 const { check, fails } = makeChecker();
-const { page, cdp, base, errors, close } = await phone();
+const { page, cdp, base, errors, close } = await phone({ realtime: true });   // real clock: it times a celebration and the tap-to-skip
 await page.goto(base + '?debug'); await page.waitForTimeout(500);
 const T = (fn, arg) => page.evaluate(fn, arg);
 const tt = (f, ...a) => page.evaluate(([f, a]) => window.__deepcore.test[f](...a), [f, a]);

@@ -16,8 +16,9 @@ export function serve() {
       catch { rs.writeHead(404); rs.end(); } }).listen(0, () => res({ server, base: `http://localhost:${server.address().port}/` }));
   });
 }
+export const SPEED = 4;
 export async function phone(opts = {}) {
-  const { tips, ...ctxOpts } = opts;
+  const { tips, realtime, ...ctxOpts } = opts;
   const { server, base } = await serve();
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, ...ctxOpts });
@@ -25,7 +26,21 @@ export async function phone(opts = {}) {
   await ctx.route(/posthog/, r => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
   // first-time tips (v2.1.0) would cover the screen in every test; they are marked as seen unless a test asks for them ({ tips: true })
   if (!tips) await ctx.addInitScript(() => { try { if (!localStorage.getItem('deepcore-life')) localStorage.setItem('deepcore-life', JSON.stringify({ v: 1, tips: { map: 1, gate: 1, haul: 1, anvil: 1, tour: 1, cart: 1, craft: 1, drillEdge: 1 } })); } catch (e) {} });
+  // Fast clock (I-38): the page's timers, animation frames, performance.now and CSS animations run SPEED times faster, and so do the
+  // tests' page.waitForTimeout pauses, so every animation the tests wait out takes a quarter of the time. REALTIME=1 turns it off.
+  const speed = opts.realtime || process.env.REALTIME ? 1 : SPEED;
+  if (speed !== 1) await ctx.addInitScript(k => {
+    const pn = performance.now.bind(performance), t0 = pn(), warp = t => t0 + (t - t0) * k;
+    performance.now = () => warp(pn());
+    const st = window.setTimeout, si = window.setInterval, raf = window.requestAnimationFrame;
+    window.setTimeout = (f, d, ...a) => st(f, (d || 0) / k, ...a);
+    window.setInterval = (f, d, ...a) => si(f, (d || 0) / k, ...a);
+    window.requestAnimationFrame = f => raf(t => f(warp(t)));
+    const fast = () => { try { for (const an of document.getAnimations()) if (an.playbackRate !== k) an.playbackRate = k; } catch (e) {} raf(fast); };
+    raf(fast);
+  }, speed);
   const page = await ctx.newPage(); const errors = [];
+  if (speed !== 1) { const wait = page.waitForTimeout.bind(page); page.waitForTimeout = ms => wait(ms / speed); }
   page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   const cdp = await ctx.newCDPSession(page);
   const close = async () => { await browser.close(); server.close(); };
@@ -38,4 +53,7 @@ export async function touchDrag(page, cdp, from, to, steps = 12) {
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from[0] + (to[0] - from[0]) * t, y: from[1] + (to[1] - from[1]) * t, id: 1 }] }); await page.waitForTimeout(16); }
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 }
+// A fresh save gets the guided tour on its first map visit; tests that only need a board skip it (as a player would: Skip, then yes).
+export async function skipTour(page) { await page.waitForTimeout(300);
+  if (await page.evaluate(() => !document.getElementById('coach').hidden)) { await page.tap('#coachSkip'); await page.waitForTimeout(150); await page.tap('#askYes'); await page.waitForTimeout(250); } }
 export const makeChecker = () => { const fails = []; const check = (cond, msg) => { if (!cond) { fails.push(msg); console.error('FAIL:', msg); } else console.log('ok  :', msg); }; return { check, fails }; };

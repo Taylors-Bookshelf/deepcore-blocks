@@ -30,7 +30,7 @@ check(hunt > none, `a nearly empty board is dealt a set that can wipe it more of
   check(tilted > plain, `after repeated cave-ins the dealt sets have more ways to be placed (${(tilted / 60).toFixed(0)} vs ${(plain / 60).toFixed(0)})`); }
 
 // ---- the game in a phone browser ----
-const { page, base: url, errors, close, ctx } = await phone();
+const { page, base: url, errors, close, ctx } = await phone({ realtime: true });   // real clock: it measures how fast the board animates
 await page.goto(url + '?debug'); await page.waitForTimeout(500);
 const T = (fn, arg) => page.evaluate(fn, arg);
 const tt = (f, ...a) => page.evaluate(([f, a]) => window.__deepcore.test[f](...a), [f, a]);

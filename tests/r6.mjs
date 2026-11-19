@@ -1,7 +1,7 @@
 // Release 6 hardening: offline play, storage failures, damaged saves, the midnight rollover, colour contrast, touch targets,
 // accessible names, every daily twist, and that effects drain and frames stay smooth.
 import { createRequire } from 'node:module';
-import { phone, makeChecker } from './helpers.mjs';
+import { phone, makeChecker, skipTour } from './helpers.mjs';
 const require = createRequire(import.meta.url);
 const D = require('../src/data.js');
 const { check, fails } = makeChecker();
@@ -19,7 +19,8 @@ const modDays = D.MODIFIERS.map(m => { for (let i = 0; i < 400; i++) { const d =
 const play = async (page, n) => { for (let k = 0; k < n * 3; k++) { const r = await page.evaluate(() => { const T = window.__deepcore.test, s = T.state(); if (s.screen !== 'game') return 'map'; if (s.busy || document.getElementById('sheetScrim').hidden === false) return 'busy'; if (s.over) return 'over';
     for (let i = 0; i < 3; i++) { const pc = s.pieces && s.pieces[i]; if (!pc) continue; const o = []; for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) if (T.fits(pc, r, c)) o.push([r, c]); if (o.length) { const q = o[Math.floor(Math.random() * o.length)]; T.place(i, q[0], q[1]); return 'ok'; } } return 'stuck'; });
   if (r === 'busy') { await page.waitForTimeout(150); continue; } if (r !== 'ok') return r; await page.waitForTimeout(25); } return 'done'; };
-{ const t = await phone(); await t.page.goto(t.base + '?debug'); await t.page.waitForTimeout(600);
+{ const t = await phone({ realtime: true });   // real clock: frame rate
+  await t.page.goto(t.base + '?debug'); await t.page.waitForTimeout(600);
   await t.page.evaluate(() => { const T = window.__deepcore.test; T.markDone(Array.from({ length: 24 }, (_, i) => i)); });
   for (const [id, day] of modDays) { await t.page.evaluate(d => window.__deepcore.test.previewDay(d), day); await t.page.evaluate(() => window.__deepcore.test.start(15)); await t.page.waitForTimeout(2400); await play(t.page, 12); await t.page.waitForTimeout(1500); }
   check(t.errors.filter(e => !/404/.test(e)).length === 0, `all ${modDays.length} daily twists play through a deep board without errors ${t.errors.join(' | ')}`);
@@ -54,11 +55,11 @@ const play = async (page, n) => { for (let k = 0; k < n * 3; k++) { const r = aw
 { const t = await phone(); await t.ctx.addInitScript(() => { localStorage.clear(); localStorage.setItem('deepcore-profile', '{bad'); localStorage.setItem('deepcore-day', '{"day":5,"done":"x"}'); localStorage.setItem('deepcore-board', '{"grid":[[1]],"pieces":"nope","idx":3,"day":"x"}'); localStorage.setItem('deepcore-life', 'null'); localStorage.setItem('deepcore-settings', '[]'); localStorage.setItem('deepcore-schema', '3'); });
   await t.page.goto(t.base + '?debug'); await t.page.waitForTimeout(800);
   check(await t.page.evaluate(() => !document.getElementById('home').hidden), 'the game starts normally with every save damaged');
-  await t.page.tap('#mapBtn'); await t.page.waitForTimeout(400); await t.page.tap('.node.open'); await t.page.waitForTimeout(2500);
+  await t.page.tap('#mapBtn'); await t.page.waitForTimeout(400); await skipTour(t.page); await t.page.tap('.node.open'); await t.page.waitForTimeout(2500);
   const r = await play(t.page, 8); check(t.errors.filter(e => !/404/.test(e)).length === 0 && r !== 'map', `and a board can be played (${t.errors.join(' | ')})`);
   await t.close(); }
 { const t = await phone(); await t.page.addInitScript(() => { Storage.prototype.setItem = () => { throw new Error('QuotaExceededError'); }; });
-  await t.page.goto(t.base + '?debug'); await t.page.waitForTimeout(800); await t.page.tap('#mapBtn'); await t.page.waitForTimeout(400); await t.page.tap('.node.open'); await t.page.waitForTimeout(2500);
+  await t.page.goto(t.base + '?debug'); await t.page.waitForTimeout(800); await t.page.tap('#mapBtn'); await t.page.waitForTimeout(400); await skipTour(t.page); await t.page.tap('.node.open'); await t.page.waitForTimeout(2500);
   const r = await play(t.page, 8); check(t.errors.filter(e => !/404|Quota/.test(e)).length === 0, `the game plays even when the browser refuses to save (${t.errors.join(' | ')})`);
   await t.close(); }
 { const t = await phone(); await t.ctx.addInitScript(() => { if (!localStorage.getItem('seeded')) { localStorage.setItem('seeded', '1'); localStorage.setItem('deepcore-day', JSON.stringify({ day: '2099-01-01', done: [0], scores: {}, prospector: false })); localStorage.setItem('deepcore-board', JSON.stringify({ day: '2099-01-01', idx: 2, grid: Array.from({ length: 7 }, () => Array(7).fill(null)), pieces: [null, null, null], score: 5, moves: 3 })); } });
@@ -90,7 +91,7 @@ const play = async (page, n) => { for (let k = 0; k < n * 3; k++) { const r = aw
   await t.ctx.setOffline(true); await t.page.reload(); await t.page.waitForTimeout(1200);
   const off = await t.page.evaluate(() => ({ home: !document.getElementById('home').hidden, fonts: document.fonts.check('20px "Jersey 10"'), canv: !!document.getElementById('homeStrip') }));
   check(off.home && off.fonts && off.canv, 'with no network the game still loads, with its fonts');
-  await t.page.tap('#mapBtn'); await t.page.waitForTimeout(500); await t.page.tap('.node.open'); await t.page.waitForTimeout(2800);
+  await t.page.tap('#mapBtn'); await t.page.waitForTimeout(500); await skipTour(t.page); await t.page.tap('.node.open'); await t.page.waitForTimeout(2800);
   check(await t.page.evaluate(() => document.querySelectorAll('#tray .slot canvas:not([hidden])').length) === 3, 'and a board can be started offline');
   await t.close(); }
 console.log(fails.length ? `R6 TESTS FAILED (${fails.length})` : 'R6 TESTS PASSED'); if (fails.length) process.exitCode = 1;
