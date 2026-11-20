@@ -377,7 +377,7 @@ function drinkPotion(m){
   if(m==='luck') luck=POTION_MOVES; else prot=POTION_MOVES;
   renderDock(); updateLuckUI(); updateAnvilGlow(); saveProfile(); saveBoard();
   A.track(m==='luck'?'luck_drunk':'protection_drunk',{idx:level-1,score,moves}); life.seen[m]=true;
-  busy=true; const d=m==='luck'?playSplash('Potion of Luck',`The next ${POTION_MOVES} placements favour you · ${SCORE.special.luck}`,'luck')
+  SND.potion(); busy=true; const d=m==='luck'?playSplash('Potion of Luck',`The next ${POTION_MOVES} placements favour you · ${SCORE.special.luck}`,'luck')
     :playSplash('Potion of Protection',`Safe from cave-ins for ${POTION_MOVES} placements · ${SCORE.special.rescue}`,'rescue');
   setTimeout(()=>{ busy=false; },d);
 }
@@ -408,8 +408,8 @@ function dealSet(){
 }
 // each placement uses up a placement of any potion working
 function tickPotions(){
-  if(luck>0&&!--luck){ showCombo('Potion of Luck wore off'); blip(330,.2,'sine',.05); }
-  if(prot>0&&!--prot){ setTimeout(()=>showCombo('Protection wore off'),luck?0:200); blip(300,.2,'sine',.05); }
+  if(luck>0&&!--luck){ showCombo('Potion of Luck wore off'); SND.wore(); }
+  if(prot>0&&!--prot){ setTimeout(()=>showCombo('Protection wore off'),luck?0:200); SND.wore(); }
   updateLuckUI();
 }
 // Starter blocks: scattered clumps, never a locked hole or a tiny sealed pocket
@@ -485,9 +485,17 @@ let shown=0;
 function updateCart(){ const b=$('cartBar'); if(!b) return; const at=starAt(), k=at.length?starsFromScore(shown,at):0, on=k>=1&&!over&&!reached&&screen==='game';
   b.classList.toggle('on',on); b.classList.toggle('off',!on); b.hidden=!at.length;
   const f=at.length?Math.max(0,Math.min(1,shown/at[2])):0, cart=b.querySelector('.cart'), pos=`calc(12px + (100% - 82px) * ${f.toFixed(3)})`; if(cart) cart.style.left=pos;
-  // v2.8.0 star cart (F-17): the cart carries the stars earned so far, and a marker on the rails stands at each star line (lit once reached)
+  // v2.8.0 star cart (F-17): the cart carries the stars earned so far. v2.9.0 (I-43): each star stands lit on the rails at its line;
+  // when the cart reaches it, it pops up into the cart and a grey outline stays where it was ("got"). The first star of a board also
+  // gives a short, non-blocking cue: the bar pulses and the exit arrow nudges toward the door.
   const load=b.querySelector('.load'); if(load){ load.style.left=pos; const t='★'.repeat(k); if(load.textContent!==t) load.textContent=t; }
-  b.querySelectorAll('.mk').forEach((m,i)=>{ if(!at.length) return; m.style.left=`calc(28px + (100% - 82px) * ${Math.min(1,at[i]/at[2]).toFixed(3)})`; m.classList.toggle('lit',shown>=at[i]); });
+  const prevK=+(b.dataset.k||0); b.dataset.k=k;
+  b.querySelectorAll('.mk').forEach((m,i)=>{ if(!at.length) return; m.style.left=`calc(28px + (100% - 82px) * ${Math.min(1,at[i]/at[2]).toFixed(3)})`;
+    const got=shown>=at[i]; m.textContent=got?'☆':'★'; m.classList.toggle('got',got);
+    if(got&&i>=prevK&&k>prevK&&screen==='game'&&!REDUCE){ const fly=document.createElement('span'); fly.className='fly'; fly.textContent='★'; fly.style.left=m.style.left; b.append(fly);
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{ fly.style.left=`calc(${pos} + 16px)`; fly.classList.add('in'); })); setTimeout(()=>fly.remove(),650); } });
+  if(k>prevK&&load){ load.classList.remove('bump'); void load.offsetWidth; load.classList.add('bump'); }
+  if(prevK===0&&k>=1&&screen==='game'&&!over&&!reached){ b.classList.remove('cue'); void b.offsetWidth; b.classList.add('cue'); clearTimeout(updateCart.cueT); updateCart.cueT=setTimeout(()=>b.classList.remove('cue'),4200); }
   if(b.dataset.on!==String(on)){ b.dataset.on=String(on); b.setAttribute('aria-label',on?`Leave the board with ${k} star${k>1?'s':''} and your haul`:'Leave the board (earn a star first)'); drawCartArt(on); if(on&&k===1) tipOnce('cart',()=>toast('You have a star! Tap the mine cart bar to leave with your haul, or keep mining for more.',5200)); } }
 // the star meter: each star fills as the points climb from the previous star line to its own, and lights up once reached
 let meterLit=0;
@@ -730,8 +738,7 @@ function playSpecial(sp){
     return true; }});
   // fanfare
   if(sp.m==='blast'){ blip(60,.7,'sawtooth',.1); blip(45,.8,'square',.07,.05); }
-  if(sp.m==='treasure'||sp.m==='fossil') findSound();   // v2.8.0: a kalimba sparkle (was a bright fanfare and a coin shower)
-  else { [523,659,784,1047,1319,1568].forEach((f,j)=>tone(f,.22,'triangle',.06,.25+j*.08)); whoosh(.5,.07,.05); }
+  if(sp.m==='treasure'||sp.m==='fossil') SND.find();   // v2.9.0: a kalimba sparkle, dry (2.8.0 had an echo; before that a bright fanfare)
   buzz([30,40,60]);
   return D;
 }
@@ -754,7 +761,7 @@ function playSplash(title,sub,key){
     crispText(ctx,title,cx,cy-B.height*.05,Math.round(B.width*.1*pop*1.15),'#fff8e6',look.rays[0]);
     crispText(ctx,sub,cx,cy+B.height*.08,Math.round(B.width*.065*1.15),look.rays[0],null,600);
     ctx.restore(); return true; }});
-  [784,988,1175,1568].forEach((f,j)=>tone(f,.2,'triangle',.05,j*.06)); whoosh(.3,.06); blip(70,.35,'sine',.12); buzz(35);
+  buzz(35);   // v2.9.0: the card itself is silent; the special's own sound carries the moment (the user's pick)
   return D;
 }
 // v2.7.0: a line combo is a moment: a big DOUBLE / TRIPLE / QUAD banner sized to the combo, confetti bursting out of the cleared lines,
@@ -771,15 +778,16 @@ function playCombo(n,rows,cols,pts){
     const pop=t<.18?.4+.9*easeOut(t/.18):1+.06*Math.sin((t-.18)*14)*(1-t); ctx.save(); ctx.globalAlpha=a; ctx.translate(cx,cy); ctx.rotate(-.06*(1-Math.min(1,t/.2)));
     crispText(ctx,word,0,0,Math.round(B.width*(.13+.02*Math.min(3,n-2))*pop),'#ffffff',col); crispText(ctx,`+${pts}`,0,B.width*.13,Math.round(B.width*.065),col,null,600);
     ctx.restore(); return true; }});
-  comboSound(n);
+  SND.combo(n);
   shake(n>=3); buzz(n>=4?[40,30,40,30,90]:n>=3?[40,30,70]:50);
 }
 // v2.7.0: the streak shows as a flame chip by the score that heats up as it grows, with a callout at 3, 5, 8 and 12 clears in a row;
 // v2.8.0: it dims after a placement that clears nothing (one more clear keeps it going)
 const STREAK_CALL={3:'On a roll!',5:'On fire!',8:'Unstoppable!',12:'Legendary!'};
-function updateStreak(st,grew){ const el=$('streakChip'); if(!el) return; el.classList.toggle('dim',!!streakDim&&st>=2); if(st<2){ if(!el.hidden){ el.classList.add('out'); setTimeout(()=>{ el.hidden=true; el.classList.remove('out'); },300); } return; }
+// quiet: a bigger sound already plays on this placement (v2.9.0: one sound per placement)
+function updateStreak(st,grew,quiet){ const el=$('streakChip'); if(!el) return; el.classList.toggle('dim',!!streakDim&&st>=2); if(st<2){ if(!el.hidden){ el.classList.add('out'); setTimeout(()=>{ el.hidden=true; el.classList.remove('out'); },300); } return; }
   el.hidden=false; el.classList.remove('out'); el.textContent=`STREAK ×${st}`; el.dataset.heat=Math.min(4,Math.floor(st/2)); if(grew){ el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
-  if(grew&&STREAK_CALL[st]){ showCombo(STREAK_CALL[st]); calloutSound(st); buzz(30); } }
+  if(grew&&STREAK_CALL[st]){ showCombo(STREAK_CALL[st]); if(!quiet) SND.callout(st); buzz(30); } }
 // golden wave across the empty board + title card
 function playAllClear(pts){
   const D=REDUCE?600:1300, t0=performance.now();
@@ -800,7 +808,7 @@ function playAllClear(pts){
     crispText(ctx,'ALL CLEAR!',cx,B.top+B.height*.44,Math.round(B.width*.13*pop*1.15),'#fff3c4','#ffd23f');
     crispText(ctx,`+${pts}`,cx,B.top+B.height*.58,Math.round(B.width*.07*1.15),'#ffd23f',null,600);
     ctx.restore(); return true; }});
-  allClearSound(); buzz([40,30,80]);
+  SND.allClear(); buzz([40,30,80]);
 }
 function renderFx(now){
   const w=innerWidth, h=innerHeight;
@@ -864,53 +872,88 @@ function wakeAudio(){ if(!ac||document.visibilityState!=='visible') return; cons
 document.addEventListener('visibilitychange',()=>{ if(!ac) return; if(document.visibilityState==='visible') wakeAudio(); else if(settings.music) ac.suspend().catch(()=>{}); });
 window.addEventListener('pageshow',wakeAudio); window.addEventListener('focus',wakeAudio);
 setInterval(()=>{ if(ac&&settings.music&&document.visibilityState==='visible'&&(ac.state!=='running'||!music||!music.isOn())) wakeAudio(); },4000);
-// v2.7.0 celebration sounds: a held tone, a filtered-noise whoosh, a coin shower; and a buzz on phones that support it (Android)
-function tone(freq,dur=.25,type='triangle',vol=.05,when=0){ if(!soundOn) return;
-  try{ const c=audioCtx(); if(!c||c.state!=='running') return; const t=c.currentTime+when, o=c.createOscillator(), g=c.createGain();
-    o.type=type; o.frequency.setValueAtTime(freq,t); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+.015); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
-    o.connect(g).connect(sfxBus); o.start(t); o.stop(t+dur+.02); }catch(e){} }
-function whoosh(dur=.35,vol=.08,when=0,up=true){ if(!soundOn) return;
-  try{ const c=audioCtx(); if(!c||c.state!=='running') return; const t=c.currentTime+when, n=Math.floor(c.sampleRate*dur), b=c.createBuffer(1,n,c.sampleRate), d=b.getChannelData(0);
-    for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
-    const src=c.createBufferSource(), f=c.createBiquadFilter(), g=c.createGain(); src.buffer=b; f.type='bandpass'; f.Q.value=1.2;
-    f.frequency.setValueAtTime(up?400:2400,t); f.frequency.exponentialRampToValueAtTime(up?3200:300,t+dur); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
-    src.connect(f).connect(g).connect(sfxBus); src.start(t); }catch(e){} }
-// v2.8.0 celebration sounds, picked by the user in the sound lab: round, filtered notes in the music's key (C major pentatonic, like its
-// marimba pluck) with a soft echo, instead of bright triangle and square waves and coin showers
-let sfxWet=null;
-function wetBus(c){ if(!sfxWet){ const d=c.createDelay(1.2), fb=c.createGain(), lp=c.createBiquadFilter(); d.delayTime.value=.29; fb.gain.value=.28; lp.type='lowpass'; lp.frequency.value=1500;
-  d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(sfxBus); sfxWet=c.createGain(); sfxWet.gain.value=.42; sfxWet.connect(d); } return sfxWet; }
+// the buzz on phones that support it (Android) lives with the effects below
+// v2.9.0 sounds, picked by the user in the sound lab (rounds 2 to 6; backlog I-39): no echo or reverb anywhere. Each sound is a real
+// struck object built from its own overtones (modal synthesis), so it sounds full with nothing added: a marimba bar, a kalimba tine,
+// a crystal, a small bell, a felt piano hammer, a wood block, a stone, a pickaxe tink. Rules: instant start and a natural tail;
+// frequent sounds short, quiet and slightly different each time; rewards grow in notes and length; losses soft and low, never
+// buzzers; tonal notes in the music's key (C major pentatonic); impacts carry their weight in the low-mids so phones can play them.
 const semi=s=>261.63*Math.pow(2,s/12);   // semitones from C4
-function sVoice(freq,when,len,type,peak,bright,attack=.02,wet=true){ if(!soundOn) return;
-  try{ const c=audioCtx(); if(!c||c.state!=='running') return; const t=c.currentTime+.03+when, o=c.createOscillator(), f=c.createBiquadFilter(), g=c.createGain();
-    o.type=type; o.frequency.value=freq; f.type='lowpass'; f.frequency.value=bright; g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(peak,t+attack); g.gain.exponentialRampToValueAtTime(.0001,t+len);
-    o.connect(f); f.connect(g); g.connect(sfxBus); if(wet) g.connect(wetBus(c)); o.start(t); o.stop(t+len+.05); }catch(e){} }
-const sPluck=(s,w=0,p=.1)=>{ sVoice(semi(s),w,1.1,'triangle',p,1400); sVoice(semi(s),w,1.4,'sine',p*.6,1000); };
-const sBell=(s,w=0,p=.07)=>{ sVoice(semi(s),w,1.6,'sine',p,4000,.005); sVoice(semi(s)*2.76,w,.35,'sine',p*.22,6000,.005); sVoice(semi(s)*5.4,w,.12,'sine',p*.06,8000,.003); };   // kalimba-like
-function sPad(ss,w=0,len=1.6,p=.045,att=.35){ if(!soundOn) return;
-  try{ const c=audioCtx(); if(!c||c.state!=='running') return; ss.forEach((s,k)=>{ const t=c.currentTime+.03+w, o=c.createOscillator(), g=c.createGain(), f=c.createBiquadFilter();
-    o.type='sine'; o.frequency.value=semi(s); o.detune.value=k%2?6:-6; f.type='lowpass'; f.frequency.value=1800;
-    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(p,t+att); g.gain.setValueAtTime(p,t+len*.55); g.gain.linearRampToValueAtTime(0,t+len);
-    o.connect(f); f.connect(g); g.connect(sfxBus); g.connect(wetBus(c)); o.start(t); o.stop(t+len+.05); }); }catch(e){} }
-const SHIM=[24,26,28,31,33,36];
-function sShimmer(w=0,n=6,p=.016,gap=.075){ for(let k=0;k<n;k++) sVoice(semi(SHIM[Math.floor(Math.random()*SHIM.length)]),w+k*gap+Math.random()*.02,.5,'sine',p,3200,.004); }   // soft glints
-function sAir(w=0,dur=.5,p=.025){ if(!soundOn) return;
-  try{ const c=audioCtx(); if(!c||c.state!=='running') return; const t=c.currentTime+.03+w, n=Math.floor(c.sampleRate*dur), b=c.createBuffer(1,n,c.sampleRate), d=b.getChannelData(0);
-    for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*Math.sin(Math.PI*i/n);
-    const src=c.createBufferSource(), f=c.createBiquadFilter(), g=c.createGain(); src.buffer=b; f.type='lowpass'; f.Q.value=.7;
-    f.frequency.setValueAtTime(300,t); f.frequency.exponentialRampToValueAtTime(1400,t+dur); g.gain.value=p; src.connect(f).connect(g).connect(sfxBus); src.start(t); }catch(e){} }
-// Double: kalimba pair; Triple: rising run; Quad and up: bell cascade
-function comboSound(n){ if(n<=2){ sBell(16,0,.07); sBell(19,.12,.075); }
-  else if(n===3){ sPluck(7,0,.1); sPluck(12,.1,.11); sPluck(16,.2,.12); sShimmer(.34,5,.013); }
-  else { sPluck(-12,0,.12); [12,14,16,19,21,24].forEach((s,j)=>sBell(s,j*.08,.06)); } }
-// streak callouts: a flame flutter, higher at each milestone
-function calloutSound(st){ const L=({3:0,5:2,8:4,12:7})[st]||0; [9,12,16].forEach((s,j)=>sVoice(semi(s+L),.15+j*.06,.5,'triangle',.07,1800)); sAir(.15,.35,.015); }
-// a streak lost (a second placement in a row that clears nothing): three quiet notes settling
-function streakLostSound(){ sPluck(9,0,.055); sPluck(7,.11,.05); sPluck(0,.22,.05); }
-// All Clear: a golden run up an octave over a warm chord
-function allClearSound(){ sPad([0,4,7,12],0,2.4,.035,.4); [12,14,16,19,21,24].forEach((s,j)=>sPluck(s,j*.085,.1)); sShimmer(.6,8,.013); }
-// Treasure or Fossil found: a kalimba sparkle
-function findSound(){ [12,16,19,24,19].forEach((s,j)=>sBell(s,.15+j*.1,.06)); sShimmer(.7,5,.01); }
+const PENTA=[0,2,4,7,9], pn=i=>PENTA[((i%5)+5)%5]+12*Math.floor(i/5);   // pentatonic step i above C4
+function sfxAt(w){ if(!soundOn) return null; const c=audioCtx(); if(!c||c.state!=='running') return null; return [c,c.currentTime+.03+w]; }
+function modal(f,w,p,parts,bright=9000,att=.002){ const a=sfxAt(w); if(!a) return; const [c,t]=a;
+  try{ const g=c.createGain(), lp=c.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=bright; g.gain.value=p; g.connect(lp); lp.connect(sfxBus);
+    parts.forEach(([r,amp,d])=>{ const o=c.createOscillator(), e=c.createGain(); o.frequency.value=f*r; e.gain.setValueAtTime(0,t); e.gain.linearRampToValueAtTime(amp,t+att); e.gain.exponentialRampToValueAtTime(.0001,t+d); o.connect(e); e.connect(g); o.start(t); o.stop(t+d+.03); }); }catch(e){} }
+function noiseHit(w,p,dur,shape,filt){ const a=sfxAt(w); if(!a) return; const [c,t]=a;   // a burst of noise through filters: clicks, thuds, rubble
+  try{ const n=Math.max(1,Math.floor(c.sampleRate*dur)), b=c.createBuffer(1,n,c.sampleRate), d=b.getChannelData(0); for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*shape(i/n);
+    const s=c.createBufferSource(), g=c.createGain(); s.buffer=b; g.gain.value=p; let node=s; filt(c,t).forEach(f=>{ node.connect(f); node=f; }); node.connect(g); g.connect(sfxBus); s.start(t); }catch(e){} }
+const bq=(c,type,f,q=.7)=>{ const x=c.createBiquadFilter(); x.type=type; x.frequency.value=f; x.Q.value=q; return x; };
+const click=(w=0,p=.03,f=2500,dur=.014,q=1.2)=>noiseHit(w,p,dur,x=>Math.pow(1-x,3),c=>[bq(c,'bandpass',f,q)]);
+const dull=(w=0,p=.08,cut=700,dur=.09)=>noiseHit(w,p,dur,x=>Math.pow(1-x,2.5),c=>[bq(c,'lowpass',cut),bq(c,'highpass',120)]);
+function wash(w=0,dur=.8,p=.04,from=1400,to=500,att=.08){ noiseHit(w,p,dur,x=>Math.min(1,x*dur/att)*Math.pow(1-x,1.6),(c,t)=>{ const lp=bq(c,'lowpass',from); lp.frequency.setValueAtTime(from,t); lp.frequency.exponentialRampToValueAtTime(to,t+dur); return [lp,bq(c,'highpass',180)]; }); }   // rubble and dust
+const jit=(s,amt=.12)=>s+(Math.random()*2-1)*amt;   // a few cents of variation so repeated sounds never sound machine-identical
+const MAR=[[1,1,.55],[3.99,.32,.12],[10.65,.07,.035]], KAL=[[1,1,1.1],[5.4,.16,.14],[13.1,.04,.03]], CRY=[[1,1,1.9],[2.32,.42,1],[4.25,.2,.5],[6.63,.08,.25]];
+const BEL=[[1,1,1.5],[2,.45,.9],[3.01,.22,.45],[4.17,.1,.22]], PNO=[[1,1,1.3],[2,.32,.6],[3,.1,.28],[4,.04,.12]], WOOD=[[1,1,.075],[2.57,.42,.035],[4.1,.14,.02]];
+const STONE=[[1,1,.05],[1.58,.6,.035],[2.31,.32,.025],[3.4,.12,.018]], TINK=[[1,1,.4],[2.76,.45,.2],[5.4,.2,.09],[8.93,.07,.045]];
+const mar=(s,w=0,p=.11)=>{ modal(semi(s),w,p,MAR,6000); click(w,p*.15,3200,.006); };
+const marS=(s,w=0,p=.07,bright=1900)=>modal(semi(s),w,p,MAR,bright,.005);          // soft mallets
+const kal=(s,w=0,p=.09)=>modal(semi(s),w,p,KAL,7000);
+const kalS=(s,w=0,p=.06,bright=2600)=>modal(semi(s),w,p,KAL,bright,.006);          // played gently
+const cry=(s,w=0,p=.07)=>modal(semi(s),w,p,CRY,9000);
+const bel=(s,w=0,p=.07)=>modal(semi(s),w,p,BEL,7000);
+const pno=(s,w=0,p=.1,bright=2400)=>modal(semi(s),w,p,PNO,bright,.004);
+const wood=(s,w=0,p=.1)=>{ modal(semi(s),w,p,WOOD,4000,.001); click(w,p*.2,1800,.008); };
+const stone=(s,w=0,p=.09)=>{ modal(semi(s),w,p,STONE,5000,.001); click(w,p*.4,2200,.012,.8); };
+const stoneS=(s,w=0,p=.06,bright=2200)=>{ modal(semi(s),w,p,STONE,bright,.004); click(w,p*.18,1200,.016,.7); };   // rounder
+const tnk=(s,w=0,p=.06)=>{ modal(semi(s),w,p,TINK,10000,.001); click(w,p*.2,6000,.004); };
+const GL=[24,26,28,31,33,36];
+const glints=(w=0,n=6,p=.03,gap=.06)=>{ for(let k=0;k<n;k++) modal(semi(GL[Math.floor(Math.random()*GL.length)]),w+k*gap+Math.random()*.015,p,[[1,1,.35],[2.76,.2,.08]],9000,.001); };
+function sOsc(w,type,f0,f1,glide,len,p,cut){ const a=sfxAt(w); if(!a) return; const [c,t]=a;   // one shaped tone: thumps, bubbles, a pad voice
+  try{ const o=c.createOscillator(), g=c.createGain(), lp=bq(c,'lowpass',cut); o.type=type; o.frequency.setValueAtTime(f0,t); if(f1!==f0) o.frequency.exponentialRampToValueAtTime(f1,t+glide);
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(p,t+.005); g.gain.exponentialRampToValueAtTime(.0001,t+len); o.connect(lp); lp.connect(g); g.connect(sfxBus); o.start(t); o.stop(t+len+.03); }catch(e){} }
+const thump=(w=0,p=.12,lo=52)=>sOsc(w,'sine',lo*2.1,lo,.3,.38,p,4000);
+const bubble=(s,w=0,p=.05,up=true,len=.16)=>{ const f=semi(s); sOsc(w,'sine',up?f*.6:f*1.35,f,len*.45,len,p,3200); };
+function body(f,w=0,dur=.22,p=.12,drop=.7){ const a=sfxAt(w); if(!a) return; const [c,t]=a;   // a low-mid thud with overtones a phone can play
+  try{ const o=c.createOscillator(), ws=c.createWaveShaper(), g=c.createGain(), lp=bq(c,'lowpass',2400), cur=new Float32Array(256); for(let i=0;i<256;i++) cur[i]=Math.tanh(2.2*(i/128-1)); ws.curve=cur;
+    o.type='sine'; o.frequency.setValueAtTime(f,t); o.frequency.exponentialRampToValueAtTime(f*drop,t+dur); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(p,t+.004); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o.connect(ws); ws.connect(g); g.connect(lp); lp.connect(sfxBus); o.start(t); o.stop(t+dur+.02); }catch(e){} }
+const thunk=(w=0,p=.13,f=170)=>{ body(f,w,.3,p,.55); dull(w,p*.8,750,.1); };   // iron on stone, heard from inside the rock
+function swell(ss,w=0,len=1.8,p=.035,att=.5){ const a=sfxAt(w); if(!a) return; const [c,t]=a;   // a dry warm pad
+  try{ ss.forEach((s,k)=>{ const o=c.createOscillator(), g=c.createGain(), lp=bq(c,'lowpass',1600); o.type='sine'; o.frequency.value=semi(s); o.detune.value=k%2?5:-5;
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(p,t+att); g.gain.setValueAtTime(p,t+len*.5); g.gain.linearRampToValueAtTime(0,t+len); o.connect(lp); lp.connect(g); g.connect(sfxBus); o.start(t); o.stop(t+len+.05); }); }catch(e){} }
+// the sounds, by moment (the names match the sound lab's cards)
+const SND={
+  place:()=>stone(jit(-5,.4),0,.07),                                                     // Stone set down
+  praise:()=>{ pno(19,0,.06); pno(28,.07,.05); },                                        // Piano sixth
+  gem:()=>{ tnk(31,.2,.05); glints(.28,4,.022); },                                       // Tink and glints
+  combo:n=>{ if(n<=2){ kal(16,0,.09); kal(19,.11,.095); }                                // Double: kalimba pair
+    else if(n===3){ kal(12,0,.09); kal(16,.09,.095); kal(19,.18,.1); glints(.3,3,.02); }  // Triple: kalimba run
+    else { mar(-12,0,.1); [12,14,16,19,21,24].forEach((s,j)=>kal(s,j*.075,.08)); } },    // Quad and up: kalimba cascade
+  callout:st=>{ const l=({3:0,5:2,8:4,12:7})[st]||0; [9,12,16].forEach((s,j)=>kalS(s+l,j*.06,.055)); },   // Kalimba flutter, higher at each milestone
+  dim:()=>cry(7,0,.02),                                                                  // Faint crystal
+  lost:()=>[4,0,-5].forEach((s,j)=>mar(s,j*.1,.06)),                                     // Marimba settle
+  allClear:()=>{ [0,4,7,12,16,19,24].forEach((s,j)=>mar(s,j*.06,.1)); bel(24,.45,.07); glints(.5,6,.02); },   // Golden cascade
+  find:()=>{ [12,16,19,24,19].forEach((s,j)=>kal(s,.12+j*.09,.08)); glints(.6,4,.018); }, // Kalimba sparkle
+  drill:()=>{ for(let j=0;j<8;j++) wood(pn(12-j),j*.04,.07); cry(24,.36,.05); },         // Wood rattle
+  blastBoom:(w=0)=>{ blip(60,.6,'sawtooth',.11,w); blip(42,.7,'square',.08,w+.04); blip(120,.25,'triangle',.06,w+.02); },   // the Blast Charge boom (kept as it was)
+  sledge:()=>{ thunk(0,.1,165); SND.blastBoom(0); [0,4,7].forEach((s,j)=>marS(s,.85+j*.05,.055,1300)); },   // Heavier boom and chord
+  potion:()=>{ for(let j=0;j<5;j++) bubble(pn(10+j),j*.07,.05); },                       // Bubbles only
+  wore:()=>bubble(12,0,.045),                                                            // Last bubble
+  saved:()=>{ swell([0,7],0,1.4,.025,.3); [12,19,24].forEach((s,j)=>cry(s,.05+j*.1,.05)); },   // Crystal relief
+  mined:()=>{ [-5,2,7].forEach((s,j)=>pno(s,j*.04,.06)); [0,4,7,12].forEach((s,j)=>pno(s,.3+j*.04,.07)); },   // Piano cadence
+  noStar:()=>{ wood(4,0,.07); wood(0,.12,.07); },                                        // Two wood taps
+  caveIn:()=>{ [0,.14,.32].forEach((w,j)=>stoneS(jit(pn(6-j*2),.3),w,.05,1800)); marS(-5,.5,.065,1400); },   // Settling
+  craft:()=>{ wood(4,0,.07); wood(7,.1,.07); mar(16,.22,.1); },                          // Wood and marimba
+  forge:()=>{ [0,.2,.4].forEach(w=>{ thump(w,.05,90); tnk(7,w,.05); }); bel(24,.62,.07); },   // Anvil and bell
+  build:()=>{ [0,4,7].forEach((s,j)=>pno(s,j*.04,.06)); bel(12,.15,.055); bel(19,.28,.055); },   // Bell and piano
+  belt:()=>wood(12,0,.07),                                                               // Wood tap
+  notice:()=>cry(19,0,.04),                                                              // Crystal
+  coal:q=>wood(pn(8+Math.min(q,6)),0,.055), hint:()=>cry(24,0,.045),                     // Hint: wood and crystal
+  nudge:()=>{ stone(0,0,.06); stone(0,.12,.06); },                                       // Two stones
+  vol:()=>mar(12,0,.11),                                                                 // Marimba
+  core:()=>[-5,0,4,7].forEach((s,j)=>cry(s,j*.4,.05)),                                   // Slow crystals
+  portal:()=>{ swell([-12,0,4,7,12],0,3.2,.03,1); [0,4,7,12,16,19,24,28].forEach((s,j)=>kal(s,j*.17,.08)); },   // Kalimba ascent
+};
 function buzz(p){ try{ if(soundOn&&navigator.vibrate) navigator.vibrate(p); }catch(e){} }
 // crisp title text: the glow is a soft halo behind the letters, never a blur on them (v2.7.0: treasure text looked fuzzy)
 function crispText(ctx,text,x,y,px,fill,glow,weight=700){ ctx.save(); ctx.font=`${weight} ${px}px ${FONT_D}`; ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -936,10 +979,10 @@ function toggleSoundPop(btn){
 }
 document.querySelectorAll('.soundBtn').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); unlockAudio(); toggleSoundPop(b); }));
 document.addEventListener('pointerdown',e=>{ const pop=$('soundPop'); if(!pop.hidden&&!pop.contains(e.target)&&!e.target.closest('.soundBtn')) pop.hidden=true; },true);
-$('sfxOn').addEventListener('change',e=>{ soundOn=e.target.checked; try{ localStorage.setItem('deepcore-sound',soundOn?'on':'off'); }catch(err){} setSoundUI(); A.track('setting_change',{setting:'sound',value:soundOn}); if(soundOn){ unlockAudio(); blip(660,.08,'triangle',.08); } });
+$('sfxOn').addEventListener('change',e=>{ soundOn=e.target.checked; try{ localStorage.setItem('deepcore-sound',soundOn?'on':'off'); }catch(err){} setSoundUI(); A.track('setting_change',{setting:'sound',value:soundOn}); if(soundOn){ unlockAudio(); SND.vol(); } });
 $('musicOn').addEventListener('change',e=>{ settings.music=e.target.checked; saveSettings(); unlockAudio(); applyAudioSettings(); setSoundUI(); A.track('setting_change',{setting:'music',value:settings.music}); });
 $('sfxVol').addEventListener('input',e=>{ settings.sfxVol=+e.target.value; saveSettings(); applyAudioSettings(); });
-$('sfxVol').addEventListener('change',()=>{ A.track('setting_change',{setting:'sfx_volume',value:settings.sfxVol}); unlockAudio(); blip(660,.08,'triangle',.08); });
+$('sfxVol').addEventListener('change',()=>{ A.track('setting_change',{setting:'sfx_volume',value:settings.sfxVol}); unlockAudio(); SND.vol(); });
 $('musicVol').addEventListener('input',e=>{ settings.musicVol=+e.target.value; saveSettings(); applyAudioSettings(); });
 $('musicVol').addEventListener('change',()=>A.track('setting_change',{setting:'music_volume',value:settings.musicVol}));
 function shake(big){ if(REDUCE) return; const w=$('boardWell'); w.classList.remove('shake','bigshake'); void w.offsetWidth; w.classList.add(big?'bigshake':'shake'); }
@@ -1008,7 +1051,7 @@ function mineCell(r,c,ctx){
   grid[r][c]=null;
 }
 function flushCtx(ctx){ updateGoals(ctx.instant); updateStash(ctx.stash);
-  if(ctx.gems) [988,1319,1568].forEach((f,j)=>blip(f,.16,'sine',.06,.25+j*.08)); }
+  if(ctx.gems) SND.gem(); }
 // a non-blast special caught in a clear: work out its reward now, celebrate after
 function specialHit(m,r,c,ctx){
   life.seen[m]=true;
@@ -1028,7 +1071,7 @@ async function detonate(r,c,hit){
   const [sx,sy]=cellScreen(r,c), look=SPECIAL_LOOK.blast;
   ring(sx,sy,'#fff6b8',cell*1.6,300); ring(sx,sy,'#ffd23f',cell*2.6,480); ring(sx,sy,'#ff6a1f',cell*3.6,650);
   spawnFxParts('ember',sx,sy,55,look.cols); shake(true);
-  blip(60,.6,'sawtooth',.11); blip(42,.7,'square',.08,.04); blip(120,.25,'triangle',.06,.02);
+  SND.blastBoom();
   boardFlash={r,c,t0:performance.now()};
   grid[r][c]=null; burst(r,c,'blast',24);
   const ctx=mineCtx(), chain=[];   // v2.4.0: what the blast breaks is mined into the haul (it used to be lost)
@@ -1089,8 +1132,8 @@ async function place(i,r0,c0){
   const rating=rateMove(i,r0,c0);
   undo=JSON.parse(JSON.stringify({grid,pieces,nextPiece,score,combo,streakDim,sinceClear,collected,hand,since,bigNext,moves,dealt,dealtN}));
   p.cells.forEach(([r,c],k)=>grid[r0+r][c0+c]=p.mats[k]);
-  score+=SCORE.block*p.cells.length; pieces[i]=null; blip(140,.07,'square',.06); moves++;
-  if(rating){ const B=boardC.getBoundingClientRect(); floatText(B.left+(c0+p.w/2)*cell,B.top+(r0+p.h/2)*cell,rating.word,rating.col); blip(1175,.08,'triangle',.05); blip(1568,.1,'triangle',.05,.07); }
+  score+=SCORE.block*p.cells.length; pieces[i]=null; SND.place(); moves++;
+  if(rating){ const B=boardC.getBoundingClientRect(); floatText(B.left+(c0+p.w/2)*cell,B.top+(r0+p.h/2)*cell,rating.word,rating.col); SND.praise(); }
   const {rows,cols}=linesNow(), n=rows.length+cols.length;
   countPlacement(p.sid,n>0);
   if(combo>life.records.bestCombo) life.records.bestCombo=combo; if(n>life.records.bestLines) life.records.bestLines=n;
@@ -1114,10 +1157,11 @@ async function place(i,r0,c0){
       floatText(B.left+(cc+.5)*cell,B.top+(cr+.5)*cell,`+${score-clearStart}${combo>1?'  streak '+combo:''}`,'#fff3c4'); }
     const msgs=ctx.msgs.slice();
     if(!hit.length && !blasts.length) msgs.slice(0,3).forEach(showCombo);
-    [392,494,587,784].slice(0,Math.min(4,1+n)).forEach((f,j)=>blip(f*(1+Math.min(combo,8)*.06),.12,'triangle',.06,j*.06));   // the pitch climbs with the streak
     const emptied=grid.every(row=>row.every(v=>!v));   // an All Clear has its own, bigger moment
+    // v2.9.0: one sound per placement, so the soundscape never piles up: All Clear > Double/Triple/Quad > streak milestone > the line clear
+    if(!emptied&&n<2&&!STREAK_CALL[combo]) [392,494,587,784].slice(0,Math.min(4,1+n)).forEach((f,j)=>blip(f*(1+Math.min(combo,8)*.06),.12,'triangle',.06,j*.06));   // the line clear (kept as it was): the pitch climbs with the streak
     if(n>1&&!emptied) playCombo(n,rows,cols,score-clearStart); else shake(n>1);
-    updateStreak(combo,true);
+    updateStreak(combo,true,emptied||n>1);
     if(blasts.length){
       life.seen.blast=true; let count=0; for(const [r,c] of blasts) if(grid[r][c]==='blast') count+=await detonate(r,c,hit);
       const pts=SCORE.special.blast*count; score+=pts; A.track('special_triggered',{m:'blast',count});
@@ -1135,7 +1179,7 @@ async function place(i,r0,c0){
     }
   } else {   // v2.8.0: a placement that clears nothing dims a streak of 2+ once (the grace); a second one in a row ends it
     sinceClear++; const had=combo; ({st:combo,dim:streakDim}=stepStreak(combo,streakDim,0));
-    if(had>=2&&!combo) streakLostSound(); updateStreak(combo,false); }
+    if(had>=2&&!combo) SND.lost(); else if(streakDim) SND.dim(); updateStreak(combo,false); }
   busy=false; $('skipHint').hidden=true; skipFlag=false; updateDur();
   if(toolBreakable()&&dayState.dur<=0&&zoneOfIdx(level-1)===CRUST_Z){ toolBreak(); return; }
   // the rolling tray: the emptied slot takes the next piece and a new next piece is dealt; the third star ends the board (F-14)
@@ -1154,9 +1198,9 @@ function reachTarget(){
   A.track('board_target',{idx:level-1,label:boardLabel(level-1),stars,yield:yieldNow(),star_at:starAt(),score,target:dd.target,moves,duration_ms:Math.round(performance.now()-boardT0),attempt:(dayState.attempts||{})[level-1]||1});
   saveBoard();
   // v2.6.1: one celebration: the words, the jingle and the blocks breaking happen here, once; CONTINUE then goes straight to the map
-  if(stars){ showCombo('Cave mined!'); [523,659,784,1047].forEach((f,j)=>blip(f,.18,'triangle',.07,.1+j*.1));
+  if(stars){ showCombo('Cave mined!'); SND.mined();
     for(let r=0;r<N;r++)for(let c=0;c<N;c++) if(grid[r][c]){ burst(r,c,grid[r][c],4); grid[r][c]=null; } shake(); }
-  else { showCombo('Not enough points'); [392,330,262].forEach((f,j)=>blip(f,.16,'triangle',.06,j*.1)); }
+  else { showCombo('Not enough points'); SND.noStar(); }
   const lv=level, still=()=>level===lv&&reached&&!decided&&screen==='game';   // the player may have left for another board in the meantime
   setTimeout(()=>{ if(still()) showResult(); },REDUCE?250:700);
 }
@@ -1266,7 +1310,7 @@ function loseHand(){
       fxList.push({draw(ctx,now){ if(now<t0) return true; const age=(now-t0)/1000; if(age>1.2) return false; x+=vx; vy+=.55; y+=vy;
         ctx.save(); ctx.globalAlpha=Math.max(0,1-age/1.2); ctx.imageSmoothingEnabled=false; ctx.drawImage(ITEM[res],x-14,y-14,28,28); ctx.restore(); return true; }}); } });
   hand={}; updateStash(entries.map(e=>e[0]));
-  floatText(innerWidth/2,topY-8,'Haul lost','#ff8a7a'); [330,262,196].forEach((f,j)=>blip(f,.16,'sawtooth',.05,j*.1));
+  floatText(innerWidth/2,topY-8,'Haul lost','#ff8a7a');   // v2.9.0: silent; the cave-in sound carries the moment
   return total;
 }
 // a cave-in (v2.5.0): a failure. No stars, no haul: retry the board to earn them. Once per board a Lucky Dodge (F-15) trades half the haul
@@ -1329,7 +1373,7 @@ function playSaved(sub){
     const sweep=(now-t0)/700%1; ctx.save(); path(); ctx.clip(); const g=ctx.createLinearGradient(-r,-r+2*r*sweep-40,r,-r+2*r*sweep+40); g.addColorStop(0,'rgba(255,255,255,0)'); g.addColorStop(.5,'rgba(255,255,255,.35)'); g.addColorStop(1,'rgba(255,255,255,0)'); ctx.fillStyle=g; ctx.fillRect(-r,-r,2*r,2*r); ctx.restore();
     ctx.restore(); return true; }});
   [[cx,cy-R*.9],[cx-R*.8,cy-R*.2],[cx+R*.8,cy-R*.2],[cx,cy+R*.9]].forEach(([x,y])=>spawnFxParts('spark',x,y,REDUCE?2:8,['#ffffff','#ff9ab8','#ffd0e0']));
-  [523,659,784,1047,1319].forEach((f,j)=>blip(f,.12,'triangle',.06,j*.07));
+  SND.saved();
   return Math.max(D,playSplash('Saved!',sub,'rescue'));
 }
 const TIPS=['Look at all three pieces before you place the first one.','A bright outline means that drop will clear a line.','Clear lines on back-to-back moves to build a combo.','A crafted Blast Charge or Sledgehammer can rescue a crowded board.'];
@@ -1352,7 +1396,7 @@ function showOver(){
   $('retry').textContent='Retry'; $('again').textContent='Return to map';
   const dg=$('dodge'), can=canDodge()&&!caveSettled; dg.hidden=!can; $('over').classList.toggle('dodging',can);
   if(can){ const h=haulCount(), give=Object.values(hand).reduce((a,v)=>a+Math.floor((v||0)/2),0); $('dodgeTxt').textContent=give?`Costs ${give} of your ${h} ore · undoes your last placement`:'Undoes your last placement'; }
-  $('over').hidden=false; blip(110,.4,'sawtooth',.05);
+  $('over').hidden=false; SND.caveIn();
 }
 $('dodge').onclick=()=>luckyDodge();
 $('retry').onclick=()=>{ settleCaveIn(); A.attempt('retry_board',level-1,{score},120000); startBoard(level-1); };
@@ -1394,7 +1438,7 @@ function doShake(){
   const ng=emptyGrid(), mv=[], tset=new Set();
   targets.forEach(([tr,tc],i)=>{ ng[tr][tc]=mats[i]; tset.add(tr*N+tc); const src=cells[i]; mv.push({m:mats[i],fr:src.r,fc:src.c,tr,tc,lift:.4+Math.random()*.8}); });
   grid=ng; scrAnim={moves:mv,targets:tset,t0:performance.now(),D:REDUCE?350:900};
-  shake(true); [220,330,440,660].forEach((f,j)=>blip(f,.12,'square',.05,j*.09));
+  shake(true); SND.sledge();
 }
 
 // ---------- stash, the belt and Craft ----------
@@ -1500,9 +1544,11 @@ async function tryMake(verb,name,cost,doIt,needsBelt){
   if(!canAfford({cost})){ say('Not enough resources!',`${name} needs ${costText(cost)}. Replaying boards you have cleared gives ore too.`); return; }   // v2.5.0: before "belt full"
   if(needsBelt&&beltFree()<0){ say('Belt is full!','You need an empty belt slot for that!'); return; }
   const sq=needsBelt&&toolSqueeze(cost);
-  if(sq){ const left=sq.hit.map(([k,have,need])=>`${have} of the ${need} ${DROPS[k][0].toLowerCase()}`).join(' and ');
-    if(await ask(`${verb} ${name}?`,`Heads up: ${sq.tool.name} need ${costText(tcost(tool()+1))}. After this you'd have ${left}, so you'd need more mining before you can forge them.`,`${verb} anyway`,'Cancel')) doIt(); return; }
-  if(await ask(`${verb} ${name}?`,`Uses ${costText(cost)}.${needsBelt?' It goes on your belt.':''}`,'Yes','No')) doIt();
+  // v2.9.0 (I-41): no cost or counts in the question (both are on the Craft screen and the stash at its top); only a plain reminder
+  // when crafting eats into what the next tools need (or uses a resource you're already short of for them)
+  if(sq){ const what=sq.hit.map(([k])=>DROPS[k][0].toLowerCase()); const list=what.length>1?what.slice(0,-1).join(', ')+' and '+what.at(-1):what[0];
+    if(await ask(`${verb} ${name}?`,`Heads up: ${sq.tool.name} need ${list} too. Crafting this means more mining before you can forge them.`,`${verb} anyway`,'Cancel')) doIt(); return; }
+  if(await ask(`${verb} ${name}?`,needsBelt?'It goes on your belt.':'','Yes','No')) doIt();
 }
 function renderCraftStash(){ const box=$('craftStash'); if(!box) return; box.innerHTML=''; const have=STASH_KEYS.filter(k=>(bank[k]||0)>0);
   if(!have.length){ box.innerHTML='<span class="none">Your stash is empty: mine some ore first.</span>'; return; }
@@ -1514,6 +1560,8 @@ function renderCraft(){
   h3('TOOLS');
   // v2.6.0: one row of all six tools (no separate forge row). Forged ones are lit, the current one says so; the next one glows once you can
   // afford it and have reached its layer, and a tap forges it (it asks first). Under the row: what the next tools open and cost.
+  // v2.9.0 (I-40): the next tools can only be forged once you reach their layer (the last board above it cleared); before that they say
+  // what they're needed for.
   { const rowT=document.createElement('div'); rowT.className='toolrow'; rowT.setAttribute('aria-label','Your tools');
     const nx=t+1<TOOLS.length?t+1:-1, reached=nx>0&&isDone(Z_START[nx]-1), nc=nx>0?tcost(nx):null;
     TOOLS.forEach((T0,k)=>{ const w=document.createElement('button'); w.type='button'; w.dataset.tier=k;
@@ -1521,12 +1569,12 @@ function renderCraft(){
       const c=document.createElement('canvas'); c.width=c.height=T; c.getContext('2d').drawImage(ITEM['tool_'+T0.id],0,0);
       const nm=document.createElement('span'); nm.className='tn'; nm.textContent=T0.short.replace(' Alloy','');
       const tag=document.createElement('span'); tag.className='tg'; tag.textContent=k===t?'Current':k===nx?'Next':k<t?'Forged':'';
-      w.append(c,nm,tag); w.setAttribute('aria-label',`${T0.name}${k===t?', your current tools':k<t?', forged':k===nx?', next: tap to forge':', not forged yet'}`);
-      w.onclick=()=>{ if(k===nx) tryMake('Forge',T0.name,nc,()=>forgeTool(nx)); else if(k<=t) say(T0.name,k===t?`Your current tools. ${k<TOOLS.length-1?`Good down to the end of ${ZONES[k].name}.`:'Strong enough for every layer.'}`:'You forged these earlier.'); else say(T0.name,`Forge ${TOOLS[nx].name} first.`); };
+      w.append(c,nm,tag); w.setAttribute('aria-label',`${T0.name}${k===t?', your current tools':k<t?', forged':k===nx?(reached?', next: tap to forge':`, next: needed for ${ZONES[nx].name}`):', not forged yet'}`);
+      w.onclick=()=>{ if(k===nx&&!reached) say(T0.name,`Needed for ${ZONES[nx].name}. Clear the last board of ${ZONES[nx-1].name} first, then forge them here.`); else if(k===nx) tryMake('Forge',T0.name,nc,()=>forgeTool(nx,true)); else if(k<=t) say(T0.name,k===t?`Your current tools. ${k<TOOLS.length-1?`Good down to the end of ${ZONES[k].name}.`:'Strong enough for every layer.'}`:'You forged these earlier.'); else say(T0.name,`Forge ${TOOLS[nx].name} first.`); };
       rowT.append(w); });
     body.append(rowT);
     const info=document.createElement('div'); info.className='toolinfo';
-    if(nx>0){ const p=document.createElement('div'); p.innerHTML=`<b></b> <span></span>`; p.querySelector('b').textContent=`Next: ${TOOLS[nx].name}`; p.querySelector('span').textContent=`· opens ${ZONES[nx].name}`; info.append(p,costChips(nc)); }
+    if(nx>0){ const p=document.createElement('div'); p.innerHTML=`<b></b> <span></span>`; p.querySelector('b').textContent=`Next: ${TOOLS[nx].name}`; p.querySelector('span').textContent=reached?`· opens ${ZONES[nx].name}`:`· needed for ${ZONES[nx].name}`; info.append(p,costChips(nc)); }
     else info.textContent='Your tools are strong enough for every layer.';
     body.append(info); }
   h3('MINING EQUIPMENT');
@@ -1553,7 +1601,7 @@ function beltTap(i){
       const b=document.createElement('button'); b.type='button'; b.className='go'; b.id='beltUnlock';
       const can=canBuild(w); b.textContent=can?'Unlock':`Earn ${w.stars-got} more star${w.stars-got===1?'':'s'}`; b.disabled=!can; b.onclick=async()=>{ closeBeltPop(); if(await ask(`Unlock ${w.name.toLowerCase()}?`,`You've earned ${got} stars this run. Stars aren't spent.`,'Yes','No')) buildWorkshop(w.id); }; pop.append(b); }
     return; }
-  if(beltSel>=0){ if(beltSel!==i){ const a=specials[beltSel]; specials[beltSel]=specials[i]; specials[i]=a; saveProfile(); A.track('belt_move',{from:beltSel,to:i}); blip(660,.06,'triangle',.05); }
+  if(beltSel>=0){ if(beltSel!==i){ const a=specials[beltSel]; specials[beltSel]=specials[i]; specials[i]=a; saveProfile(); A.track('belt_move',{from:beltSel,to:i}); SND.belt(); }
     beltSel=-1; closeBeltPop(); renderDock(); return; }
   if(!specials[i]) return;
   beltSel=i; beltSlots($('craftBeltSlots'),'craft'); const m=specials[i];
@@ -1566,7 +1614,7 @@ function buildWorkshop(id){
   Object.entries(w.cost).forEach(([k,v])=>bank[k]-=v); wk()[id]=1; saveDay(); fitDock(); saveProfile();
   A.track('workshop_built',{id,day:dayState.days,idx:level-1}); life.seen['ws_'+id]=true;
   updateStash(Object.keys(w.cost)); renderDock(); refreshCraft(); if(Object.keys(w.cost).length) spent(`${w.name} built`,w.cost);
-  [392,523,659,784,1047,1319].forEach((f,j)=>blip(f,.12,'triangle',.06,j*.07));
+  SND.build();
   if(id==='table') toast(`Brewing table built! Brew potions here, then tap one on your belt during a board to drink it: it lasts ${POTION_MOVES} placements.`,5200);
   else showCombo(w.name+' unlocked!');
 }
@@ -1577,14 +1625,28 @@ function spent(what,cost){ toast(`${what}: −${sortedEntries(cost).map(([k,v])=
 const tool=()=>dayState.tool||0;
 const toolBreakable=()=>TOOL_WEAR&&tool()>=TOOLS.length-1;   // wear is off until backlog F-9 (see TOOL_WEAR)
 const tcost=tier=>toolCost(tier,MOD());
-function forgeTool(tier){
+function forgeTool(tier,moment){
   if(tier!==tool()+1) return; const cost=tcost(tier); if(!canAfford({cost})) return;
   Object.entries(cost).forEach(([k,v])=>bank[k]-=v); dayState.tool=tier; if(tier===TOOLS.length-1) dayState.dur=DUR_MAX;
   life.seen['tool_'+TOOLS[tier].id]=true; saveDay(); saveProfile(); updateStash(Object.keys(cost));
   A.track('tool_forged',{tier,tool:TOOLS[tier].id,day:dayState.days});
-  [392,523,659,784,1047].forEach((f,j)=>blip(f,.14,'triangle',.06,j*.08));
-  refreshCraft(); spent(`${TOOLS[tier].name} forged`,cost); if(screen==='map') buildMap();
+  refreshCraft(); if(screen==='map') buildMap();
+  if(moment) forgeMoment(tier); else { SND.forge(); spent(`${TOOLS[tier].name} forged`,cost); }
 }
+// v2.9.0 (I-40): forging is a moment: Craft closes, the screen dims, the anvil rings three times, the new tools rise with their name,
+// then the layer they open is announced; Dig down returns to the map, scrolled to that layer's first board.
+function forgeMoment(tier){
+  const el=$('forgeMoment'), T0=TOOLS[tier], z=ZONES[Math.min(tier,ZONES.length-1)];
+  $('craftPanel').hidden=true; $('nodeCard').hidden=true;
+  const c=$('fmTool'), x=c.getContext('2d'); x.clearRect(0,0,c.width,c.height); x.drawImage(ITEM['tool_'+T0.id],0,0);
+  $('fmTitle').textContent=`${T0.name} forged!`; $('fmSub').textContent=`${z.name} is open.`;
+  el.classList.remove('lit','open'); el.hidden=false; void el.offsetWidth; el.classList.add('lit');
+  SND.forge(); buzz([30,40,30,40,60]);
+  [0,200,400].forEach(ms=>setTimeout(()=>{ const r=c.getBoundingClientRect(); spawnFxParts('spark',r.left+r.width/2,r.top+r.height*.75,REDUCE?3:14,['#fff3c4','#ffd23f','#ff9a1f']); },REDUCE?0:ms));
+  setTimeout(()=>{ el.classList.add('open'); $('fmGo').focus(); },REDUCE?150:900);
+  A.track('forge_moment',{tier});
+}
+$('fmGo').onclick=()=>{ $('forgeMoment').hidden=true; showMap({}); };
 function mendTools(){
   if(!toolBreakable()) return; let used=0; while(dayState.dur<DUR_MAX&&(bank.prismore||0)>0){ bank.prismore--; used++; dayState.dur=Math.min(DUR_MAX,dayState.dur+STASH_MEND); }
   if(!used) return; saveDay(); saveProfile(); updateStash(['prismore']); A.track('tools_mended',{used,dur:Math.round(dayState.dur)});
@@ -1603,7 +1665,7 @@ function smelt(rc){
   specials[i]=rc.m;
   updateStash(Object.keys(rc.cost)); renderDock(); refreshCraft(); saveProfile(); spent(`${MATS[rc.m].name} made`,rc.cost);
   { const t=document.querySelector(`#craftBeltSlots [data-slot="${i}"]`); if(t) t.classList.add('land'); }
-  [330,440,660,880,1320].forEach((f,j)=>blip(f,.1,j%2?'square':'triangle',.05,j*.06));
+  SND.craft();
 }
 
 // ---------- field guide (the info panel): content is generated from the game's own tables so the numbers never go stale ----------
@@ -1637,7 +1699,7 @@ const INFO_TABS={
     b.append(infoEl('h3','HAULING ORE'),infoList([`Ore, gems and wood you mine on a board show up in the stash strip as a green +number. That's your haul for this board.`,`Leave the board with a star and the haul joins your stash, which you keep for the whole descent. The longer you mine, the more you haul, and the more a cave-in costs.`,`Replaying a board you've already cleared gives ore too, so you can always gather more.`]));
     b.append(infoEl('h3','SCORING'),infoList([`Every block you place scores ${SCORE.block}. Every line you clear scores ${SCORE.line}. Mining ore and gems gives resources, not points.`,`Clear 2, 3 or 4 lines with one piece for a Double (+${SCORE.combo[2]}), Triple (+${SCORE.combo[3]}) or Quad (+${SCORE.combo[4]}).`,`Streak: clear on back-to-back placements. Each clear in the streak after the first adds +${SCORE.streakStep}, up to +${SCORE.streakMax}. One placement that clears nothing dims the streak: clear on the next one to keep it going. Two in a row end it.`,`All Clear (an empty board) adds +${SCORE.allClear}, and the next pieces are big easy ones.`,`Star Drill +${SCORE.special.drill}, Blast Charge +${SCORE.special.blast}, Sledgehammer +${SCORE.special.sledgehammer}. A Potion of Luck costs ${-SCORE.special.luck} points and a Potion of Protection ${-SCORE.special.rescue}.`,`"Perfect!" means yours was the only placement that kept the whole tray playable; "Great fit!" one of two or three.`,`If you cave in twice on the same board, the dealer starts to go easier on you.`]));
     b.append(infoEl('h3','STARS'),infoList([`Your points on a board earn 0 to 3 stars; the star lines rise layer by layer. The three stars next to the score fill up as you score and light up as you earn them.`,`Deep down, stars come from combos and streaks: the blocks and the lines you have to clear anyway are not enough.`,`At the end, CONTINUE banks your haul and stars, or RETRY plays the board again. A retry starts over: that board's haul is not kept. Stars you already earned on a board stay.`,`Each star after the first adds bonus points to your day.`]));
-    b.append(infoEl('h3','HINT AND DAILY TWIST'),infoList([`Hint, in the top bar, spends ${HINT_COST} coal to show a good move. It asks first.`,`Every day has one twist, such as Gold Rush or Forge Day. It's shown on the home screen and on each board's card.`]));
+    b.append(infoEl('h3','HINT AND DAILY BOOSTS'),infoList([`Hint, in the top bar, spends ${HINT_COST} coal to show a good move. It asks first.`,`On Fridays, Saturdays and Sundays, and on some holidays, there's a daily boost: a little more ore, gems, Fossils or Buried Treasure. It's shown on the home screen and on each board's card.`]));
     b.append(infoEl('h3','HOW TO GET BETTER'),infoList([`Look at all three pieces before you place any. Plan the order.`,`Keep one row and one column mostly open so long bars still fit.`,`Avoid sealing off single empty cells or tiny pockets; they can only be filled by a matching piece, if one ever comes.`,`Build rows and columns up to one piece away from full, then finish several at once for a combo.`,`Gold glow under your piece means the drop will clear a line.`,`Save your belt for tight spots, not to pad your score.`]));
     b.append(infoEl('h3','EVERY DAY COUNTS'),infoList([`Clear at least one board each day (Pacific time) to keep your depth.`,`Miss a whole day and the cave settles: you drop back to your layer's camp (its first board, once you've cleared it). Your tools and stash are always kept.`,`Each day also brings a new twist.`]));
   },
@@ -1742,7 +1804,7 @@ async function useDrill(line,k){
   busy=true; skipFlag=false; undo=null; life.seen.drill=true;
   const cells=Array.from({length:N},(_,j)=>line==='row'?[k,j]:[j,k]), ctx=mineCtx(), hit=[], blasts=[];
   for(const [r,c] of cells){ const [sx,sy]=cellScreen(r,c); spawnFxParts('spark',sx,sy,REDUCE?1:3,['#ffffff','#e8ecf2','#ffd23f']); }
-  blip(1800,.05,'square',.05); blip(1500,.05,'square',.05,.06); blip(1200,.08,'sawtooth',.06,.12); shake(false);
+  SND.drill(); shake(false);
   for(const [r,c] of cells){ const m=grid[r][c]; if(!m) continue; if(m==='blast'){ blasts.push([r,c]); continue; } if(MATS[m].kind==='special'){ hit.push(specialHit(m,r,c,ctx)); continue; } mineCell(r,c,ctx); }
   flushCtx(ctx); let pts=SCORE.special.drill; score+=pts;
   for(const [r,c] of blasts) if(grid[r][c]==='blast'){ const n=await detonate(r,c,hit); score+=SCORE.special.blast*n; pts+=SCORE.special.blast*n; }
@@ -1783,7 +1845,7 @@ function settle(today){
 }
 function checkDay(){
   const s=lsGet(K_DAY), today=todayKey();
-  if(!s||!s.seed){ dayState=freshRun(today); saveDay(); life.twists[modifierFor(today).id]=true; return; }
+  if(!s||!s.seed){ dayState=freshRun(today); saveDay(); { const m=modifierFor(today); if(m) life.twists[m.id]=true; } return; }
   dayState=Object.assign(freshRun(today),s);
   if(dayState.day!==today){
     if(dayState.lastClear && dayState.lastClear<Meta.prevDay(today)) settle(today);
@@ -1791,7 +1853,7 @@ function checkDay(){
     const b=lsGet(K_BOARD); if(b&&(b.seed!==dayState.seed||!unlocked(b.idx))) lsDel(K_BOARD);
     saveDay();
   }
-  life.twists[modifierFor(today).id]=true;
+  { const m=modifierFor(today); if(m) life.twists[m.id]=true; }   // v2.9.0: most days have no boost
 }
 function saveBoard(){ if(!pieces) return; lsSet(K_BOARD,{seed:dayState.seed,day:dayState.day,idx:level-1,practice,reached,reachScore,clearBonus,decided,grid,pieces,nextPiece,score,combo,streakDim,sinceClear,collected,hand,since,bigNext,moves,over,undo,dealt,dealtN,dodgeUsed,diff:curDiff}); saveProfile(); }
 function clearBoardSave(){ lsDel(K_BOARD); }
@@ -1844,9 +1906,9 @@ function showHome(){
 const sbStr=sb=>sb?`Continue ${boardLabel(sb.idx)}`:'';
 function fillHome(){
   const sb=savedBoard(), cont=$('contBtn'); cont.hidden=!sb; cont.textContent=sb?`Continue board ${boardLabel(sb.idx)}`:'';
-  $('mapBtn').textContent=sb?'World map':'Play'; $('mapBtn').classList.toggle('go',!sb);
+  $('mapBtn').textContent=sb?'Map':'Play'; $('mapBtn').classList.toggle('go',!sb);
   $('hcWarn').hidden=!(dayState.lastClear&&dayState.lastClear!==dayState.day);
-  { const m=modifierFor(dayState.day), t=$('homeTwist'); t.textContent=`Today: ${m.name}. ${m.desc}`; }   // the daily twist (shown here and on each board's card since 2.4.0)
+  { const m=modifierFor(dayState.day), t=$('homeTwist'); t.hidden=!m; t.textContent=m?`Today: ${m.name}. ${m.desc}`:''; }   // the daily twist (shown here and on each board's card since 2.4.0)
   $('homeFrag').textContent='✦'.repeat(fragments); $('homeFrag').hidden=!fragments; $('homeFrag').title=fragments>=5?'Legendary':'';
 }
 // the Pacific day can end while the app sits open on the home or map screen: refresh into the new day
@@ -2081,14 +2143,23 @@ function mapNotice(kind,n){
   if(kind==='tip') set(n.title,n.text,n.icon);
   if(kind==='camp') set('Camp made',`You made camp at the top of ${ZONES[n.camp].name}. If you miss a day, you'll only drop back to here.`,ITEM.wood);
   if(kind==='broke') set('Your tools shattered',`The Crust wore your Diamond tools down to nothing. You're back at the start of Magmastone with your tools patched to ${DUR_AFTER_BREAK}%. Mine prism ore to mend them, then try the Crust again.`,ITEM.tool_galaxy);
-  [392,494,587].forEach((f,j)=>blip(f,.14,'triangle',.05,j*.1));
+  SND.notice();
 }
 $('pOk').onclick=()=>{ $('prospector').hidden=true; };
 function goalChips(g){ const wrap=document.createElement('div'); wrap.className='goals'; Object.entries(g).forEach(([k,v])=>{ const s=document.createElement('span'); s.title=DROPS[k][0]; s.append(iconOf(ITEM[k]),document.createTextNode(` ${v}`)); wrap.append(s); }); return wrap; }
+// v2.9.0 (I-42): starting a board with an empty belt while you could easily craft a special asks first (Open Craft / Play anyway);
+// from the Limestone Caves on, at most once a day. "Easily" = you could pay for one special twice over.
+function beltNudgeDue(i){ if(zoneOfIdx(i)<1||tut.active||life.beltNudgeDay===dayState.day) return false;
+  if(specials.slice(0,beltCap()).some(Boolean)) return false;
+  return RECIPES.some(r=>(r.kind==='equip'||wk().table)&&Object.entries(r.cost).every(([k,v])=>(bank[k]||0)>=2*v)); }
+async function beltNudge(i){ if(!beltNudgeDue(i)) return true; life.beltNudgeDay=dayState.day; saveLife(); A.track('belt_nudge',{idx:i});
+  if(await ask('Your belt is empty','Craft a special first? A Star Drill or a Blast Charge can save a board.','Open Craft','Play anyway')){ A.track('belt_nudge_craft',{idx:i}); openCraft(); return false; }
+  return true; }
 function openCard(i){
   if(i===CORE_IDX&&unlocked(i)){ openCore(); return; }
   // one tap plays the next board (or resumes the one in progress); cleared, locked and gated boards open their card
-  { const sb=savedBoard(); if(unlocked(i)&&!isDone(i)&&!gateWaiting(i)&&(!sb||sb.idx===i)){ A.track('board_card_open',{idx:i,label:boardLabel(i),quick:true}); show('game'); if(sb) restoreBoard(sb); else { clearBoardSave(); startBoard(i); } return; } }
+  { const sb=savedBoard(); if(unlocked(i)&&!isDone(i)&&!gateWaiting(i)&&(!sb||sb.idx===i)){ A.track('board_card_open',{idx:i,label:boardLabel(i),quick:true});
+    if(sb){ show('game'); restoreBoard(sb); } else beltNudge(i).then(goOn=>{ if(goOn){ show('game'); clearBoardSave(); startBoard(i); } }); return; } }
   const z=zoneOfIdx(i), def=boardDef(i), card=$('nodeCard'), done=isDone(i), open=unlocked(i), gate=gateWaiting(i), sb=savedBoard();
   A.track('board_card_open',{idx:i,label:boardLabel(i),locked:!open&&!gate,gate,done}); if(!open&&!gate) A.attempt('locked_board',i);
   $('ncZone').textContent=`${def.zoneName} · Board ${boardLabel(i)}`;
@@ -2110,7 +2181,7 @@ function openCard(i){
         const pips=document.createElement('i'); pips.innerHTML='<b></b><b></b><b></b>'; [...pips.children].forEach((p,k)=>p.classList.toggle('on',k<n||(n===0&&k===0)));
         const nm=document.createElement('em'); nm.textContent=word; it.append(iconOf(ITEM[res]),pips,nm); ab.append(it); });
       g.append(ab); }
-    { const tw=document.createElement('span'); tw.className='tgt twist'; tw.textContent=`Today: ${MOD().name}`; tw.title=MOD().desc; g.append(tw); }
+    if(MOD()){ const tw=document.createElement('span'); tw.className='tgt twist'; tw.textContent=`Today: ${MOD().name}`; tw.title=MOD().desc; g.append(tw); }
     if(!open){ go.disabled=true; go.textContent='Locked'; note.textContent=`Mine board ${boardLabel(i-1)} first.`; }
     else { go.disabled=false; go.textContent=(sb&&sb.idx===i)?'Continue':done?'Mine again':'Mine this board';
       if(toolBreakable()&&z===CRUST_Z&&!done) note.textContent=`Crust rock wears your tools hard. Tools at ${Math.round(dayState.dur)}%; ${bank.prismore||0} prism ore in your stash to mend them at the Forge.`;
@@ -2119,8 +2190,8 @@ function openCard(i){
   }
   go.onclick=()=>{ $('nodeCard').hidden=true;
     if(gate){ openCraft('tool'); return; }
-    const s2=savedBoard(); show('game');
-    if(s2&&s2.idx===i){ restoreBoard(s2); } else { clearBoardSave(); startBoard(i); } };
+    const s2=savedBoard();
+    if(s2&&s2.idx===i){ show('game'); restoreBoard(s2); } else beltNudge(i).then(goOn=>{ if(goOn){ show('game'); clearBoardSave(); startBoard(i); } }); };
   card.hidden=false;
 }
 // ---------- the Ancient Core: one piece, one spot, then the record and the credits ----------
@@ -2130,7 +2201,7 @@ function openCore(){
   $('core').hidden=false; $('coreTally').hidden=true; $('credits').hidden=true; $('coreHint').hidden=false;
   const pc=$('corePiece'); pc.hidden=false; pc.style.transform=''; pc.classList.remove('drag');
   { const x=pc.firstElementChild.getContext('2d'); x.clearRect(0,0,16,16); x.drawImage(ITEM.portal,0,0); }
-  stopMusic(); [196,247,294,392].forEach((f,j)=>blip(f,.5,'sine',.05,j*.35));
+  stopMusic(); SND.core();
   cancelAnimationFrame(coreRaf); const tick=now=>{ drawCoreScene(now); if(!$('core').hidden) coreRaf=requestAnimationFrame(tick); }; coreRaf=requestAnimationFrame(tick);
 }
 const coreSocket=()=>{ const cv=$('coreCv'), w=cv.clientWidth, h=cv.clientHeight, u=Math.min(w/10,h/16); return {x:w/2,y:h*.47-u*1.2,u,w,h}; };
@@ -2163,7 +2234,7 @@ function drawCoreScene(now){
   pc.addEventListener('pointerup',up); pc.addEventListener('pointercancel',()=>{ drag=null; pc.classList.remove('drag'); pc.style.transform=''; }); }
 function placePortal(){
   coreDone=true; $('corePiece').hidden=true; $('coreHint').hidden=true; A.track('core_portal',{days:dayState.days});
-  [262,330,392,523,659,784,1047,1319].forEach((f,j)=>blip(f,.6,'sine',.06,j*.18)); const t0=performance.now();
+  SND.portal(); const t0=performance.now();
   const step=()=>{ coreFlash=Math.min(1,(performance.now()-t0)/(REDUCE?400:3600)); if(coreFlash<1) requestAnimationFrame(step); else setTimeout(showTally,REDUCE?100:500); }; requestAnimationFrame(step);
 }
 function runTally(){
@@ -2315,7 +2386,7 @@ async function askHint(){
   hintFlying=true; bank.coal-=HINT_COST; saveProfile();
   const from=document.querySelector('.si[data-k="coal"] canvas')||$('stash'), to=$('hintBtn');
   let landed=0; const n=REDUCE?1:HINT_COST;
-  for(let q=0;q<n;q++) flyBetween(ITEM.coal,from,to,q*70,'#ffd27a',()=>{ if(q===0) updateStash(['coal']); blip(700+q*90,.05,'sine',.04);
+  for(let q=0;q<n;q++) flyBetween(ITEM.coal,from,to,q*70,'#ffd27a',()=>{ if(q===0) updateStash(['coal']); SND.coal(q);
     if(++landed===n){ hintFlying=false; to.classList.remove('gulp'); void to.offsetWidth; to.classList.add('gulp'); useHint(true); } });
 }
 function useHint(paid){
@@ -2323,7 +2394,7 @@ function useHint(paid){
   if(!paid){ if((bank.coal||0)<HINT_COST){ showCombo(`A hint costs ${HINT_COST} coal`); return; } bank.coal-=HINT_COST; updateStash(['coal']); saveProfile(); }
   const [lo,hi]=occBits(grid), ranked=rankMoves(lo,hi,pieces.map(p=>p?SHAPES[p.sid]:null)); if(!ranked.length) return;
   const best=ranked[0]; clearHint();
-  hintInfo={i:best.i,r0:best.pl.r0,c0:best.pl.c0}; slots[best.i].classList.add('hint'); updateHintBtn(); blip(988,.08,'triangle',.05); blip(1319,.1,'triangle',.05,.08);
+  hintInfo={i:best.i,r0:best.pl.r0,c0:best.pl.c0}; slots[best.i].classList.add('hint'); updateHintBtn(); SND.hint();
   life.hints++; A.track('hint_used',{idx:level-1,score,moves,sid:pieces[best.i].sid,lines:best.nb[2]}); setTimeout(()=>{ if(hintInfo&&hintInfo.i===best.i) clearHint(); },4500);
 }
 $('hintBtn').onclick=askHint;
@@ -2341,7 +2412,7 @@ function tutorAfterPlace(n){
   else { clearHint(); showTutor('Fill a whole row or a whole column to clear it.',false); }
 }
 const tutorBlocks=(i,t)=>tut.active&&!!hintInfo&&(i!==hintInfo.i||t.r0!==hintInfo.r0||t.c0!==hintInfo.c0);
-function tutorNudge(){ showTutor('Not there: drag the glowing piece onto the glowing spot.',false); $('tutor').classList.remove('nudge'); void $('tutor').offsetWidth; $('tutor').classList.add('nudge'); blip(220,.08,'triangle',.05); }
+function tutorNudge(){ showTutor('Not there: drag the glowing piece onto the glowing spot.',false); $('tutor').classList.remove('nudge'); void $('tutor').offsetWidth; $('tutor').classList.add('nudge'); SND.nudge(); }
 $('tutorNext').onclick=()=>tutorFinish(false); $('tutorSkip').onclick=async()=>{ if(await ask('Skip the tutorial?','You can replay it any time from the Guide or Settings.','Skip','Keep going')) tutorFinish(true); };
 // ---------- the guided tour (v2.5.0): on the first play, the map, the belt and Craft, then board 1-1 hands-on, then the board's parts ----------
 // coach(steps): each step spotlights one element ({sel, text, before, after}); Skip asks first. Replayable from the Guide and Settings.
@@ -2494,6 +2565,7 @@ if(['localhost','127.0.0.1','[::1]'].includes(location.hostname) && /[?&]debug\b
   place:(i,r,c)=>place(i,r,c), state:()=>({reached,reachScore,clearBonus,decided,hintInfo,combo,streakDim,sinceClear,grid,pieces,score,busy,over,bank,hand,luck,luckLive,specials,crafted:Object.fromEntries(RECIPES.map(r=>[r.m,dockCount(r.m)])),moves,dodgeUsed,dealt,screen,level,dayState}),
   fits:(p,r,c)=>fitsAt(p,r,c), setCell:(r,c,m)=>{grid[r][c]=m;}, setPieces:(ps)=>{pieces=ps; drawTray();},
   give:(b)=>{Object.assign(bank,b); updateStash();}, def:()=>levelDef(level), start:(i)=>{show('game'); startBoard(i);},
+  sndKeys:()=>Object.keys(SND), snd:(k)=>{ SND[k](3); return true; }, saveBoardNow:()=>saveBoard(),
   setScore:(v)=>{score=v;}, bar:()=>{ shown=score; updateBar(); }, deals:()=>({dealt:dealtN,moves,next:nextPiece,grace:levelDef(level).grace,wild:wildOf(moves,levelDef(level).grace,levelDef(level).ramp),diff:levelDef(level).diff}), dodge:()=>luckyDodge(), canDodge:()=>canDodge(), setMoves:(n)=>{ moves=n; updateBar(); }, pl:()=>({...plStats(),shapes:dayState.shapes||{},life:life.shapes||{}}), cart:()=>{ $('cartBar').onclick(); }, leave:()=>{ if(starsNow()>=1&&!reached) reachTarget(); }, openCraft:(f)=>openCraft(f), beltTap:(i)=>beltTap(i), belt:()=>specials.slice(), zonePop:(z)=>openZonePop(z,document.querySelectorAll('.zchip')[z]||document.body), setNext:(p)=>{ nextPiece=p; drawTray(); }, tickPotions:(n=1)=>{ for(let k=0;k<n;k++) tickPotions(); }, setCollected:(o)=>{collected=o;}, collected:()=>collected, tickDay:()=>refreshIfNewDay(), fx:()=>({fxList:fxList.length,fxParts:fxParts.length,particles:particles.length}), setDayRaw:(d)=>{ dayState.day=d; saveDay(); }, musicOn:()=>!!(music&&music.isOn()), life:()=>life, settings:()=>settings, tut:()=>tut, fillHome:()=>fillHome(), showHome:()=>showHome(), resetText:()=>Meta.resetText(), share:()=>doShare(), reach:()=>reachTarget(), hint:()=>useHint(), mod:()=>modifierFor(dayState.day), tcost:(t)=>tcost(t), addSpecial:(m)=>{ const i=specials.findIndex((v,k)=>!v&&k<beltCap()); if(i>=0) specials[i]=m; else specials[beltCap()-1]=m; renderDock(); }, tilt:()=>mercyTilt(), practice:()=>practice, previewDay:(d)=>{ dayState.day=d; buildMap(); }, setTool:(t,dur)=>{ dayState.tool=t; if(dur!==undefined) dayState.dur=dur; saveDay(); }, run:()=>dayState, forge:(t)=>forgeTool(t), mend:()=>mendTools(), settle:()=>{ settle(dayState.day); saveDay(); }, setRun:(o)=>{ Object.assign(dayState,o); saveDay(); }, frontier:()=>frontier(), openCore:()=>openCore(), placePortal:()=>placePortal(), fragments:(n)=>{ if(n!==undefined){ fragments=n; saveProfile(); } return fragments; }, markDone:(a)=>{ dayState.done=a.slice(); saveDay(); }, openMap:()=>showMap({}), buildMap:()=>buildMap(), mapInfo:()=>({maxY:mapState().maxY,map:MAP}), newDay:(d)=>{ const s0=lsGet(K_DAY); if(s0){ s0.day=d; lsSet(K_DAY,s0); } checkDay(); }, history:()=>({}), setBank:(b)=>{ bank=b; updateStash(); }, craftTool:(t)=>forgeTool(t),    allClearBonus, gameOver:()=>gameOver(), giveHand:(h)=>{Object.assign(hand,h); updateStash();}, drink:(m)=>drinkPotion(m||'luck'), workshop:(id)=>{ if(id){ const w=WORKSHOP[id]; if(w&&!wk()[id]){ wk()[id]=1; saveDay(); renderDock(); } } return {...wk()}; }, build:(id)=>buildWorkshop(id), fitDock:()=>fitDock(), potions:()=>({luck,luckLive,prot,protLive}), deal:()=>dealSet(), complete:()=>{ if(!reached){ reached=true; reachScore=score; decided=false; } if(starsNow()<1) score=Math.max(score,starAt()[0]); bankBoard(); }, result:()=>showResult(), retry:()=>retryBoard(), audioState:()=>ac?ac.state:'none',
 }};
 start();

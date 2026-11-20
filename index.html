@@ -52,7 +52,7 @@
     </div>
   </div>
   <div id="dock" aria-label="Your belt"><div class="belt" id="beltBar"><div id="beltSlots" class="bslots"></div></div></div>
-  <button id="cartBar" class="off" type="button" aria-label="Leave the board (earn a star first)"><span class="ties"></span><span class="rail"></span><span class="glowd"></span><span class="mk" data-i="0">★</span><span class="mk" data-i="1">★</span><span class="mk" data-i="2">★</span><canvas class="door" width="16" height="14"></canvas><canvas class="cart" width="16" height="11"></canvas><span class="load" aria-hidden="true"></span></button>
+  <button id="cartBar" class="off" type="button" aria-label="Leave the board (earn a star first)"><span class="ties"></span><span class="rail"></span><span class="glowd"></span><span class="mk" data-i="0">★</span><span class="mk" data-i="1">★</span><span class="mk" data-i="2">★</span><canvas class="door" width="16" height="14"></canvas><span class="exit" aria-hidden="true"><svg viewBox="0 0 12 10" width="12" height="10"><path d="M1 5h7M5 1.5 8.5 5 5 8.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg></span><canvas class="cart" width="16" height="11"></canvas><span class="load" aria-hidden="true"></span></button>
   <div id="trayWrap">
     <div id="potionBadges"><div id="luckBadge" class="pBadge" hidden><span class="pips"></span><span id="luckTxt"></span></div><div id="protBadge" class="pBadge" hidden><span class="pips"></span><span id="protTxt"></span></div></div>
     <div id="tray">
@@ -183,6 +183,7 @@
 </div>
 <div id="tutor" hidden><div class="tbox"><p id="tutorText"></p><div class="row"><button id="tutorNext" class="go" type="button">Got it</button><button id="tutorSkip" type="button">Skip tutorial</button></div></div></div>
 <div id="coach" hidden role="dialog" aria-label="Tutorial" aria-live="polite"><div id="coachHole"></div><div id="coachCard"><p id="coachStep"></p><p id="coachText"></p><div class="row"><button id="coachSkip" type="button">Skip tutorial</button><button id="coachNext" class="go" type="button">Next</button></div></div></div>
+<div id="forgeMoment" hidden role="dialog" aria-label="Tools forged" aria-live="assertive"><div class="fmCard"><canvas id="fmTool" width="16" height="16"></canvas><p id="fmTitle"></p><p id="fmSub"></p><button id="fmGo" class="go" type="button">Dig down</button></div></div>
 <canvas id="fx"></canvas>
 <canvas id="ghost" hidden></canvas>
 <script src="src/version.js"></script>

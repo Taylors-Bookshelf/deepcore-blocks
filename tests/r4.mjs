@@ -26,16 +26,23 @@ check(D.DEALS.slice(0, D.CRUST_Z + 1).every((n, i) => i === 0 || n >= D.DEALS[i 
   const g = D.boardParams(4, 3), dealt = {}; for (let n = 0; n < 3000; n++) { const p = C.orePiece(C.dressPiece(C.SHAPES[20], g, { rnd: r, budgeted: true }), g, dealt, r); p.mats.forEach(m => { if (m === 'diamond') gems++; }); }
   check(gems <= g.oreCap.diamond, `gems are capped per board (${gems} diamonds, cap ${g.oreCap.diamond})`); }
 check(D.starBonus(1, 2400) === 0 && D.starBonus(2, 2400) === 240 && D.starBonus(3, 2400) === 480, 'each extra star is worth 10% of the 1-star line');
-const days = Array.from({ length: 90 }, (_, i) => `2026-${String(1 + Math.floor(i / 28)).padStart(2, '0')}-${String(1 + i % 28).padStart(2, '0')}`);
-const mods = days.map(d => D.modifierFor(d).id);
-check(new Set(mods).size === D.MODIFIERS.length, `every one of the ${D.MODIFIERS.length} daily twists comes up within 90 days`);
-check(D.modifierFor(days[3]).id === D.modifierFor(days[3]).id, 'a day always has the same twist');
+const days = Array.from({ length: 120 }, (_, i) => { const t = new Date(Date.UTC(2026, 0, 1 + i)); return t.toISOString().slice(0, 10); });
+// v2.9.0 (I-45): boosts only on Fridays, Saturdays, Sundays and holidays; every other day has none
+const wd = d => new Date(d + 'T12:00:00Z').getUTCDay();
+check(days.every(d => (D.modifierFor(d) !== null) === ([5, 6, 0].includes(wd(d)) || !!D.holidayFor(d))), 'boost days are exactly Fridays, Saturdays, Sundays and holidays');
+check(days.filter(d => D.modifierFor(d)).length < days.length * .5, `most days have no boost (${days.filter(d => D.modifierFor(d)).length} of ${days.length})`);
+const mods = days.map(d => D.modifierFor(d)).filter(Boolean).map(m => m.id);
+check(new Set(mods).size === D.MODIFIERS.length, `every one of the ${D.MODIFIERS.length} boosts comes up within 120 days`);
+check(D.modifierFor('2026-11-20').id === D.modifierFor('2026-11-20').id, 'a day always has the same boost');
+check(!D.MODIFIERS.some(m => m.id === 'forge_day' || m.toolMul), 'Forge Day is gone');
+check(D.holidayFor('2026-11-26') === 'Thanksgiving' && D.holidayFor('2027-11-25') === 'Thanksgiving' && D.holidayFor('2026-11-19') === null, 'Thanksgiving is the fourth Thursday of November');
+check(['2026-01-01', '2026-02-14', '2026-10-31', '2026-12-24', '2026-12-25', '2026-12-31'].every(d => D.modifierFor(d) && D.modifierFor(d).strong && D.modifierFor(d).holiday), 'holidays get one of the stronger boosts');
+check(D.modifierFor('2026-11-24') === null && D.modifierFor('2026-11-20') !== null, 'a Tuesday has no boost, a Friday has one');
 const byId = Object.fromEntries(D.MODIFIERS.map(m => [m.id, m]));
-const base = D.boardParams(3, 1), gold = D.boardParams(3, 1, byId.gold_rush), gem = D.boardParams(4, 1, byId.gem_fever), tre = D.boardParams(3, 1, byId.treasure_day);
-check(Math.abs(gold.budget.gold - 1.5 * base.budget.gold) < 1e-9, 'Gold Rush adds 50% gold (v2.7.0)');
-check(gem.budget.emerald > D.boardParams(4, 1).budget.emerald && gem.budget.diamond > D.boardParams(4, 1).budget.diamond, 'Gem Fever raises the board\'s gem budget');
-check(tre.specialMul === 2 && base.specialMul === 1, 'Treasure Day doubles special blocks (v2.7.0)');
-check(D.ZONES.every((z, i) => i === 0 || i >= D.TOOLS.length || Object.entries(D.toolCost(i)).every(([k, v]) => D.toolCost(i, byId.forge_day)[k] === Math.ceil(v * .85))), 'Forge Day makes tools 15% cheaper (rounded up)');
+const base = D.boardParams(3, 1), ore = D.boardParams(3, 1, byId.ore_20), gem = D.boardParams(4, 1, byId.gem_10), tre = D.boardParams(3, 1, byId.find_10);
+check(Math.abs(ore.budget.gold - 1.2 * base.budget.gold) < 1e-9 && Math.abs(ore.budget.iron - 1.2 * base.budget.iron) < 1e-9, 'Mother Lode adds 20% to every ore');
+check(gem.budget.emerald > D.boardParams(4, 1).budget.emerald && Math.abs(gem.budget.diamond - 1.1 * D.boardParams(4, 1).budget.diamond) < 1e-9, 'Gem Fever adds 10% gems');
+check(tre.specialMul === 1.1 && base.specialMul === 1, 'Treasure Day adds 10% random specials');
 // the hint engine returns legal, ranked moves
 { const S = C.SHAPES, lo = 0, hi = 0; const r = C.rankMoves(lo, hi, [S[3], S[4], null]); check(r.length > 0 && r[0].v >= r[r.length - 1].v, 'rankMoves lists legal moves best first'); }
 
@@ -132,13 +139,13 @@ await tt('setBank', { coal: 4 }); await page.waitForTimeout(100);
 check(await T(() => document.getElementById('hintBtn').disabled), 'hint is disabled without enough coal');
 check(await T(() => window.DCA.buffer.some(e => e.event === 'hint_used')), 'analytics recorded the hint');
 
-// 9. daily twist shown, and Forge Day makes tools cheaper
+// 9. the daily boost shows on the home screen on a boost day, and nothing shows on a day without one (v2.9.0)
 await T(() => window.__deepcore.test.openMap());
-const modName = await T(() => window.__deepcore.test.mod().name);
-await T(() => window.__deepcore.test.showHome()); await page.waitForTimeout(300);
-check(await T((n) => document.getElementById('homeTwist').textContent.includes(n), modName), `the home screen shows today's twist (${modName})`);
-const forgeDay = days.find(d => D.modifierFor(d).id === 'forge_day'); await tt('previewDay', forgeDay);
-const lc = await tt('tcost', 1); check(lc.bone === Math.ceil(D.TOOLS[1].cost.bone * .85) && lc.wood === Math.ceil(D.TOOLS[1].cost.wood * .85), `on a Forge Day bone tools cost 15% less; was a quarter less (${JSON.stringify(lc)})`);
+await tt('previewDay', '2026-11-20'); await T(() => { window.__deepcore.test.fillHome(); window.__deepcore.test.showHome(); }); await page.waitForTimeout(300);
+const boostName = D.modifierFor('2026-11-20').name;
+check(await T((n) => { const t = document.getElementById('homeTwist'); return !t.hidden && t.textContent.includes(n); }, boostName), `the home screen shows a Friday's boost (${boostName})`);
+await tt('previewDay', '2026-11-24'); await T(() => window.__deepcore.test.fillHome()); await page.waitForTimeout(200);
+check(await T(() => document.getElementById('homeTwist').hidden), 'and shows nothing on a Tuesday');
 check(errors.filter(e => !/404/.test(e)).length === 0, 'no page errors ' + errors.join(' | '));
 await close();
 console.log(fails.length ? `R4 TESTS FAILED (${fails.length})` : 'R4 TESTS PASSED'); if (fails.length) process.exitCode = 1;

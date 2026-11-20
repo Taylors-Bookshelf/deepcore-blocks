@@ -15,7 +15,7 @@ const pairs = [['white on ground', '#ffffff', '#46494f', 4.5], ['muted on ground
 for (const [n, a, b, min] of pairs) check(ratio(a, b) >= min, `${n}: contrast ${ratio(a, b).toFixed(1)}:1 (needs ${min})`);
 
 // ---- every daily twist on a real board, effects drain, smooth frames ----
-const modDays = D.MODIFIERS.map(m => { for (let i = 0; i < 400; i++) { const d = `2027-${String(1 + Math.floor(i / 28) % 12).padStart(2, '0')}-${String(1 + i % 28).padStart(2, '0')}`; if (D.modifierFor(d).id === m.id) return [m.id, d]; } });
+const modDays = D.MODIFIERS.map(m => { for (let i = 0; i < 400; i++) { const d = `2027-${String(1 + Math.floor(i / 28) % 12).padStart(2, '0')}-${String(1 + i % 28).padStart(2, '0')}`; const x = D.modifierFor(d); if (x && x.id === m.id) return [m.id, d]; } });
 const play = async (page, n) => { for (let k = 0; k < n * 3; k++) { const r = await page.evaluate(() => { const T = window.__deepcore.test, s = T.state(); if (s.screen !== 'game') return 'map'; if (s.busy || document.getElementById('sheetScrim').hidden === false) return 'busy'; if (s.over) return 'over';
     for (let i = 0; i < 3; i++) { const pc = s.pieces && s.pieces[i]; if (!pc) continue; const o = []; for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) if (T.fits(pc, r, c)) o.push([r, c]); if (o.length) { const q = o[Math.floor(Math.random() * o.length)]; T.place(i, q[0], q[1]); return 'ok'; } } return 'stuck'; });
   if (r === 'busy') { await page.waitForTimeout(150); continue; } if (r !== 'ok') return r; await page.waitForTimeout(25); } return 'done'; };

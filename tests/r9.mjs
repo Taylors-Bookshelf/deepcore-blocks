@@ -40,11 +40,11 @@ check(st.combo === 0 && !st.streakDim && ch.hidden, 'two misses in a row end the
 
 // star cart: no stars, then one, then two; the markers light as the lines are passed
 const at = (await T('def')).starAt;
-const cart = () => page.evaluate(() => { const b = document.getElementById('cartBar'); return { load: b.querySelector('.load').textContent, lit: [...b.querySelectorAll('.mk')].map(m => m.classList.contains('lit')) }; });
+const cart = () => page.evaluate(() => { const b = document.getElementById('cartBar'); return { load: b.querySelector('.load').textContent, lit: [...b.querySelectorAll('.mk')].map(m => m.classList.contains('got')), txt: [...b.querySelectorAll('.mk')].map(m => m.textContent).join('') }; });
 await T('setScore', at[0] - 10); await T('bar'); let c = await cart();
-check(c.load === '' && c.lit.every(x => !x), 'below the first star line the cart is empty and no marker is lit');
+check(c.load === '' && c.lit.every(x => !x) && c.txt === '★★★', 'below the first star line the cart is empty and all three stars stand lit on the rails');
 await T('setScore', at[0] + 10); await T('bar'); c = await cart();
-check(c.load === '★' && c.lit[0] && !c.lit[1], 'past the first line the cart carries a star and the first marker lights');
+check(c.load === '★' && c.lit[0] && !c.lit[1] && c.txt === '☆★★', 'past the first line the cart carries a star and a grey outline stays where it stood (v2.9.0)');
 await T('setScore', at[1] + 10); await T('bar'); c = await cart();
 check(c.load === '★★' && c.lit[1] && !c.lit[2], 'past the second line it carries two');
 const mk = await page.evaluate(() => [...document.querySelectorAll('#cartBar .mk')].map(m => m.getBoundingClientRect().x));

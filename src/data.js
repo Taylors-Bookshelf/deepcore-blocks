@@ -98,16 +98,29 @@ const WORKSHOP={
   belt3: {id:'belt3', name:'Belt slot 3',   cost:{}, stars:60, desc:'Carry a third item into every board.', needs:'belt2'},
 };
 
-// One twist per Pacific day, chosen from the date. They shift resources, never the rules of clearing a board.
-const MODIFIERS=[   // v2.7.0: about half as strong as before (they were 1.5x to 3x), so a twist flavours a day without deciding it
-  {id:'gold_rush',    name:'Gold Rush',    desc:'Gold ore turns up 50% more often today.',                                      ore:{gold:1.5}},
-  {id:'ruby_rain',    name:'Ruby Rain',    desc:'Rubies are 50% more common today.',                                            ore:{ruby:1.5}},
-  {id:'gem_fever',    name:'Gem Fever',    desc:'Emeralds and diamonds are 50% more common today.',                             gemMul:1.5, gemCapAdd:0},
-  {id:'treasure_day', name:'Treasure Day', desc:'Fossils and Buried Treasure turn up twice as often today.',                   specialMul:2},
-  {id:'coal_seams',   name:'Coal Seams',   desc:'Coal is 30% more common today.',                                               ore:{coal:1.3}},
-  {id:'forge_day',    name:'Forge Day',    desc:'Tools cost 15% less to forge today.',                                         toolMul:.85},
+// Daily boosts (v2.9.0, I-45; the user's call): most days have none. Fridays, Saturdays and Sundays (Pacific days) and a few holidays get
+// one boost, chosen from the date: a little more ore, gems or random specials. Holidays get the stronger ones. Forge Day is gone
+// (tools are forged when you reach a new layer, so a cheaper-tools day made no sense). modifierFor(day) is null on a day with no boost.
+const MODIFIERS=[
+  {id:'ore_10',   name:'Rich Seams',     desc:'10% more ore today.',                                            oreAll:1.1},
+  {id:'ore_20',   name:'Mother Lode',    desc:'20% more ore today.',                                            oreAll:1.2,  strong:true},
+  {id:'gem_5',    name:'Glimmer',        desc:'5% more emeralds and diamonds today.',                           gemMul:1.05},
+  {id:'gem_10',   name:'Gem Fever',      desc:'10% more emeralds and diamonds today.',                          gemMul:1.1,  strong:true},
+  {id:'find_5',   name:'Lucky Finds',    desc:'Fossils and Buried Treasure turn up 5% more often today.',       specialMul:1.05},
+  {id:'find_10',  name:'Treasure Day',   desc:'Fossils and Buried Treasure turn up 10% more often today.',      specialMul:1.1, strong:true},
 ];
-const modifierFor=day=>MODIFIERS[hashStr('mod:'+day)%MODIFIERS.length];
+// holidays (a first, simple list; the user may widen it later): fixed dates, plus US Thanksgiving (the fourth Thursday of November)
+const HOLIDAYS={'01-01':"New Year's Day",'02-14':"Valentine's Day",'10-31':'Halloween','12-24':'Christmas Eve','12-25':'Christmas Day','12-31':"New Year's Eve"};
+function holidayFor(day){ const [y,m,d]=String(day).split('-').map(Number); if(!y||!m||!d) return null;
+  const md=`${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; if(HOLIDAYS[md]) return HOLIDAYS[md];
+  if(m===11){ const first=new Date(Date.UTC(y,10,1)).getUTCDay(), thu=1+((4-first+7)%7)+21; if(d===thu) return 'Thanksgiving'; }
+  return null; }
+const weekdayOf=day=>{ const [y,m,d]=String(day).split('-').map(Number); return new Date(Date.UTC(y,m-1,d)).getUTCDay(); };   // 0 Sunday .. 6 Saturday
+function modifierFor(day){
+  const hol=holidayFor(day), wd=weekdayOf(day); if(!hol&&!(wd===5||wd===6||wd===0)) return null;
+  const pool=hol?MODIFIERS.filter(m=>m.strong):MODIFIERS, m=pool[hashStr('mod:'+day)%pool.length];
+  return hol?{...m,holiday:hol,desc:`${GREET[hol]||`Happy ${hol}!`} ${m.desc}`}:m; }
+const GREET={"New Year's Day":'Happy New Year!',"Christmas Eve":'Merry Christmas!','Christmas Day':'Merry Christmas!',"New Year's Eve":'Happy New Year!'};
 // what forging a tool costs on a given day
 const toolCost=(tier,mod)=>{ const m=(mod&&mod.toolMul)||1; return Object.fromEntries(Object.entries(TOOLS[tier].cost).map(([k,v])=>[k,Math.ceil(v*m)])); };
 // ---------- Scoring and stars (v2.0.4, I-15): points come from play, never from resources ----------
@@ -177,12 +190,13 @@ const BASE_MATS=['grass','dirt','sand','log','stone','granite','deep','ember','o
 function boardParams(zi,j,mod,diff){
   const df=diffOf(diff);
   const z=ZONES[zi], n=z.boards, f=n>1?j/(n-1):0;
-  const oreBoost={...(z.boost||{})}; if(mod&&mod.ore) Object.entries(mod.ore).forEach(([k,v])=>{ oreBoost[k]=(oreBoost[k]||1)*v; });
+  const oreMul=k=>((mod&&mod.ore&&mod.ore[k])||1)*((mod&&mod.oreAll)||1);   // today's boost on one ore
+  const oreBoost={...(z.boost||{})}; if(mod&&(mod.ore||mod.oreAll)) z.ores.forEach(k=>{ if(oreMul(k)!==1) oreBoost[k]=(oreBoost[k]||1)*oreMul(k); });
   const gems={}; Object.entries(z.gems||{}).forEach(([k,g])=>{ gems[k]=mod&&mod.gemMul?{p:g.p*mod.gemMul,cap:g.cap+(mod.gemCapAdd||0)}:g; });
   const ores=z.ores.filter(k=>((z.oreFrom&&z.oreFrom[k])||0)<=j);
   // this board's ore budget: only what the board can carry, times today's twist
   const budget={}; Object.entries(ORE_BUDGET[zi]||{}).forEach(([k,v])=>{ const gem=!!(z.gems&&z.gems[k]); if(!ores.includes(k)&&!gem) return;
-    budget[k]=v*(gem?((mod&&mod.gemMul)||1):((mod&&mod.ore&&mod.ore[k])||1)); });
+    budget[k]=v*(gem?((mod&&mod.gemMul)||1):oreMul(k)); });
   // endless boards (F-14, v2.4.0): the budget becomes a rate per piece dealt, over the old board length (DEALS×3 pieces)
   const orePer={}, oreCap={}; Object.entries(budget).forEach(([k,v])=>{ if(!DEALS[zi]) return; orePer[k]=df.oreRate*v/(DEALS[zi]*3); if(!ORES[k]) oreCap[k]=Math.max(1,Math.ceil(v*2)); });   // gems: at most twice the old budget a board
   const base=z.mixes[Math.min(z.mixes.length-1,Math.round(f*(z.mixes.length-1)))];
@@ -191,6 +205,6 @@ function boardParams(zi,j,mod,diff){
     target:starAt[0]||0, grace:DEALS[zi]*3, ramp:df.ramp, diff:df.id, core:!!z.core, d:Math.min(.97,z.d[0]+(z.d[1]-z.d[0])*f), pre:Math.round(z.pre[0]+(z.pre[1]-z.pre[0])*f) };
 }
 const lineName=n=> n>=5?'Mega!' : n===4?'Quad!' : n===3?'Triple!' : n===2?'Double!' : '';
-const api={DIFFS,diffOf,TOOL_WEAR,POTION_MOVES,WORKSHOP,BELT_MAX,SCORE,comboBonus,streakBonus,stepStreak,placePoints,DEALS,STAR_LINES,FIRST_BOARD_STARS,starsFromScore,ORE_BUDGET,FOSSIL_BONE,TREASURE,specialHaul,MODIFIERS,modifierFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf,STAR_ORES,starBonus,lineName,GEM_KEYS,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS};
+const api={DIFFS,diffOf,TOOL_WEAR,POTION_MOVES,WORKSHOP,BELT_MAX,SCORE,comboBonus,streakBonus,stepStreak,placePoints,DEALS,STAR_LINES,FIRST_BOARD_STARS,starsFromScore,ORE_BUDGET,FOSSIL_BONE,TREASURE,specialHaul,MODIFIERS,modifierFor,holidayFor,toolCost,TOOLS,toolNeeded,WEAR,PRISM_MEND,STASH_MEND,DUR_MAX,DUR_AFTER_BREAK,Z_START,CORE_IDX,CRUST_Z,MAGMA_Z,zoneOfIdx,jOfIdx,idxOf,STAR_ORES,starBonus,lineName,GEM_KEYS,boardParams,BASE_MATS,rng,hashStr,ORES,VAL,SPECIAL_RATE,SPECIAL_MIX,DROPS,tierOf,ZONES,BOARD_COUNT,RECIPES,STASH_KEYS};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.DeepcoreData=api;
 })(typeof self!=='undefined'?self:globalThis);
