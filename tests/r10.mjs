@@ -40,7 +40,7 @@ await page.click('#askNo'); await page.waitForTimeout(150); await page.click('#c
 // ---- empty-belt nudge before a Limestone board ----
 await T('setBank', rich); await T('setRun', { wk: {} });
 await T('openMap'); await page.waitForTimeout(400);
-await page.evaluate(() => { const b = [...document.querySelectorAll('.node.open')].find(n => /Board 2-1/.test(n.getAttribute('aria-label'))); b.click(); }); await page.waitForTimeout(300);
+await page.evaluate(() => { const b = [...document.querySelectorAll('.node.open')].find(n => /Board L-1/.test(n.getAttribute('aria-label'))); b.click(); }); await page.waitForTimeout(300);
 q = await ask(); check(q.open && q.title === 'Your belt is empty' && /Craft a special first/.test(q.text), 'starting a Limestone board with an empty belt and plenty to craft with asks first');
 await page.click('#askNo'); await page.waitForTimeout(2600);
 check((await T('state')).screen === 'game', 'Play anyway starts the board');

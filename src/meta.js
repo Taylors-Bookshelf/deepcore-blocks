@@ -68,12 +68,13 @@ const LOG=[
   {id:'crust',name:'Crust rock',group:'Rock and earth',kind:'mined'},
   ...[['bone','Bone'],['coal','Coal'],['copper','Copper'],['iron','Iron'],['gold','Gold'],['meteorite','Meteorite'],['prismore','Prism Ore']].map(([id,name])=>({id,name,group:'Ore',kind:'mined'})),
   ...[['ruby','Ruby'],['emerald','Emerald'],['diamond','Diamond']].map(([id,name])=>({id,name,group:'Gems',kind:'mined'})),
+  {id:'tool_branch',name:'Branch tools',group:'Tools forged',kind:'start'},   // v2.9.1 (B-11): every run starts with them
   ...[['tool_bone','Bone tools'],['tool_copper','Copper tools'],['tool_iron','Iron tools'],['tool_steel','Steel tools'],['tool_galaxy','Diamond tools']].map(([id,name])=>({id,name,group:'Tools forged',kind:'seen'})),
-  ...[['fossil','Fossil'],['treasure','Buried Treasure'],['blast','Blast Charge'],['sledgehammer','Sledgehammer'],['rescue','Potion of Protection'],['luck','Potion of Luck']].map(([id,name])=>({id,name,group:'Specials',kind:'seen'})),
+  ...[['fossil','Fossil'],['treasure','Buried Treasure'],['drill','Star Drill'],['blast','Blast Charge'],['sledgehammer','Sledgehammer'],['rescue','Potion of Protection'],['luck','Potion of Luck']].map(([id,name])=>({id,name,group:'Specials',kind:'seen'})),
   ...D.ZONES.map((z,i)=>({id:String(i),name:z.name,group:'Zones reached',kind:'zones'})),
   ...D.MODIFIERS.map(m=>({id:m.id,name:m.name,group:'Daily twists',kind:'twists'})),
 ];
-const discovered=(life,e)=>e.kind==='mined'?(life.mined[e.id]||0)>0 : e.kind==='seen'?!!life.seen[e.id] : e.kind==='zones'?!!life.zones[e.id] : !!life.twists[e.id];
+const discovered=(life,e)=>e.kind==='start'?true : e.kind==='mined'?(life.mined[e.id]||0)>0 : e.kind==='seen'?!!life.seen[e.id] : e.kind==='zones'?!!life.zones[e.id] : !!life.twists[e.id];
 
 // ---------- ambient music: a light, unhurried acoustic-style tune (plucked notes over a soft pad, major pentatonic) ----------
 // Generated live, no audio files: a slow four-chord loop (C G Am F) that never plays the same melody twice.

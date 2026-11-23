@@ -20,7 +20,7 @@ check(Meta.resetText(new Date('2026-01-15T07:00:00Z')) === '1h 0m' && Meta.reset
 { const code = Meta.encodeSave({ profile: { bank: { coal: 7 } }, life: { x: 1 }, note: 'ünïcode ✓' }); const back = Meta.decodeSave(code);
   check(/^DC1\./.test(code) && back && back.profile.bank.coal === 7 && back.note === 'ünïcode ✓', 'save codes round-trip, including unicode');
   check(Meta.decodeSave(code.slice(0, -4)) === null && Meta.decodeSave(code.replace(/\.[a-z0-9]+\./, '.zzzz.')) === null && Meta.decodeSave('garbage') === null && Meta.decodeSave('') === null, 'damaged or fake codes are refused'); }
-check(Meta.LOG.length === 8 + 7 + 3 + 5 + 6 + D.ZONES.length + D.MODIFIERS.length && new Set(Meta.LOG.map(e => e.kind + e.id)).size === Meta.LOG.length, `the discovery log has ${Meta.LOG.length} unique entries`);
+check(Meta.LOG.length === 8 + 7 + 3 + 6 + 7 + D.ZONES.length + D.MODIFIERS.length && new Set(Meta.LOG.map(e => e.kind + e.id)).size === Meta.LOG.length, `the discovery log has ${Meta.LOG.length} unique entries`);
 
 // ---- the game ----
 const { page, base, errors, close, ctx, cdp } = await phone();
@@ -52,7 +52,7 @@ await tt('start', 0); await page.waitForTimeout(2600);
 check(await T(() => document.getElementById('tutor').hidden) && (await st()).pieces.map(p => p.cells.length).join() !== '3,3,2' || true, 'the tutorial does not repeat');
 check(await T(() => document.getElementById('tutor').hidden), 'no tutorial caption on later boards');
 // replay and skip
-await T(() => window.__deepcore.test.showHome()); await page.tap('#settingsBtn'); await page.tap('#tutorBtn'); await page.waitForTimeout(1200);
+await T(() => window.__deepcore.test.showHome()); await page.tap('#tutorBtn'); await page.waitForTimeout(1200);
 check(await T(() => window.__deepcore.test.state().screen === 'map' && !document.getElementById('coach').hidden), 'the tutorial can be replayed from Settings: the tour starts on the map');
 for (let k = 0; k < 8; k++) { await page.tap('#coachNext'); await page.waitForTimeout(450); }
 await page.waitForTimeout(3000);
@@ -68,7 +68,8 @@ await tt('complete'); await page.waitForTimeout(3200); life = await tt('life');
 check(life.streak.cur === 1 && life.cleared === 1 && life.stars >= 1 && life.records.bestBoard > 0 && life.records.bestLines >= 1 && life.firstDay, 'clearing a board starts the streak and updates the records');
 await T(() => window.__deepcore.test.showHome()); await page.waitForTimeout(200);
 await page.tap('#profileBtn'); await page.waitForTimeout(200);
-check(await T(() => /Rookie Miner/.test(document.getElementById('profBody').textContent) && document.querySelectorAll('.heroTiles .stat').length === 3 && document.querySelectorAll('.recRow').length === 6), 'the profile shows the rank, three headline numbers and six records');
+// v2.9.2 (I-53): the rank is hidden until miner levels give it a meaning
+check(await T(() => !/Rookie Miner/.test(document.getElementById('profBody').textContent) && document.querySelectorAll('.heroTiles .stat').length === 3 && document.querySelectorAll('.recRow').length === 6), 'the profile shows three headline numbers and six records, no rank');
 await page.tap('#profTabs button:nth-child(2)'); await page.waitForTimeout(200);
 const logn = await T(() => ({ all: document.querySelectorAll('.logItem').length, got: document.querySelectorAll('.logItem:not(.no)').length }));
 check(logn.all === Meta.LOG.length && logn.got >= 5, `the discovery log lists everything and has unlocked what you found (${logn.got}/${logn.all})`);

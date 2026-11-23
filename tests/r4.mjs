@@ -31,8 +31,11 @@ const days = Array.from({ length: 120 }, (_, i) => { const t = new Date(Date.UTC
 const wd = d => new Date(d + 'T12:00:00Z').getUTCDay();
 check(days.every(d => (D.modifierFor(d) !== null) === ([5, 6, 0].includes(wd(d)) || !!D.holidayFor(d))), 'boost days are exactly Fridays, Saturdays, Sundays and holidays');
 check(days.filter(d => D.modifierFor(d)).length < days.length * .5, `most days have no boost (${days.filter(d => D.modifierFor(d)).length} of ${days.length})`);
-const mods = days.map(d => D.modifierFor(d)).filter(Boolean).map(m => m.id);
-check(new Set(mods).size === D.MODIFIERS.length, `every one of the ${D.MODIFIERS.length} boosts comes up within 120 days`);
+// v2.9.2 (I-50): weekends only draw the small boosts, holidays only the strong ones; over a year every boost comes up
+const year = Array.from({ length: 366 }, (_, i) => new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10));
+const mods = year.map(d => D.modifierFor(d)).filter(Boolean).map(m => m.id);
+check(new Set(mods).size === D.MODIFIERS.length, `every one of the ${D.MODIFIERS.length} boosts comes up within a year`);
+check(year.every(d => { const m = D.modifierFor(d); return !m || !!m.strong === !!D.holidayFor(d); }), 'weekends get only the small boosts, holidays only the strong ones');
 check(D.modifierFor('2026-11-20').id === D.modifierFor('2026-11-20').id, 'a day always has the same boost');
 check(!D.MODIFIERS.some(m => m.id === 'forge_day' || m.toolMul), 'Forge Day is gone');
 check(D.holidayFor('2026-11-26') === 'Thanksgiving' && D.holidayFor('2027-11-25') === 'Thanksgiving' && D.holidayFor('2026-11-19') === null, 'Thanksgiving is the fourth Thursday of November');
@@ -57,7 +60,7 @@ const clearRow = () => T(() => { const t = window.__deepcore.test; for (let c = 
   t.setPieces([{ cells: [[0, 0], [0, 1]], h: 1, w: 2, mats: ['stone', 'stone'], sid: 1 }, null, null]); window.__deepcore.test.place(0, 7, 6); });
 const board = async (i) => { await tt('start', i); await page.waitForTimeout(2600); };
 // end the board: set the score so one clear (2 blocks + 1 line = 120 points) lands where we want, then leave through the cart bar
-const finish = async (pts, leave = true) => { await tt('setScore', pts - 120); await clearRow(); await page.waitForTimeout(2600); if (leave) { await tt('cart'); await page.waitForTimeout(150); if (!(await T(() => document.getElementById('askScrim').hidden))) await page.click('#askYes'); await page.waitForTimeout(1100); } };
+const finish = async (pts, leave = true) => { await tt('setScore', pts - 120); await clearRow(); await page.waitForTimeout(5600); if (leave) { await tt('cart'); await page.waitForTimeout(150); if (!(await T(() => document.getElementById('askScrim').hidden))) await page.click('#askYes'); await page.waitForTimeout(1100); } };
 
 // 1. without a star the cart bar is grey and does nothing: there is no way to end a board with 0 stars except a cave-in
 await board(9); const tg = await target(), sa = await T(() => window.__deepcore.test.def().starAt);
@@ -67,6 +70,8 @@ check(!s.reached && !s.over && await T(() => document.getElementById('cartBar').
 // 2. one star lights the cart bar; it asks "Done here?"; the results sheet offers RETRY or CONTINUE; RETRY is a clean restart
 await tt('setScore', sa[1] - 120); await clearRow(); await page.waitForTimeout(2600);
 check(await T(() => document.getElementById('cartBar').classList.contains('on')), 'with a star the cart bar lights up');
+// v2.9.2 (B-12): the cart ignores taps while it is still rolling to the new score
+await page.waitForTimeout(3000);
 await tt('cart'); await page.waitForTimeout(150);
 check(await T(() => document.getElementById('askTitle').textContent === 'Done here?'), 'tapping it asks "Done here?"');
 await page.click('#askNo'); await page.waitForTimeout(200); s = await st(); check(!s.reached && s.screen === 'game', 'No keeps you mining');

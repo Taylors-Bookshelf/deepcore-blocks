@@ -118,7 +118,7 @@ function holidayFor(day){ const [y,m,d]=String(day).split('-').map(Number); if(!
 const weekdayOf=day=>{ const [y,m,d]=String(day).split('-').map(Number); return new Date(Date.UTC(y,m-1,d)).getUTCDay(); };   // 0 Sunday .. 6 Saturday
 function modifierFor(day){
   const hol=holidayFor(day), wd=weekdayOf(day); if(!hol&&!(wd===5||wd===6||wd===0)) return null;
-  const pool=hol?MODIFIERS.filter(m=>m.strong):MODIFIERS, m=pool[hashStr('mod:'+day)%pool.length];
+  const pool=MODIFIERS.filter(m=>!!m.strong===!!hol), m=pool[hashStr('mod:'+day)%pool.length];   // v2.9.2 (I-50): weekends get the small boosts, holidays the strong ones
   return hol?{...m,holiday:hol,desc:`${GREET[hol]||`Happy ${hol}!`} ${m.desc}`}:m; }
 const GREET={"New Year's Day":'Happy New Year!',"Christmas Eve":'Merry Christmas!','Christmas Day':'Merry Christmas!',"New Year's Eve":'Happy New Year!'};
 // what forging a tool costs on a given day

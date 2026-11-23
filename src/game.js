@@ -343,6 +343,8 @@ function levelDef(L){ return boardDef(L-1); }
 // v2.1.1: boards are numbered within their layer ("Magmastone board #3"); the grid maps (F-11) will have far too many to name
 function boardName(zi,j){ const z=ZONES[zi]; return z.core?'The Ancient Core':`${z.name.replace(/^The /,'')} board #${j+1}`; }
 const boardLabel=idx=>idx===CORE_IDX?'Core':`${zoneOfIdx(idx)+1}-${jOfIdx(idx)+1}`;
+// v2.9.2 (I-48): the map's board tags: the layer's letter and the board's number, F-1 (Forest board 1) to C-8 (the Crust's last)
+const LAYER_LETTER='FLSGBMC', boardTag=idx=>idx===CORE_IDX?'Core':`${LAYER_LETTER[zoneOfIdx(idx)]}-${jOfIdx(idx)+1}`;
 
 const emptyGrid=()=>Array.from({length:N},()=>Array(N).fill(null));
 const difficulty=()=>levelDef(level).d;
@@ -523,7 +525,10 @@ function drawPiece(ctx,p,pitch,ox=0,oy=0,alpha=1,size=pitch){
 function fitsAt(p,r0,c0){ for(const [r,c] of p.cells){ const R=r0+r,C=c0+c; if(R<0||C<0||R>=N||C>=N||grid[R][C]) return false; } return true; }
 function canPlaceAnywhere(p){ for(let r=0;r<=N-p.h;r++)for(let c=0;c<=N-p.w;c++) if(fitsAt(p,r,c)) return true; return false; }
 // the slot you just emptied takes the next piece with a small drop
-function dropIn(i){ const sl=slots[i]; if(!sl) return; sl.classList.remove('drop'); void sl.offsetWidth; sl.classList.add('drop'); setTimeout(()=>sl.classList.remove('drop'),300); }
+function dropIn(i){ const sl=slots[i]; if(!sl) return; sl.classList.remove('drop');
+  { const nb=$('nextBox'), cv=sl.querySelector('canvas'); if(nb&&cv){ const a=nb.getBoundingClientRect(), b=cv.getBoundingClientRect();   // start from the NEXT box (B-14)
+      sl.style.setProperty('--fx',Math.round(a.left+a.width/2-(b.left+b.width/2))+'px'); sl.style.setProperty('--fy',Math.round(a.top+a.height/2-(b.top+b.height/2))+'px'); } }
+  void sl.offsetWidth; sl.classList.add('drop'); setTimeout(()=>sl.classList.remove('drop'),420); }
 // the next piece, small, beside the score: it drops into the slot you empty with your next placement
 function drawNext(){
   const box=$('nextBox'); if(!box) return; const cv=box.querySelector('canvas'), p=nextPiece;
@@ -924,14 +929,14 @@ function swell(ss,w=0,len=1.8,p=.035,att=.5){ const a=sfxAt(w); if(!a) return; c
 // the sounds, by moment (the names match the sound lab's cards)
 const SND={
   place:()=>stone(jit(-5,.4),0,.07),                                                     // Stone set down
-  praise:()=>{ pno(19,0,.06); pno(28,.07,.05); },                                        // Piano sixth
+  praise:()=>{ pno(7,0,.032); pno(12,.08,.024); },                                       // Piano sixth, an octave lower and half as loud (v2.9.2)
   gem:()=>{ tnk(31,.2,.05); glints(.28,4,.022); },                                       // Tink and glints
   combo:n=>{ if(n<=2){ kal(16,0,.09); kal(19,.11,.095); }                                // Double: kalimba pair
     else if(n===3){ kal(12,0,.09); kal(16,.09,.095); kal(19,.18,.1); glints(.3,3,.02); }  // Triple: kalimba run
     else { mar(-12,0,.1); [12,14,16,19,21,24].forEach((s,j)=>kal(s,j*.075,.08)); } },    // Quad and up: kalimba cascade
   callout:st=>{ const l=({3:0,5:2,8:4,12:7})[st]||0; [9,12,16].forEach((s,j)=>kalS(s+l,j*.06,.055)); },   // Kalimba flutter, higher at each milestone
-  dim:()=>cry(7,0,.02),                                                                  // Faint crystal
-  lost:()=>[4,0,-5].forEach((s,j)=>mar(s,j*.1,.06)),                                     // Marimba settle
+  dim:()=>cry(0,0,.011),                                                                 // Faint crystal, lower and quieter (v2.9.2)
+  lost:()=>mar(-5,0,.022),                                                               // One soft low marimba tick, so a lost streak never reads as a mistake (v2.9.2)
   allClear:()=>{ [0,4,7,12,16,19,24].forEach((s,j)=>mar(s,j*.06,.1)); bel(24,.45,.07); glints(.5,6,.02); },   // Golden cascade
   find:()=>{ [12,16,19,24,19].forEach((s,j)=>kal(s,.12+j*.09,.08)); glints(.6,4,.018); }, // Kalimba sparkle
   drill:()=>{ for(let j=0;j<8;j++) wood(pn(12-j),j*.04,.07); cry(24,.36,.05); },         // Wood rattle
@@ -956,7 +961,8 @@ const SND={
 };
 function buzz(p){ try{ if(soundOn&&navigator.vibrate) navigator.vibrate(p); }catch(e){} }
 // crisp title text: the glow is a soft halo behind the letters, never a blur on them (v2.7.0: treasure text looked fuzzy)
-function crispText(ctx,text,x,y,px,fill,glow,weight=700){ ctx.save(); ctx.font=`${weight} ${px}px ${FONT_D}`; ctx.textAlign='center'; ctx.textBaseline='middle';
+function crispText(ctx,text,x,y,px,fill,glow,weight=700){ if(settings.large&&px<30) px*=1.18;   // v2.9.2 (B-15): small canvas text grows with Larger text too
+  ctx.save(); ctx.font=`${weight} ${px}px ${FONT_D}`; ctx.textAlign='center'; ctx.textBaseline='middle';
   if(glow){ ctx.shadowColor=glow; ctx.shadowBlur=px*.5; ctx.globalAlpha*=.55; ctx.fillStyle=glow; ctx.fillText(text,x,y); ctx.globalAlpha/=.55; }
   ctx.shadowBlur=0; ctx.lineJoin='round'; ctx.lineWidth=Math.max(4,px*.16); ctx.strokeStyle='#120a04'; ctx.strokeText(text,x,y); ctx.fillStyle=fill; ctx.fillText(text,x,y); ctx.restore(); }
 function blip(freq,dur=.08,type='square',vol=.05,when=0){
@@ -1007,7 +1013,7 @@ function startBoard(idx){
   practice=false; reached=false; reachScore=0; clearBonus=0; decided=true; clearHint(); closeSheet();   // replays give ore again: the stash is kept for the whole descent
   life.zones[boardDef(idx).zone]=true;
   const att=dayState.attempts=dayState.attempts||{}; att[idx]=(att[idx]||0)+1; saveDay();
-  curDiff=settings.diff||'casual'; undo=null; hand={}; dealt={}; meterLit=0; dealtN=0; nextPiece=null; dodgeUsed=false; caveSettled=true; level=idx+1; score=0; shown=0; collected={}; shownCol={}; since={}; bigNext=0; grid=emptyGrid(); pieces=null; combo=0; streakDim=false; sinceClear=0; updateStreak(0); over=false; moves=0; busy=false;
+  curDiff=settings.diff||'casual'; undo=null; hand={}; dealt={}; meterLit=0; dealtN=0; nextPiece=null; dodgeUsed=false; hintsUsed=0; caveSettled=true; level=idx+1; score=0; shown=0; collected={}; shownCol={}; since={}; bigNext=0; grid=emptyGrid(); pieces=null; combo=0; streakDim=false; sinceClear=0; updateStreak(0); over=false; moves=0; busy=false;
   prefill();
   updateStash(); $('over').hidden=true; buildGoals(); updateHUD(); dealSet(); drawTray(); showBanner(); saveBoard();
   if(tut.active) setTimeout(()=>{ if(tut.active&&screen==='game') tutorStart(); },2300);
@@ -1213,6 +1219,8 @@ function showResult(){
   sh.append(el('div','shBody',stars
     ?`${score.toLocaleString()} points in ${moves} placements. Continue to keep your haul and stars, or retry for more stars: a retry starts over and this board's haul is not kept.`
     :`You placed every piece but scored too few points for a star, so the board is not cleared. Retry it: clear several lines at once and keep clearing on back-to-back moves. This run's haul is not kept.`));
+  // v2.9.2 (B-12): the map keeps a board's best stars this run (also through a missed day's drop back to camp), so say so on a lower replay
+  { const prev=(dayState.stars||{})[level-1]||0; if(stars&&prev>stars) sh.append(el('div','shKept',`You earned ${prev}★ on this board earlier in this run. The map keeps ${prev}★.`)); }
   const row=el('div','shStars'); at.forEach((x,k)=>{ const b=el('div','shStar'+(y>=x?' got':'')); b.style.animationDelay=(.15+.18*k)+'s'; b.append(el('b',undefined,'★'.repeat(k+1)),el('span',undefined,`${x.toLocaleString()} pts`)); row.append(b); }); sh.append(row);
   const got=sortedEntries(hand).filter(([,v])=>v>0);
   if(got.length){ const hr=el('div','shHaul'); hr.setAttribute('aria-label','Haul from this run'); got.forEach(([k,v])=>{ const c=el('span'); c.title=DROPS[k][0]; c.append(iconOf(ITEM[k]),document.createTextNode(` ${v}`)); hr.append(c); }); sh.append(hr); }
@@ -1464,6 +1472,7 @@ function drawCartArt(on){ const b=$('cartBar'); if(!b) return;
   pixRows(b.querySelector('.door'),DOOR_ROWS,{t:'#5a3d20',T:'#8a6234',p:'#5a3d20',P:'#8a6234',o:on?'#ffcf5c':'#141416'}); }
 drawCartArt(false);
 $('cartBar').onclick=async()=>{ const k=starsNow(); if(k<1||busy||over||reached||screen!=='game'||uiOpen()) return;
+  if(shown!==score) return;   // v2.9.2 (B-12): the cart can't be tapped while it is still rolling to the new score
   A.track('cart_tap',{idx:level-1,stars:k,score,moves});
   if(await ask('Done here?',`Leave with ${k} star${k>1?'s':''} and everything you mined on this board.`,'Yes','No')&&starsNow()>=1&&!busy&&!over&&!reached) reachTarget(); };
 function buildStash(){
@@ -1699,7 +1708,7 @@ const INFO_TABS={
     b.append(infoEl('h3','HAULING ORE'),infoList([`Ore, gems and wood you mine on a board show up in the stash strip as a green +number. That's your haul for this board.`,`Leave the board with a star and the haul joins your stash, which you keep for the whole descent. The longer you mine, the more you haul, and the more a cave-in costs.`,`Replaying a board you've already cleared gives ore too, so you can always gather more.`]));
     b.append(infoEl('h3','SCORING'),infoList([`Every block you place scores ${SCORE.block}. Every line you clear scores ${SCORE.line}. Mining ore and gems gives resources, not points.`,`Clear 2, 3 or 4 lines with one piece for a Double (+${SCORE.combo[2]}), Triple (+${SCORE.combo[3]}) or Quad (+${SCORE.combo[4]}).`,`Streak: clear on back-to-back placements. Each clear in the streak after the first adds +${SCORE.streakStep}, up to +${SCORE.streakMax}. One placement that clears nothing dims the streak: clear on the next one to keep it going. Two in a row end it.`,`All Clear (an empty board) adds +${SCORE.allClear}, and the next pieces are big easy ones.`,`Star Drill +${SCORE.special.drill}, Blast Charge +${SCORE.special.blast}, Sledgehammer +${SCORE.special.sledgehammer}. A Potion of Luck costs ${-SCORE.special.luck} points and a Potion of Protection ${-SCORE.special.rescue}.`,`"Perfect!" means yours was the only placement that kept the whole tray playable; "Great fit!" one of two or three.`,`If you cave in twice on the same board, the dealer starts to go easier on you.`]));
     b.append(infoEl('h3','STARS'),infoList([`Your points on a board earn 0 to 3 stars; the star lines rise layer by layer. The three stars next to the score fill up as you score and light up as you earn them.`,`Deep down, stars come from combos and streaks: the blocks and the lines you have to clear anyway are not enough.`,`At the end, CONTINUE banks your haul and stars, or RETRY plays the board again. A retry starts over: that board's haul is not kept. Stars you already earned on a board stay.`,`Each star after the first adds bonus points to your day.`]));
-    b.append(infoEl('h3','HINT AND DAILY BOOSTS'),infoList([`Hint, in the top bar, spends ${HINT_COST} coal to show a good move. It asks first.`,`On Fridays, Saturdays and Sundays, and on some holidays, there's a daily boost: a little more ore, gems, Fossils or Buried Treasure. It's shown on the home screen and on each board's card.`]));
+    b.append(infoEl('h3','HINT AND DAILY BOOSTS'),infoList([`Hint, in the top bar, spends coal to show a good move: 5, then 10, then 20 coal on the same board, three at most. It asks first.`,`On Fridays, Saturdays and Sundays, and on some holidays, there's a daily boost: a little more ore, gems, Fossils or Buried Treasure. It's shown on the home screen and on each board's card.`]));
     b.append(infoEl('h3','HOW TO GET BETTER'),infoList([`Look at all three pieces before you place any. Plan the order.`,`Keep one row and one column mostly open so long bars still fit.`,`Avoid sealing off single empty cells or tiny pockets; they can only be filled by a matching piece, if one ever comes.`,`Build rows and columns up to one piece away from full, then finish several at once for a combo.`,`Gold glow under your piece means the drop will clear a line.`,`Save your belt for tight spots, not to pad your score.`]));
     b.append(infoEl('h3','EVERY DAY COUNTS'),infoList([`Clear at least one board each day (Pacific time) to keep your depth.`,`Miss a whole day and the cave settles: you drop back to your layer's camp (its first board, once you've cleared it). Your tools and stash are always kept.`,`Each day also brings a new twist.`]));
   },
@@ -1857,7 +1866,7 @@ function checkDay(){
   }
   { const m=modifierFor(today); if(m) life.twists[m.id]=true; }   // v2.9.0: most days have no boost
 }
-function saveBoard(){ if(!pieces) return; lsSet(K_BOARD,{seed:dayState.seed,day:dayState.day,idx:level-1,practice,reached,reachScore,clearBonus,decided,grid,pieces,nextPiece,score,combo,streakDim,sinceClear,collected,hand,since,bigNext,moves,over,undo,dealt,dealtN,dodgeUsed,diff:curDiff}); saveProfile(); }
+function saveBoard(){ if(!pieces) return; lsSet(K_BOARD,{seed:dayState.seed,day:dayState.day,idx:level-1,practice,reached,reachScore,clearBonus,decided,grid,pieces,nextPiece,score,combo,streakDim,sinceClear,collected,hand,since,bigNext,moves,over,undo,dealt,dealtN,dodgeUsed,hintsUsed,diff:curDiff}); saveProfile(); }
 function clearBoardSave(){ lsDel(K_BOARD); }
 // a saved board is only trusted if it has the right shape; anything else (an old format, a damaged save) is discarded
 function validBoard(b){
@@ -1869,7 +1878,7 @@ const okMat=m=>MATS[m]?m:(m==='cinnabar'?'ruby':m==='jackhammer'?'sledgehammer':
 function restoreBoard(b){
   curDiff=b.diff||'casual'; level=b.idx+1; ({grid,pieces,score,combo,sinceClear,collected}=b); streakDim=!!b.streakDim; updateStreak(combo,false);
   grid=grid.map(row=>row.map(m=>m&&okMat(m))); pieces=pieces.map(p=>p&&{...p,mats:p.mats.map(okMat)});
-  hand=b.hand||{}; practice=!!b.practice; reached=!!b.reached; reachScore=b.reachScore||0; clearBonus=b.clearBonus||0; decided=b.decided!==false; clearHint(); since=b.since||{}; bigNext=+b.bigNext||0; moves=b.moves||0; over=!!b.over; undo=b.undo||null; dealt=b.dealt||{}; dealtN=b.dealtN||0; dodgeUsed=!!b.dodgeUsed; caveSettled=true; nextPiece=b.nextPiece?{...b.nextPiece,mats:b.nextPiece.mats.map(okMat)}:null; if(!nextPiece&&!over&&!reached) nextPiece=dealOne();   // a pre-2.3.0 save gets its next piece now
+  hand=b.hand||{}; practice=!!b.practice; reached=!!b.reached; reachScore=b.reachScore||0; clearBonus=b.clearBonus||0; decided=b.decided!==false; clearHint(); since=b.since||{}; bigNext=+b.bigNext||0; moves=b.moves||0; over=!!b.over; undo=b.undo||null; dealt=b.dealt||{}; dealtN=b.dealtN||0; dodgeUsed=!!b.dodgeUsed; hintsUsed=+b.hintsUsed||0; caveSettled=true; nextPiece=b.nextPiece?{...b.nextPiece,mats:b.nextPiece.mats.map(okMat)}:null; if(!nextPiece&&!over&&!reached) nextPiece=dealOne();   // a pre-2.3.0 save gets its next piece now
   shownCol={...collected}; shown=score; busy=false;
   $('over').hidden=true; buildGoals(); updateHUD(); updateStash(); renderDock(); drawTray();
   updateLuckUI(); renderDock(); updateComboMeter(); if(reached&&!decided){ busy=true; setTimeout(()=>{ if(reached&&!decided&&screen==='game') showResult(); },500); }
@@ -1945,7 +1954,7 @@ function nextToolsText(){ const t=tool(); if(t>=TOOLS.length-1) return depthText
   return `${TOOLS[t+1].name} · `+Object.entries(c).map(([k,v])=>`${DROPS[k][0].toLowerCase()} ${Math.min(bank[k]||0,v)}/${v}`).join(' · '); }
 // ---- toast ----
 let toastTimer=0;
-function toast(msg,ms=2200){ let t=document.getElementById('toast'); if(!t){ t=document.createElement('div'); t.id='toast'; t.style.cssText='position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 30px);transform:translateX(-50%);z-index:60;background:#2f3136;color:#fff;box-shadow:inset 0 0 0 1px #ffcf5c;border-radius:10px;padding:10px 16px;font-size:15px;font-weight:600;max-width:90%;text-align:center;pointer-events:none'; document.body.append(t); }
+function toast(msg,ms=2200){ let t=document.getElementById('toast'); if(!t){ t=document.createElement('div'); t.id='toast'; t.style.cssText='position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 30px);transform:translateX(-50%);z-index:60;background:#2f3136;color:#fff;box-shadow:inset 0 0 0 1px #ffcf5c;border-radius:10px;padding:10px 16px;font-size:calc(15px * var(--ts));font-weight:600;max-width:90%;text-align:center;pointer-events:none'; document.body.append(t); }
   t.textContent=msg; t.hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ t.hidden=true; },ms); }
 
 // ---- settings screen ----
@@ -2013,20 +2022,21 @@ let profTab='Stats';
 function logIcon(e){
   const cv=document.createElement('canvas'); cv.width=cv.height=T; const x=cv.getContext('2d'); x.imageSmoothingEnabled=false;
   let src=null;
-  if(e.kind==='mined') src=ITEM[e.id]||TEX[e.id]; else if(e.kind==='seen') src=SPR[e.id]||TEX[e.id]; else if(e.kind==='zones') src=TEX[ZONES[+e.id].rock==='stone'&&+e.id===0?'grass':ZONES[+e.id].rock];
-  else { const m={gold_rush:'gold',ruby_rain:'ruby',gem_fever:'emerald',coal_seams:'coal'}[e.id]; src=m?ITEM[m]:TEX.treasure; }
+  if(e.kind==='mined') src=ITEM[e.id]||TEX[e.id]; else if(e.kind==='seen'||e.kind==='start') src=SPR[e.id]||TEX[e.id]||ITEM[e.id];   // tools live in ITEM (v2.9.1, B-11)
+  else if(e.kind==='zones') src=ZONES[+e.id].core?ITEM.portal:TEX[+e.id===0?'grass':ZONES[+e.id].rock];
+  else { const m={ore_10:ITEM.copper,ore_20:ITEM.gold,gem_5:ITEM.emerald,gem_10:ITEM.diamond,find_5:SPR.fossil,find_10:SPR.treasure}[e.id]; src=m||TEX.treasure; }   // one icon per boost (v2.9.1)
   if(src) x.drawImage(src,0,0); return cv;
 }
 const PROF_TABS={
   Stats(b){
     const pts=life.points, rk=Meta.rankFor(pts), st=Meta.streakNow(life,dayState.day), deep=Math.max(life.records.deepest||0,curZone());
-    const box=infoEl('div',undefined,'rankBox'); box.append(infoEl('div','Your rank','label'),infoEl('div',rk.name,'rankName'));
-    const bar=infoEl('div',undefined,'rankBar'); bar.append(infoEl('div')); bar.firstChild.style.width=Math.round(rk.progress*100)+'%'; box.append(bar,infoEl('div',rk.next?`${rk.toNext.toLocaleString()} points to ${rk.next}`:'The highest rank',"fine")); b.append(box);
+    // v2.9.1 (I-53): the rank box is hidden until miner levels (F-29) give rank a meaning; Meta.rankFor stays for the share text
+    void rk;
     const hero=infoEl('div',undefined,'heroTiles');
     [[pts.toLocaleString(),'Points'],[life.stars.toLocaleString(),'Stars'],[st,'Day streak']].forEach(([v,k])=>{ const d=infoEl('div',undefined,'stat'); d.append(infoEl('b',String(v)),infoEl('span',k)); hero.append(d); });
     b.append(hero,infoEl('h3','RECORDS'));
     const recs=infoEl('div',undefined,'recs'), icon=src=>{ const cv=document.createElement('canvas'); cv.width=cv.height=T; const x=cv.getContext('2d'); x.imageSmoothingEnabled=false; if(src) x.drawImage(src,0,0); return cv; };
-    [[TEX[ZONES[deep].rock==='dirt'?'grass':ZONES[deep].rock],'Deepest layer',ZONES[deep].name.replace('The ','')],[ITEM.gold,'Best board',life.records.bestBoard.toLocaleString()],
+    [[ZONES[deep].core?ITEM.portal:TEX[ZONES[deep].rock==='dirt'?'grass':ZONES[deep].rock],'Deepest layer',ZONES[deep].name.replace('The ','')],[ITEM.gold,'Best board',life.records.bestBoard.toLocaleString()],
      [ITEM.coal,'Longest streak of clears',life.records.bestCombo],[ITEM.iron,'Most lines at once',life.records.bestLines],[ITEM.wood,'Boards cleared',life.cleared.toLocaleString()],
      [ITEM.prismore,'Core fragments',fragments]].forEach(([src,k,v])=>{ const r=infoEl('div',undefined,'recRow'); r.append(icon(src),infoEl('span',k),infoEl('b',String(v))); recs.append(r); });
     b.append(recs);
@@ -2071,7 +2081,15 @@ const curZone=()=>Math.min(ZONES.length-1,zoneOfIdx(Math.min(frontier(),BOARD_CO
 const runStarMax=()=>ZONES.reduce((a,z)=>a+(z.core?0:3*z.boards),0);
 const runStarGot=()=>Object.values(dayState.stars||{}).reduce((a,b)=>a+(b||0),0);
 const plStats=()=>dayState.pl||(dayState.pl={t:0,z:{},b:{}});
-function updateMapDate(){ if(!dayState) return; $('runStars').innerHTML=`${runStarGot()}<small>/${runStarMax()}</small>`; $('runPlaced').textContent=plStats().t.toLocaleString();
+// v2.9.2 (I-49): the line under the map's belt says whether today is played, or what a missed day would cost, so the drop back
+// to camp never feels random. It uses the same rule as settle(): no clear yesterday or today drops the boards after the layer's camp.
+function updateMapToday(){ const el=$('mapToday'); if(!el||!dayState) return;
+  const f=frontier(); let risk=0, back='';
+  if(f<BOARD_COUNT){ const z=zoneOfIdx(f), camp=z>0&&dayState.done.includes(Z_START[z]), start=Z_START[z]+(camp?1:0); risk=dayState.done.filter(i=>i>=start).length; back=boardTag(start); }
+  const played=dayState.lastClear===dayState.day;
+  el.classList.toggle('warn',!played&&risk>0); el.hidden=!played&&!risk;
+  el.textContent=played?'✓ Played today. Your place is safe until tomorrow.':`Clear a board today or drop back to ${back} · ${Meta.resetText()} left`; }
+function updateMapDate(){ if(!dayState) return; updateMapToday(); $('runStars').innerHTML=`${runStarGot()}<small>/${runStarMax()}</small>`; $('runPlaced').textContent=plStats().t.toLocaleString();
   $('runStats').setAttribute('aria-label',`This run: ${runStarGot()} of ${runStarMax()} stars, ${plStats().t} placements`); }
 // tap a layer's placements chip: its boards, with stars and placements for the cleared ones
 function openZonePop(zi,chip){
@@ -2106,7 +2124,7 @@ function buildMap(){
     if(i===CORE_IDX){ b.classList.add('core'); if(!isDone(i)&&current<0) current=i; b.append(iconOf(ITEM.portal)); b.setAttribute('aria-label','The Ancient Core'); }
     else if(gateWaiting(i)){ b.classList.add('gate'); if(current<0) current=i; b.append(iconOf(ITEM['tool_'+TOOLS[toolNeeded(zoneOfIdx(i))].id])); b.setAttribute('aria-label',`Board ${boardLabel(i)}, needs ${TOOLS[toolNeeded(zoneOfIdx(i))].name}`); }
     else { const done=isDone(i); if(done) b.classList.add('done'); else { b.classList.add('open'); if(current<0) current=i; }
-      const st=(dayState.stars||{})[i]||0; b.innerHTML=done?`<span>✓</span>${st?`<i class="nstars">${'★'.repeat(st)}<em>${'★'.repeat(3-st)}</em></i>`:''}`:`<span>${jOfIdx(i)+1}</span>`; b.setAttribute('aria-label',`Board ${boardLabel(i)}${done?`, mined${st?`, ${st} star${st>1?'s':''}`:''}`:''}`); }
+      const st=(dayState.stars||{})[i]||0; b.innerHTML=done?`<span class="tag">${boardTag(i)}</span>${st?`<i class="nstars">${'★'.repeat(st)}<em>${'★'.repeat(3-st)}</em></i>`:''}`:`<span class="tag">${boardTag(i)}</span>`; b.setAttribute('aria-label',`Board ${boardTag(i)}${done?`, mined${st?`, ${st} star${st>1?'s':''}`:''}`:''}`); }
     if(sb&&sb.idx===i) b.classList.add('progress'); if(opts_.justDone===i) b.classList.add('fresh');
     b.onclick=()=>openCard(i); nodes.append(b); };
   let opts_=buildMap.opts||{};
@@ -2199,6 +2217,7 @@ function openCard(i){
 // ---------- the Ancient Core: one piece, one spot, then the record and the credits ----------
 let coreRaf=0, coreDone=false, coreT0=0, coreFlash=0;
 function openCore(){
+  { const cz=ZONES.length-1; life.zones[cz]=true; life.records.deepest=Math.max(life.records.deepest||0,cz); } saveLife();   // v2.9.1 (B-11): reaching the Core counts
   A.track('core_open',{days:dayState.days,score:runScore()}); coreDone=false; coreFlash=0; coreT0=performance.now();
   $('core').hidden=false; $('coreTally').hidden=true; $('credits').hidden=true; $('coreHint').hidden=false;
   const pc=$('corePiece'); pc.hidden=false; pc.style.transform=''; pc.classList.remove('drag');
@@ -2267,16 +2286,16 @@ $('ctShare').onclick=async()=>{ const t=runTally(), name=($('ctName').value||'Mi
   try{ const blob=await new Promise(r=>tallyCard().toBlob(r,'image/png')); const file=new File([blob],'deepcore-core.png',{type:'image/png'});
     if(navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file],text}); return; }
     if(navigator.share){ await navigator.share({text,url:location.origin+location.pathname}); return; } await navigator.clipboard.writeText(text); toast('Copied to the clipboard'); }catch(e){} };
-$('ctSave').onclick=()=>{ tallyCard().toBlob(b=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='deepcore-core.png'; document.body.append(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },2000); },'image/png'); A.track('core_download',{}); };
+// v2.9.1 (I-51): the end card's Download button is gone; Share still sends the card image where the phone supports it
 $('ctDone').onclick=()=>{ const t=runTally(), name=($('ctName').value||'Miner').trim().slice(0,18); life.lastName=name;
   life.hall=[...(life.hall||[]),{name,total:t.total,days:t.days,stars:t.stars,day:dayState.day}].slice(-10); life.runs=(life.runs||0)+1; life.records.bestRun=Math.max(life.records.bestRun||0,t.total);
   saveLife(); $('coreTally').hidden=true; rollCredits(); };
 function rollCredits(){
-  const legendary=fragments+1>=5, roll=$('credRoll');
+  const legendary=fragments+1>=5, roll=$('credRoll'), t=runTally();   // v2.9.1 (B-16): this run and all time, each labelled
   roll.innerHTML=`<div class="big">Deepcore Blocks</div><p>You reached the Ancient Core.</p>
     <h3>Design and direction</h3><p>Taylor's Bookshelf</p><h3>Built with</h3><p>Claude</p>
     <h3>Type</h3><p>Jersey 10 · Chakra Petch<br>(SIL Open Font License)</p><h3>Pixel art</h3><p>The Deepcore design system,<br>plus a few hand-placed pixels</p>
-    <h3>Every block you placed</h3><p>${(life.cleared||0).toLocaleString()} boards cleared · ${(life.stars||0).toLocaleString()} stars</p>
+    <h3>This run</h3><p>${Object.keys(dayState.stars||{}).length} boards · ${t.stars.toLocaleString()} stars · ${t.days} day${t.days>1?'s':''}</p><h3>All your digging</h3><p>${(life.cleared||0).toLocaleString()} boards cleared · ${(life.stars||0).toLocaleString()} stars, replays included</p>
     <h3>${legendary?'Legendary':'A fragment of the Core'}</h3><p>${legendary?'Five times to the heart of the world. There is nothing deeper.':'Something small comes back up with you.'}</p>
     <div class="big" style="margin-top:40px">${'✦'.repeat(Math.min(5,fragments+1))}</div><p style="margin-top:30px">Thanks for digging.</p>`;
   $('credits').hidden=false; const t0=performance.now(), dur=REDUCE?8000:60000;
@@ -2376,24 +2395,28 @@ function outlinePiece(ctx,p,ox,oy,pitch,size,color,w){
 }
 // ---- hint: costs a little coal, glows the tray piece and outlines where the best placement is for a few seconds ----
 let hintFlying=false;
-const HINT_COST=5;   // v2.1.1: was 3; coal piles up over a descent
+// v2.9.2 (I-47): hints climb in price on the same board, 5, 10, then 20 coal, and stop after three (was 5 coal each, unlimited)
+const HINT_COSTS=[5,10,20]; let hintsUsed=0;
+const hintCost=()=>HINT_COSTS[hintsUsed]||0, hintsLeft=()=>HINT_COSTS.length-hintsUsed;
 function clearHint(){ hintInfo=null; if(typeof slots!=='undefined') slots.forEach(sl=>sl.classList.remove('hint')); }
-function updateHintBtn(){ const b=$('hintBtn'); if(!b) return; const off=!((bank.coal||0)>=HINT_COST&&!busy&&!over&&!hintFlying&&pieces&&pieces.some(Boolean)&&screen==='game'); if(b.disabled!==off) b.disabled=off; b.title=`Hint (${HINT_COST} coal)`; }
+function updateHintBtn(){ const b=$('hintBtn'); if(!b) return; const HINT_COST=hintCost(); const off=!(hintsLeft()>0&&(bank.coal||0)>=HINT_COST&&!busy&&!over&&!hintFlying&&pieces&&pieces.some(Boolean)&&screen==='game'); if(b.disabled!==off) b.disabled=off; b.title=hintsLeft()>0?`Hint (${HINT_COST} coal, ${hintsLeft()} left on this board)`:'No hints left on this board'; b.setAttribute('aria-label',hintsLeft()>0?`Hint: show a good move for ${HINT_COST} coal`:'No hints left on this board'); }
 // asks first; on yes the coal flies from the stash into the Hint button, and the hint shows when the last piece lands
 async function askHint(){
   if(busy||over||uiOpen()||!pieces||hintFlying) return;
+  if(hintsLeft()<=0){ showCombo('No hints left on this board'); return; }
+  const HINT_COST=hintCost();
   if((bank.coal||0)<HINT_COST){ showCombo(`A hint costs ${HINT_COST} coal`); return; }
-  if(!await ask(`Use a hint for ${HINT_COST} coal?`,`You have ${bank.coal} coal. The best move glows for a few seconds.`,'Use hint')) return;
+  if(!await ask(`Use a hint for ${HINT_COST} coal?`,`You have ${bank.coal} coal. The best move glows for a few seconds. ${hintsLeft()===1?'This is your last hint on this board.':`Hints on this board cost 5, 10, then 20 coal.`}`,'Use hint')) return;
   if(busy||over||uiOpen()||!pieces||(bank.coal||0)<HINT_COST) return;
-  hintFlying=true; bank.coal-=HINT_COST; saveProfile();
+  hintFlying=true; bank.coal-=HINT_COST; hintsUsed++; saveProfile();
   const from=document.querySelector('.si[data-k="coal"] canvas')||$('stash'), to=$('hintBtn');
-  let landed=0; const n=REDUCE?1:HINT_COST;
+  let landed=0; const n=REDUCE?1:Math.min(HINT_COST,10);
   for(let q=0;q<n;q++) flyBetween(ITEM.coal,from,to,q*70,'#ffd27a',()=>{ if(q===0) updateStash(['coal']); SND.coal(q);
     if(++landed===n){ hintFlying=false; to.classList.remove('gulp'); void to.offsetWidth; to.classList.add('gulp'); useHint(true); } });
 }
 function useHint(paid){
   if(busy||over||(!paid&&uiOpen())||!pieces) return;
-  if(!paid){ if((bank.coal||0)<HINT_COST){ showCombo(`A hint costs ${HINT_COST} coal`); return; } bank.coal-=HINT_COST; updateStash(['coal']); saveProfile(); }
+  if(!paid){ const HINT_COST=hintCost(); if(hintsLeft()<=0||(bank.coal||0)<HINT_COST){ showCombo(hintsLeft()>0?`A hint costs ${HINT_COST} coal`:'No hints left on this board'); return; } bank.coal-=HINT_COST; hintsUsed++; updateStash(['coal']); saveProfile(); }
   const [lo,hi]=occBits(grid), ranked=rankMoves(lo,hi,pieces.map(p=>p?SHAPES[p.sid]:null)); if(!ranked.length) return;
   const best=ranked[0]; clearHint();
   hintInfo={i:best.i,r0:best.pl.r0,c0:best.pl.c0}; slots[best.i].classList.add('hint'); updateHintBtn(); SND.hint();
@@ -2435,6 +2458,13 @@ function coachEnd(skipped){ $('coach').hidden=true; const fn=coachEndFn; coachSt
 $('coachNext').onclick=()=>{ if(!coachSteps) return; const st=coachSteps[coachI]; if(st.after) st.after(); coachI++; if(coachI>=coachSteps.length) coachEnd(false); else coachShow(); };
 $('coachSkip').onclick=async()=>{ if(!coachSteps) return; if(await ask('Skip the tutorial?','You can replay it any time from the Guide or Settings.','Skip','Keep going')){ const st=coachSteps[coachI]; if(st.after) st.after(); coachEnd(true); } };
 window.addEventListener('resize',()=>{ if(coachSteps) coachShow(); });
+// v2.9.2 (B-13): after the phone turns sideways and back, iOS can leave the page scrolled and the map's layers laid out for the old size,
+// so taps land far from where the finger is. Once the turn settles: scroll the page back to the top, rebuild the map at the new size
+// and its scrolling layer (keeping the scroll position), so what you see and where you tap line up again.
+{ let rt=0; const refit=()=>{ clearTimeout(rt); rt=setTimeout(()=>{ window.scrollTo(0,0); if(screen!=='map'||!MAP) return;
+    const sc=$('mapScroll'), f=sc.scrollHeight?sc.scrollTop/sc.scrollHeight:0; buildMap();
+    sc.style.overflowY='hidden'; void sc.offsetHeight; requestAnimationFrame(()=>{ sc.style.overflowY=''; void sc.offsetHeight; sc.scrollTop=f*sc.scrollHeight; }); },250); };
+  window.addEventListener('resize',refit); window.addEventListener('orientationchange',refit); }
 const tourPending=()=>!life.tutorialDone&&!(life.tips||{}).tour;
 function mapTour(){
   if(screen!=='map'||coachSteps) return; if(!life.tips) life.tips={}; life.tips.tour=1; life.tips.map=1; life.tips.craft=1; saveLife(); A.track('tutorial_start',{part:'map'});

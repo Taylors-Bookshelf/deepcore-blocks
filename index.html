@@ -95,6 +95,7 @@
     <button id="mapSound" class="ibtn soundBtn" type="button" aria-label="Sound"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="wv" d="M16 9.5a3.5 3.5 0 0 1 0 5M18.5 7a7 7 0 0 1 0 10"/><path class="mx" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg></button>
   </div>
   <div class="mapband"><div class="belt map" id="mapBelt"><div id="mapBeltSlots" class="bslots" aria-label="Your belt"></div><button id="mapCraft" class="go" type="button"><canvas id="craftIcon" width="16" height="16"></canvas>Craft</button></div></div>
+  <div id="mapToday" class="maptoday" hidden></div>
   <div id="mapScroll"><div id="mapInner"><canvas id="mapCanvas"></canvas><div id="mapNodes"></div></div></div>
   <div id="nodeCard" hidden>
     <div class="nctop"><span class="label" id="ncZone"></span><button id="ncClose" type="button" aria-label="Close">✕</button></div>
@@ -125,7 +126,7 @@
       <div class="ctTotal"><span>Final score</span><b id="ctTotal"></b></div>
       <label class="label" for="ctName">Your name for the record</label>
       <input id="ctName" maxlength="18" autocomplete="off" placeholder="Miner">
-      <div class="row"><button id="ctShare" type="button">Share</button><button id="ctSave" type="button">Download</button></div>
+      <div class="row"><button id="ctShare" type="button">Share</button></div>
       <button id="ctDone" class="go" type="button">Continue</button>
     </div>
   </div>
@@ -144,6 +145,7 @@
     <button id="contBtn" class="go" type="button" hidden></button>
     <button id="mapBtn" class="go" type="button">Play</button>
     <p class="note" id="homeTwist"></p>
+    <button id="tutorBtn" class="homeTutor" type="button">Tutorial</button>
     <p class="note" id="hcWarn" hidden>Clear a board today to keep your depth.</p>
     <div id="installHint" hidden><p id="installText"></p><div class="row"><button id="installBtn" class="go" type="button" hidden>Install</button><button id="installClose" type="button">Not now</button></div></div>
   </div>
@@ -156,7 +158,7 @@
     <label class="tog" id="privacyRow" hidden><span>Share anonymous play data</span><input id="shareData" type="checkbox" role="switch" checked></label>
     <div class="row"><button id="backupBtn" type="button">Back up</button><button id="restoreBtn" type="button">Restore</button></div>
     <div id="codeBox" hidden><textarea id="codeText" rows="3" spellcheck="false" aria-label="Save code"></textarea><div class="row"><button id="codeCopy" type="button">Copy code</button><button id="codeApply" class="go" type="button" hidden>Restore</button></div><p class="fine" id="codeMsg"></p></div>
-    <div class="row"><button id="tutorBtn" type="button">Replay tutorial</button><button id="feedbackBtn" type="button">Feedback</button></div>
+    <div class="row"><button id="feedbackBtn" type="button">Feedback</button></div>
     <button id="resetBtn" type="button" class="danger">Reset all progress</button>
     <p class="fine" id="verLine"></p>
   </div>

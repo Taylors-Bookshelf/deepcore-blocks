@@ -3,7 +3,7 @@
 import { spawn } from 'node:child_process';
 import { cpus } from 'node:os';
 // slowest first, so the long ones overlap the short ones
-const SUITES = ['rules', 'r6', 'r1', 'r4', 'soak', 'r5', 'r3', 'dock', 'smoke', 'gates', 'flow', 'spec', 'touch', 'playtest2', 'r7', 'r8', 'r9', 'r10', 'maps'];
+const SUITES = ['rules', 'r6', 'r1', 'r4', 'soak', 'r5', 'r3', 'dock', 'smoke', 'gates', 'flow', 'spec', 'touch', 'playtest2', 'r7', 'r8', 'r9', 'r10', 'r11', 'a11y', 'maps'];
 const argv = process.argv.slice(2); const ji = argv.indexOf('--jobs');
 const JOBS = ji >= 0 ? +argv[ji + 1] : Math.max(2, Math.min(6, cpus().length - 2));
 const pick = argv.filter((a, i) => !a.startsWith('--') && argv[i - 1] !== '--jobs');
