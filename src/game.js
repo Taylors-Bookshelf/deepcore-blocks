@@ -1012,7 +1012,7 @@ function startBoard(idx){
   updateStash(); $('over').hidden=true; buildGoals(); updateHUD(); dealSet(); drawTray(); showBanner(); saveBoard();
   if(tut.active) setTimeout(()=>{ if(tut.active&&screen==='game') tutorStart(); },2300);
   boardT0=lastAct=performance.now(); A.setBoard(boardLabel(idx));
-  const d=levelDef(level); A.track('board_start',{idx,label:boardLabel(idx),zone:d.zoneName,tier:tierOf(d.d),target:d.target,practice,mod:modifierFor(dayState.day).id,attempt:att[idx],starter_blocks:d.pre});
+  const d=levelDef(level); A.track('board_start',{idx,label:boardLabel(idx),zone:d.zoneName,tier:tierOf(d.d),target:d.target,practice,mod:(modifierFor(dayState.day)||{}).id||null,   /* v2.9.1 hotfix: most days have no boost since 2.9.0 */attempt:att[idx],starter_blocks:d.pre});
 }
 
 function linesNow(){ const rows=[],cols=[]; for(let i=0;i<N;i++){ if(grid[i].every(Boolean)) rows.push(i); if(grid.every(row=>row[i])) cols.push(i);} return {rows,cols}; }
@@ -1827,7 +1827,9 @@ let noSave=false;   // set just before a reload that has rewritten the saved dat
 const lsSet=(k,v)=>{ if(noSave) return; try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
 const lsDel=k=>{ try{ localStorage.removeItem(k); }catch(e){} };
 function saveProfile(){ lsSet(K_PROFILE,{bank,belt:specials,fragments,luck,luckLive,prot,protLive}); saveLife(); }
-function loadProfile(){ const p=lsGet(K_PROFILE); if(p){ bank=p.bank||{}; specials=Array.isArray(p.belt)?p.belt.slice():Array.isArray(p.specials)?p.specials.filter(m=>RECIPES.some(r=>r.m===m)).sort((x,y)=>(kindOf(x)==='equip'?0:1)-(kindOf(y)==='equip'?0:1)):[];   // before 2.4.0: a list, equipment first fragments=Math.min(5,p.fragments||0); luck=p.luck||0; luckLive=!!p.luckLive; prot=p.prot||0; protLive=!!p.protLive;
+function loadProfile(){ const p=lsGet(K_PROFILE); if(p){ bank=p.bank||{}; specials=Array.isArray(p.belt)?p.belt.slice():Array.isArray(p.specials)?p.specials.filter(m=>RECIPES.some(r=>r.m===m)).sort((x,y)=>(kindOf(x)==='equip'?0:1)-(kindOf(y)==='equip'?0:1)):[];
+    // (above: before 2.4.0 the belt was a list, equipment first) v2.9.1 (B-10): this line was swallowed by that comment from 2.4.0 to 2.9.0
+    fragments=Math.min(5,p.fragments||0); luck=p.luck||0; luckLive=!!p.luckLive; prot=p.prot||0; protLive=!!p.protLive;
     // lapis and quartz were retired: swap any held for copper so nothing is lost
     ['lapis','quartz'].forEach(k=>{ if(bank[k]){ bank.copper=(bank.copper||0)+bank[k]; } delete bank[k]; }); } }
 function saveDay(){ lsSet(K_DAY,dayState); }

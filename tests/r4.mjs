@@ -141,11 +141,14 @@ check(await T(() => window.DCA.buffer.some(e => e.event === 'hint_used')), 'anal
 
 // 9. the daily boost shows on the home screen on a boost day, and nothing shows on a day without one (v2.9.0)
 await T(() => window.__deepcore.test.openMap());
-await tt('previewDay', '2026-11-20'); await T(() => { window.__deepcore.test.fillHome(); window.__deepcore.test.showHome(); }); await page.waitForTimeout(300);
+// showHome re-reads today's date, so the preview day is set after it (the check passed only on real boost days before 2.9.1)
+await T(() => window.__deepcore.test.showHome()); await tt('previewDay', '2026-11-20'); await T(() => window.__deepcore.test.fillHome()); await page.waitForTimeout(300);
 const boostName = D.modifierFor('2026-11-20').name;
 check(await T((n) => { const t = document.getElementById('homeTwist'); return !t.hidden && t.textContent.includes(n); }, boostName), `the home screen shows a Friday's boost (${boostName})`);
 await tt('previewDay', '2026-11-24'); await T(() => window.__deepcore.test.fillHome()); await page.waitForTimeout(200);
 check(await T(() => document.getElementById('homeTwist').hidden), 'and shows nothing on a Tuesday');
+// 2.9.1 hotfix: starting a board on a day without a boost used to throw (2.9.0 shipped on a Friday, so no test ran on such a day)
+check(await T(() => { try { window.__deepcore.test.previewDay('2026-11-24'); window.__deepcore.test.start(0); return !!window.__deepcore.test.state().pieces; } catch (e) { return false; } }), 'a board starts on a day without a boost');
 check(errors.filter(e => !/404/.test(e)).length === 0, 'no page errors ' + errors.join(' | '));
 await close();
 console.log(fails.length ? `R4 TESTS FAILED (${fails.length})` : 'R4 TESTS PASSED'); if (fails.length) process.exitCode = 1;
